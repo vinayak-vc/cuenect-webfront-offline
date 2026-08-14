@@ -10,7 +10,8 @@ import {
   MoveableAssetType,
   StaticStrings,
   VideoControl,
-  CameraOrthographic
+  CameraOrthographic,
+  User
 } from '../types/protocol';
 import { stageWebSocket } from '../services/websocket';
 import { StorageService, ConnectionConfig } from '../services/storage';
@@ -24,6 +25,7 @@ export interface ToastMessage {
 
 interface StageContextValue {
   connectionState: ConnectionState;
+  connectedUsers: User[];
   config: ConnectionConfig;
   connect: (config: ConnectionConfig) => void;
   disconnect: () => void;
@@ -85,6 +87,7 @@ const StageContext = createContext<StageContextValue | null>(null);
 
 export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [connectionState, setConnectionState] = useState<ConnectionState>('disconnected');
+  const [connectedUsers, setConnectedUsers] = useState<User[]>([]);
   const [config, setConfig] = useState<ConnectionConfig>(StorageService.getConnectionConfig());
   const [assets, setAssets] = useState<AssetInformation[]>([]);
   const [playlists, setPlaylists] = useState<string[]>(['All']);
@@ -146,6 +149,7 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const refreshAssets = useCallback(() => {
     if (connectionState === 'connected') {
       stageWebSocket.send(StaticStrings.ReqAssetSize);
+      stageWebSocket.send(StaticStrings.ReqAsset);
       addToast('Sync', 'Requesting assets from stage...', 'info');
     }
   }, [connectionState, addToast]);
@@ -155,7 +159,7 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const unsubState = stageWebSocket.onStateChange((state, detail) => {
       setConnectionState(state);
       if (state === 'connected') {
-        addToast('Connected', 'Connected to Hologram Stage', 'success');
+        addToast('Connected', 'Connected to Stage Server', 'success');
       } else if (state === 'error') {
         addToast('Connection Error', detail || 'Failed to connect to stage server', 'error');
       } else if (state === 'disconnected') {
@@ -163,19 +167,28 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
     });
 
+    const unsubUsers = stageWebSocket.onUsersChange((users) => {
+      setConnectedUsers(users);
+    });
+
     const unsubMsg = stageWebSocket.onMessage((command, rawMessage, parts) => {
-      if (command === StaticStrings.AppVersion) {
-        // AppVersion#<serverVersion>
+      if (command === '__STAGE_LOGGED_IN__') {
+        // Once logged into server.js, start handshake with Unity desktop app
+        stageWebSocket.send(`${StaticStrings.AppVersion}#1.0.0`);
+        // Proactively ask for asset size / assets in case desktop app is already connected
         stageWebSocket.send(StaticStrings.ReqAssetSize);
+        stageWebSocket.send(StaticStrings.ReqAsset);
+      } else if (command === StaticStrings.AppVersion) {
+        // Desktop app returned its AppVersion -> request assets
+        stageWebSocket.send(StaticStrings.ReqAssetSize);
+        stageWebSocket.send(StaticStrings.ReqAsset);
       } else if (command === StaticStrings.ReqAssetSize) {
         // Server confirms size, request actual payload
-        window.setTimeout(() => {
-          stageWebSocket.send(StaticStrings.ReqAsset);
-        }, 500);
+        stageWebSocket.send(StaticStrings.ReqAsset);
       } else if (command === StaticStrings.SendingAsset) {
         // SendingAssets#<json>
         if (parts.length > 1) {
-          const jsonPayload = rawMessage.substring(command.length + 1);
+          const jsonPayload = rawMessage.substring(command.length + 1).trim();
           try {
             const parsed: AssetInformationS = JSON.parse(jsonPayload);
             if (parsed.assetinformation && Array.isArray(parsed.assetinformation)) {
@@ -188,7 +201,7 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               addToast('Loaded', `Received ${parsed.assetinformation.length} stage assets`, 'success');
             }
           } catch (e) {
-            console.error('Error parsing assets JSON:', e);
+            console.error('Error parsing assets JSON:', e, 'Raw:', jsonPayload);
             addToast('Error', 'Malformed asset list from server', 'error');
           }
         }
@@ -196,7 +209,7 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         // ModelImageReceving#<assetId>#<base64>
         if (parts.length > 2) {
           const assetId = parts[1];
-          const base64 = parts[2];
+          const base64 = parts.slice(2).join('#'); // in case base64 contained '#'
           if (base64 && base64 !== '-1') {
             const imageSrc = base64.startsWith('data:') ? base64 : `data:image/png;base64,${base64}`;
             setThumbnails((prev) => ({ ...prev, [assetId]: imageSrc }));
@@ -207,6 +220,7 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     return () => {
       unsubState();
+      unsubUsers();
       unsubMsg();
     };
   }, [addToast]);
@@ -401,6 +415,7 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const value: StageContextValue = {
     connectionState,
+    connectedUsers,
     config,
     connect,
     disconnect,

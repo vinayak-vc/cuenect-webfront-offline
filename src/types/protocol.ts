@@ -81,3 +81,34 @@ export const StaticStrings = {
 } as const;
 
 export type ConnectionState = 'disconnected' | 'connecting' | 'connected' | 'error';
+
+export type SignalingType =
+  | 'connect'
+  | 'login'
+  | 'leave'
+  | 'message'
+  | 'users'
+  | 'newUser'
+  | 'file'
+  | 'error';
+
+export type MessengerType = 'client' | 'server';
+
+export interface User {
+  name: string;
+  id: number;
+  address?: string;
+}
+
+export interface WebMessage {
+  type: SignalingType;
+  success?: boolean;
+  messengertype?: MessengerType | string;
+  name?: string;
+  message?: string;
+  users?: User[];
+  chunkIndex?: number;
+  totalChunks?: number;
+  dataType?: DataType;
+  base64Data?: string;
+}

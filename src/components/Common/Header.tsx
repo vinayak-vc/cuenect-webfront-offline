@@ -1,6 +1,6 @@
 import React from 'react';
 import { useStage } from '../../context/StageContext';
-import { Box, RefreshCw, ListPlus } from 'lucide-react';
+import { Box, RefreshCw, ListPlus, Users } from 'lucide-react';
 
 interface HeaderProps {
   onOpenConnection: () => void;
@@ -11,12 +11,12 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenConnection,
   onOpenPlaylistMaker
 }) => {
-  const { connectionState, refreshAssets, selectedPlaylist, customPlaylistIds } = useStage();
+  const { connectionState, connectedUsers, refreshAssets, selectedPlaylist, customPlaylistIds } = useStage();
 
   const getStatusText = (): string => {
     switch (connectionState) {
       case 'connected':
-        return 'Connected';
+        return connectedUsers.length > 0 ? `Connected (${connectedUsers.length})` : 'Connected';
       case 'connecting':
         return 'Connecting...';
       case 'error':
@@ -45,6 +45,7 @@ export const Header: React.FC<HeaderProps> = ({
           title="Click to change connection settings"
         >
           <span className="status-dot" />
+          {connectedUsers.length > 0 && <Users size={12} style={{ marginRight: 2 }} />}
           <span>{getStatusText()}</span>
         </button>
 
