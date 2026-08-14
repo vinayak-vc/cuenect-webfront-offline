@@ -68,10 +68,17 @@ export interface ModelControl {
 
 export enum MoveableAssetType {
   Rotate = 0,
-  Pan = 1,
-  Spotlight = 2,
-  Magnifier = 3
+  Magnifier = 1,
+  Pan = 2,
+  Spotlight = 3
 }
+
+export const MovableModeActionNames: Record<MoveableAssetType, string> = {
+  [MoveableAssetType.Rotate]: 'rotate',
+  [MoveableAssetType.Magnifier]: 'magnifier',
+  [MoveableAssetType.Pan]: 'pan',
+  [MoveableAssetType.Spotlight]: 'spotlight'
+};
 
 export interface MovableActionEvent {
   action: string;

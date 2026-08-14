@@ -12,7 +12,8 @@ import {
   VideoControl,
   CameraOrthographic,
   User,
-  resolveCategory
+  resolveCategory,
+  MovableModeActionNames
 } from '../types/protocol';
 import { stageWebSocket } from '../services/websocket';
 import { StorageService, ConnectionConfig } from '../services/storage';
@@ -251,7 +252,12 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setIsControllerOpen(true);
     stageWebSocket.send(`${StaticStrings.LoadModel}#${asset.AssetID}`);
     addToast('Displaying', `Loaded "${asset.AssetName}" on stage`, 'info');
-    if (normalized.Category === DataType.Video) {
+    
+    if (normalized.Category === DataType.Model) {
+      setCurrentMovableMode(MoveableAssetType.Rotate);
+      const event: MovableActionEvent = { action: 'rotate' };
+      stageWebSocket.sendJson(StaticStrings.MovableActionEvent, event);
+    } else if (normalized.Category === DataType.Video) {
       setIsVideoPlaying(true);
     }
   }, [addToast]);
@@ -285,7 +291,8 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const setMovableMode = useCallback((mode: MoveableAssetType) => {
     setCurrentMovableMode(mode);
-    const event: MovableActionEvent = { action: mode.toString() };
+    const actionName = MovableModeActionNames[mode] || 'rotate';
+    const event: MovableActionEvent = { action: actionName };
     stageWebSocket.sendJson(StaticStrings.MovableActionEvent, event);
   }, []);
 
