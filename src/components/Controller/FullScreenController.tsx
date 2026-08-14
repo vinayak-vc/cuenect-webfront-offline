@@ -1,6 +1,6 @@
 import React from 'react';
 import { useStage } from '../../context/StageContext';
-import { DataType } from '../../types/protocol';
+import { DataType, resolveCategory } from '../../types/protocol';
 import { ModelControlPanel } from './ModelControlPanel';
 import { VideoControlPanel } from './VideoControlPanel';
 import { ArrowLeft, Box, Film, Image as ImageIcon, Power } from 'lucide-react';
@@ -17,9 +17,10 @@ export const FullScreenController: React.FC = () => {
   if (!isControllerOpen || !activeAsset) return null;
 
   const thumbUrl = thumbnails[activeAsset.AssetID];
+  const category = resolveCategory(activeAsset);
 
   const renderMediaTypeTag = () => {
-    switch (activeAsset.Category) {
+    switch (category) {
       case DataType.Model:
         return (
           <span className="category-badge model" style={{ position: 'static' }}>
@@ -39,6 +40,13 @@ export const FullScreenController: React.FC = () => {
           <span className="category-badge image" style={{ position: 'static' }}>
             <ImageIcon size={12} style={{ display: 'inline', marginRight: 4 }} />
             Image
+          </span>
+        );
+      default:
+        return (
+          <span className="category-badge model" style={{ position: 'static' }}>
+            <Box size={12} style={{ display: 'inline', marginRight: 4 }} />
+            3D Model
           </span>
         );
     }
@@ -99,9 +107,9 @@ export const FullScreenController: React.FC = () => {
         </div>
 
         {/* Dynamic Controls based on Media Type */}
-        {activeAsset.Category === DataType.Model && <ModelControlPanel />}
-        {activeAsset.Category === DataType.Video && <VideoControlPanel />}
-        {activeAsset.Category === DataType.Image && (
+        {category === DataType.Model && <ModelControlPanel />}
+        {category === DataType.Video && <VideoControlPanel />}
+        {category === DataType.Image && (
           <div style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '24px 0' }}>
             Image displayed on Holo Stage
           </div>

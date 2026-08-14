@@ -11,7 +11,8 @@ import {
   StaticStrings,
   VideoControl,
   CameraOrthographic,
-  User
+  User,
+  resolveCategory
 } from '../types/protocol';
 import { stageWebSocket } from '../services/websocket';
 import { StorageService, ConnectionConfig } from '../services/storage';
@@ -203,13 +204,17 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           try {
             const parsed: AssetInformationS = JSON.parse(jsonPayload);
             if (parsed.assetinformation && Array.isArray(parsed.assetinformation)) {
-              setAssets(parsed.assetinformation);
+              const normalizedAssets: AssetInformation[] = parsed.assetinformation.map((item) => ({
+                ...item,
+                Category: resolveCategory(item)
+              }));
+              setAssets(normalizedAssets);
               // Extract unique playlist names
               const names = Array.from(
-                new Set(parsed.assetinformation.map((a) => a.PlaylistName).filter(Boolean))
+                new Set(normalizedAssets.map((a) => a.PlaylistName).filter(Boolean))
               );
               setPlaylists(['All', ...names]);
-              addToast('Loaded', `Received ${parsed.assetinformation.length} stage assets`, 'success');
+              addToast('Loaded', `Received ${normalizedAssets.length} stage assets`, 'success');
             }
           } catch (e) {
             console.error('Error parsing assets JSON:', e, 'Raw:', jsonPayload);
@@ -238,11 +243,15 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // Load Asset on Stage
   const loadAsset = useCallback((asset: AssetInformation) => {
-    setActiveAsset(asset);
+    const normalized: AssetInformation = {
+      ...asset,
+      Category: resolveCategory(asset)
+    };
+    setActiveAsset(normalized);
     setIsControllerOpen(true);
     stageWebSocket.send(`${StaticStrings.LoadModel}#${asset.AssetID}`);
     addToast('Displaying', `Loaded "${asset.AssetName}" on stage`, 'info');
-    if (asset.Category === DataType.Video) {
+    if (normalized.Category === DataType.Video) {
       setIsVideoPlaying(true);
     }
   }, [addToast]);

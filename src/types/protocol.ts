@@ -21,6 +21,35 @@ export interface AssetInformationS {
   assetinformation: AssetInformation[];
 }
 
+export function resolveCategory(asset?: Partial<AssetInformation>): DataType {
+  if (!asset) return DataType.Model;
+
+  const cat = asset.Category as unknown;
+  if (cat === DataType.Model || cat === 0 || cat === '0' || String(cat).toLowerCase() === 'model') {
+    return DataType.Model;
+  }
+  if (cat === DataType.Video || cat === 2 || cat === '2' || String(cat).toLowerCase() === 'video') {
+    return DataType.Video;
+  }
+  if (cat === DataType.Image || cat === 1 || cat === '1' || String(cat).toLowerCase() === 'image') {
+    return DataType.Image;
+  }
+
+  // Fallback by path / file extension
+  const path = (asset.ModelPath || asset.ThumbnailImagePath || asset.AssetName || '').toLowerCase();
+  if (path.endsWith('.mp4') || path.endsWith('.mov') || path.endsWith('.webm') || path.includes('.mp4')) {
+    return DataType.Video;
+  }
+  if (path.endsWith('.png') || path.endsWith('.jpg') || path.endsWith('.jpeg') || path.endsWith('.webp')) {
+    return DataType.Image;
+  }
+  if (path.endsWith('.glb') || path.endsWith('.gltf') || path.endsWith('.obj') || path.endsWith('.fbx') || path.includes('.glb')) {
+    return DataType.Model;
+  }
+
+  return DataType.Model;
+}
+
 export enum JoyStickDirection {
   Move = 'Move',
   Scale = 'Scale',

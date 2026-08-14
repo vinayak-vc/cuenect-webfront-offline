@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { AssetInformation, DataType } from '../../types/protocol';
+import { AssetInformation, DataType, resolveCategory } from '../../types/protocol';
 import { useStage } from '../../context/StageContext';
 import { Box, Film, Image as ImageIcon, Play, Plus, Check } from 'lucide-react';
 
@@ -21,6 +21,7 @@ export const AssetCard: React.FC<AssetCardProps> = ({ asset }) => {
   const thumbUrl = thumbnails[asset.AssetID];
   const isActive = activeAsset?.AssetID === asset.AssetID;
   const isInCustomPlaylist = customPlaylistIds.includes(asset.AssetID);
+  const category = resolveCategory(asset);
 
   useEffect(() => {
     if (!thumbUrl) {
@@ -29,7 +30,7 @@ export const AssetCard: React.FC<AssetCardProps> = ({ asset }) => {
   }, [asset.AssetID, thumbUrl, requestThumbnail]);
 
   const getCategoryClass = (): string => {
-    switch (asset.Category) {
+    switch (category) {
       case DataType.Model:
         return 'model';
       case DataType.Video:
@@ -42,7 +43,7 @@ export const AssetCard: React.FC<AssetCardProps> = ({ asset }) => {
   };
 
   const getCategoryName = (): string => {
-    switch (asset.Category) {
+    switch (category) {
       case DataType.Model:
         return '3D Model';
       case DataType.Video:
@@ -50,12 +51,12 @@ export const AssetCard: React.FC<AssetCardProps> = ({ asset }) => {
       case DataType.Image:
         return 'Image';
       default:
-        return 'Asset';
+        return '3D Model';
     }
   };
 
   const renderIcon = () => {
-    switch (asset.Category) {
+    switch (category) {
       case DataType.Model:
         return <Box size={36} />;
       case DataType.Video:
