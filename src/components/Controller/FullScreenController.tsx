@@ -3,7 +3,7 @@ import { useStage } from '../../context/StageContext';
 import { DataType, resolveCategory } from '../../types/protocol';
 import { ModelControlPanel } from './ModelControlPanel';
 import { VideoControlPanel } from './VideoControlPanel';
-import { ArrowLeft, Box, Film, Image as ImageIcon, Power } from 'lucide-react';
+import { ArrowLeft, Box, Film, Image as ImageIcon, Power, AlertTriangle, Loader2 } from 'lucide-react';
 
 export const FullScreenController: React.FC = () => {
   const {
@@ -11,7 +11,8 @@ export const FullScreenController: React.FC = () => {
     unloadAsset,
     isControllerOpen,
     setIsControllerOpen,
-    thumbnails
+    thumbnails,
+    connectionState
   } = useStage();
 
   if (!isControllerOpen || !activeAsset) return null;
@@ -67,7 +68,9 @@ export const FullScreenController: React.FC = () => {
 
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
           <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>Stage Controller</div>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Live Stage Control</div>
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+            {connectionState === 'connected' ? 'Live Stage Control' : 'Stage Offline'}
+          </div>
         </div>
 
         <button
@@ -79,6 +82,35 @@ export const FullScreenController: React.FC = () => {
           <Power size={18} />
         </button>
       </div>
+
+      {/* Disconnection Alert Banner */}
+      {connectionState !== 'connected' && (
+        <div
+          style={{
+            background: 'rgba(239, 68, 68, 0.15)',
+            borderBottom: '1px solid rgba(239, 68, 68, 0.3)',
+            padding: '8px 16px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 8,
+            fontSize: '0.8rem',
+            color: 'var(--color-danger)'
+          }}
+        >
+          {connectionState === 'connecting' ? (
+            <>
+              <Loader2 size={14} className="spin" />
+              <span>Reconnecting to stage...</span>
+            </>
+          ) : (
+            <>
+              <AlertTriangle size={14} />
+              <span>Stage is disconnected. Controls are paused.</span>
+            </>
+          )}
+        </div>
+      )}
 
       {/* Controller Body */}
       <div className="controller-body">
