@@ -551,3 +551,36 @@ body {
     transform: translateY(0);
   }
 }
+
+/* QR Scanner Mobile Viewport Fixes */
+#cuenect-qr-reader {
+  width: 100% !important;
+  height: 100% !important;
+  border: none !important;
+  background: transparent !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+#cuenect-qr-reader video {
+  width: 100% !important;
+  height: 100% !important;
+  max-height: 280px !important;
+  object-fit: cover !important;
+  border-radius: 12px !important;
+  display: block !important;
+}
+
+#cuenect-qr-reader__scan_region {
+  background: transparent !important;
+}
+
+#cuenect-qr-reader__dashboard {
+  display: none !important;
+}
+
+#cuenect-qr-reader img {
+  display: none !important;
+}
+
