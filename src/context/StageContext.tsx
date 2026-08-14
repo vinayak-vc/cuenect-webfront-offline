@@ -131,10 +131,12 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const connect = useCallback((newConfig: ConnectionConfig) => {
     setConfig(newConfig);
     StorageService.saveConnectionConfig(newConfig);
+    StorageService.saveAutoConnect(true);
     stageWebSocket.connect(newConfig.serverIp, newConfig.usePort, newConfig.port);
   }, []);
 
   const disconnect = useCallback(() => {
+    StorageService.saveAutoConnect(false);
     stageWebSocket.disconnect();
     setActiveAsset(null);
     setIsControllerOpen(false);
@@ -153,6 +155,15 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       addToast('Sync', 'Requesting assets from stage...', 'info');
     }
   }, [connectionState, addToast]);
+
+  // Auto-connect on page refresh / initial load if previously connected
+  useEffect(() => {
+    const shouldAutoConnect = StorageService.getAutoConnect();
+    const savedConfig = StorageService.getConnectionConfig();
+    if (shouldAutoConnect && savedConfig.serverIp.trim()) {
+      stageWebSocket.connect(savedConfig.serverIp, savedConfig.usePort, savedConfig.port);
+    }
+  }, []);
 
   // WebSocket event listeners
   useEffect(() => {

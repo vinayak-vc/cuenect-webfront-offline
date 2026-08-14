@@ -4,6 +4,7 @@ const STORAGE_KEYS = {
   SERVER_IP: 'cuenect_server_ip',
   USE_PORT: 'cuenect_use_port',
   PORT: 'cuenect_port',
+  AUTO_CONNECT: 'cuenect_auto_connect',
   SLIDE_DURATION: 'cuenect_slide_duration',
   CUSTOM_PLAYLIST: 'cuenect_custom_playlist'
 } as const;
@@ -29,6 +30,15 @@ export const StorageService = {
     localStorage.setItem(STORAGE_KEYS.SERVER_IP, config.serverIp);
     localStorage.setItem(STORAGE_KEYS.USE_PORT, config.usePort.toString());
     localStorage.setItem(STORAGE_KEYS.PORT, config.port.toString());
+  },
+
+  getAutoConnect(): boolean {
+    const val = localStorage.getItem(STORAGE_KEYS.AUTO_CONNECT);
+    return val === 'true';
+  },
+
+  saveAutoConnect(enabled: boolean): void {
+    localStorage.setItem(STORAGE_KEYS.AUTO_CONNECT, enabled ? 'true' : 'false');
   },
 
   getSlideDuration(): number {
