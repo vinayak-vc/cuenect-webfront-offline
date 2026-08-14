@@ -1,0 +1,112 @@
+import React from 'react';
+import { useStage } from '../../context/StageContext';
+import { DataType } from '../../types/protocol';
+import { ModelControlPanel } from './ModelControlPanel';
+import { VideoControlPanel } from './VideoControlPanel';
+import { ArrowLeft, Box, Film, Image as ImageIcon, Power } from 'lucide-react';
+
+export const FullScreenController: React.FC = () => {
+  const {
+    activeAsset,
+    unloadAsset,
+    isControllerOpen,
+    setIsControllerOpen,
+    thumbnails
+  } = useStage();
+
+  if (!isControllerOpen || !activeAsset) return null;
+
+  const thumbUrl = thumbnails[activeAsset.AssetID];
+
+  const renderMediaTypeTag = () => {
+    switch (activeAsset.Category) {
+      case DataType.Model:
+        return (
+          <span className="category-badge model" style={{ position: 'static' }}>
+            <Box size={12} style={{ display: 'inline', marginRight: 4 }} />
+            3D Model
+          </span>
+        );
+      case DataType.Video:
+        return (
+          <span className="category-badge video" style={{ position: 'static' }}>
+            <Film size={12} style={{ display: 'inline', marginRight: 4 }} />
+            Video
+          </span>
+        );
+      case DataType.Image:
+        return (
+          <span className="category-badge image" style={{ position: 'static' }}>
+            <ImageIcon size={12} style={{ display: 'inline', marginRight: 4 }} />
+            Image
+          </span>
+        );
+    }
+  };
+
+  return (
+    <div className="controller-modal">
+      {/* Top Bar */}
+      <div className="controller-header">
+        <button
+          type="button"
+          className="btn-icon"
+          onClick={() => setIsControllerOpen(false)}
+          title="Back to Catalog"
+        >
+          <ArrowLeft size={20} />
+        </button>
+
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>Stage Controller</div>
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Live Stage Control</div>
+        </div>
+
+        <button
+          type="button"
+          className="btn-icon btn-danger"
+          onClick={unloadAsset}
+          title="Unload from Stage"
+        >
+          <Power size={18} />
+        </button>
+      </div>
+
+      {/* Controller Body */}
+      <div className="controller-body">
+        {/* Active Asset Info Header */}
+        <div className="controller-preview-box">
+          {thumbUrl ? (
+            <img src={thumbUrl} alt={activeAsset.AssetName} className="controller-preview-img" />
+          ) : (
+            <div
+              className="controller-preview-img"
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}
+            >
+              <Box size={32} />
+            </div>
+          )}
+
+          <div className="controller-meta">
+            {renderMediaTypeTag()}
+            <div style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--text-primary)' }}>
+              {activeAsset.AssetName}
+            </div>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+              ID: {activeAsset.AssetID}
+            </div>
+          </div>
+        </div>
+
+        {/* Dynamic Controls based on Media Type */}
+        {activeAsset.Category === DataType.Model && <ModelControlPanel />}
+        {activeAsset.Category === DataType.Video && <VideoControlPanel />}
+        {activeAsset.Category === DataType.Image && (
+          <div style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '24px 0' }}>
+            Image displayed on Holo Stage
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};

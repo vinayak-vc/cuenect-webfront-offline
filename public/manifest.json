@@ -1,0 +1,17 @@
+{
+  "name": "Cuenect Stage Controller",
+  "short_name": "Cuenect",
+  "description": "Remote Controller for Cuenect Hologram Stage",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0d1117",
+  "theme_color": "#00e5ff",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
