@@ -3,9 +3,10 @@ import { useStage } from '../../context/StageContext';
 import { CheckCircle2, AlertCircle, AlertTriangle, Info, X } from 'lucide-react';
 
 export const ToastContainer: React.FC = () => {
-  const { toasts, removeToast } = useStage();
+  const { toasts, removeToast, isControllerOpen } = useStage();
 
-  if (toasts.length === 0) return null;
+  // Completely hide all toast popups when the controller view is open
+  if (toasts.length === 0 || isControllerOpen) return null;
 
   return (
     <div className="toast-container">
@@ -17,10 +18,10 @@ export const ToastContainer: React.FC = () => {
 
         return (
           <div key={toast.id} className={`toast-item ${toast.type}`}>
-            <Icon size={20} style={{ flexShrink: 0, marginTop: 2 }} />
-            <div style={{ flex: 1 }}>
+            <Icon size={18} style={{ flexShrink: 0, marginTop: 2 }} />
+            <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontWeight: 700, fontSize: '0.85rem' }}>{toast.title}</div>
-              <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{toast.message}</div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{toast.message}</div>
             </div>
             <button
               onClick={() => removeToast(toast.id)}
@@ -31,8 +32,9 @@ export const ToastContainer: React.FC = () => {
                 cursor: 'pointer',
                 padding: 2
               }}
+              title="Dismiss"
             >
-              <X size={16} />
+              <X size={14} />
             </button>
           </div>
         );

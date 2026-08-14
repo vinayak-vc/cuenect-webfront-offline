@@ -287,7 +287,6 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setActiveAsset(normalized);
     setIsControllerOpen(true);
     stageWebSocket.send(`${StaticStrings.LoadModel}#${asset.AssetID}`);
-    addToast('Displaying', `Loaded "${asset.AssetName}" on stage`, 'info');
     
     if (normalized.Category === DataType.Model) {
       setCurrentMovableMode(MoveableAssetType.Rotate);
@@ -296,7 +295,7 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     } else if (normalized.Category === DataType.Video) {
       setIsVideoPlaying(true);
     }
-  }, [addToast]);
+  }, []);
 
   // Unload Asset
   const unloadAsset = useCallback(() => {
@@ -305,8 +304,7 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setActiveAsset(null);
     setIsControllerOpen(false);
     setIsVideoPlaying(false);
-    addToast('Stage Reset', 'Cleared active object from stage', 'info');
-  }, [addToast]);
+  }, []);
 
   // 3D Model Joystick Controls
   const sendModelJoystick = useCallback((direction: JoyStickDirection, xPos?: number, yPos?: number, zoom?: number) => {
@@ -322,8 +320,7 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const resetModelTransform = useCallback(() => {
     const payload: ModelControl = { direction: JoyStickDirection.Reset };
     stageWebSocket.sendJson(StaticStrings.SendModelControl, payload);
-    addToast('Reset', 'Restored initial model orientation', 'info');
-  }, [addToast]);
+  }, []);
 
   const setMovableMode = useCallback((mode: MoveableAssetType) => {
     setCurrentMovableMode(mode);
@@ -337,8 +334,7 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setIsOrthographic(nextVal);
     const payload: CameraOrthographic = { isOrthographic: nextVal };
     stageWebSocket.sendJson(StaticStrings.CameraOrthographicAction, payload);
-    addToast('Camera', `Switched to ${nextVal ? 'Orthographic' : 'Perspective'}`, 'info');
-  }, [isOrthographic, addToast]);
+  }, [isOrthographic]);
 
   const toggleStereoscopic = useCallback(() => {
     const nextStereo = !stereoSettings.isStereo;
@@ -346,8 +342,7 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setStereoSettings(updated);
     StorageService.saveStereoSettings(updated);
     stageWebSocket.sendJson(StaticStrings.StereoSettingsActionKey, updated);
-    addToast('3D View', `Stereoscopic Mode ${nextStereo ? 'Enabled' : 'Disabled'}`, 'info');
-  }, [stereoSettings, addToast]);
+  }, [stereoSettings]);
 
   const updateStereoSettings = useCallback((partial: Partial<StereoAdjustSettings>) => {
     setStereoSettings((prev) => {
@@ -362,13 +357,11 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setStereoSettings(DEFAULT_STEREO_SETTINGS);
     StorageService.saveStereoSettings(DEFAULT_STEREO_SETTINGS);
     stageWebSocket.sendJson(StaticStrings.StereoSettingsActionKey, DEFAULT_STEREO_SETTINGS);
-    addToast('Settings Reset', 'Restored standard stereoscopic & stage settings', 'info');
-  }, [addToast]);
+  }, []);
 
   const triggerFullscreen = useCallback(() => {
     stageWebSocket.send(StaticStrings.FullScreen);
-    addToast('Stage', 'Toggled Stage Fullscreen', 'info');
-  }, [addToast]);
+  }, []);
 
   // Video Controls
   const playVideo = useCallback(() => {
