@@ -1,7 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import {
   AssetInformation,
-  AssetInformationS,
   ConnectionState,
   DataType,
   JoyStickDirection,
@@ -140,6 +139,8 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
+  const requestedThumbnailsRef = useRef<Set<string>>(new Set());
+
   // Connect / Disconnect handlers
   const connect = useCallback((newConfig: ConnectionConfig) => {
     setConfig(newConfig);
@@ -151,18 +152,22 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const disconnect = useCallback(() => {
     StorageService.saveAutoConnect(false);
     stageWebSocket.disconnect();
+    requestedThumbnailsRef.current.clear();
     setActiveAsset(null);
     setIsControllerOpen(false);
     setIsSlideshowActive(false);
   }, []);
 
   const requestThumbnail = useCallback((assetId: string) => {
-    if (thumbnails[assetId]) return;
+    if (requestedThumbnailsRef.current.has(assetId)) return;
+    requestedThumbnailsRef.current.add(assetId);
     stageWebSocket.send(`${StaticStrings.ModelThumbnailID}#${assetId}`);
-  }, [thumbnails]);
+  }, []);
 
   const refreshAssets = useCallback(() => {
     if (connectionState === 'connected') {
+      requestedThumbnailsRef.current.clear();
+      setThumbnails({});
       stageWebSocket.send(StaticStrings.ReqAssetSize);
       stageWebSocket.send(StaticStrings.ReqAsset);
       addToast('Sync', 'Requesting assets from stage...', 'info');
@@ -202,6 +207,11 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         // Proactively ask for asset size / assets in case desktop app is already connected
         stageWebSocket.send(StaticStrings.ReqAssetSize);
         stageWebSocket.send(StaticStrings.ReqAsset);
+        // Fallback retry for mobile Wi-Fi latency
+        window.setTimeout(() => {
+          stageWebSocket.send(StaticStrings.ReqAssetSize);
+          stageWebSocket.send(StaticStrings.ReqAsset);
+        }, 500);
         // Sync saved stereoscopic settings to stage
         const currentSettings = StorageService.getStereoSettings();
         stageWebSocket.sendJson(StaticStrings.StereoSettingsActionKey, currentSettings);
@@ -212,14 +222,26 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       } else if (command === StaticStrings.ReqAssetSize) {
         // Server confirms size, request actual payload
         stageWebSocket.send(StaticStrings.ReqAsset);
-      } else if (command === StaticStrings.SendingAsset) {
+      } else if (command === StaticStrings.SendingAsset || command === 'SendingAssets' || command === 'SendingAsset') {
         // SendingAssets#<json>
-        if (parts.length > 1) {
-          const jsonPayload = rawMessage.substring(command.length + 1).trim();
+        const hashIndex = rawMessage.indexOf('#');
+        if (hashIndex !== -1) {
+          const jsonPayload = rawMessage.substring(hashIndex + 1).trim();
           try {
-            const parsed: AssetInformationS = JSON.parse(jsonPayload);
-            if (parsed.assetinformation && Array.isArray(parsed.assetinformation)) {
-              const normalizedAssets: AssetInformation[] = parsed.assetinformation.map((item) => ({
+            const parsed = JSON.parse(jsonPayload);
+            let rawList: any[] = [];
+            if (Array.isArray(parsed)) {
+              rawList = parsed;
+            } else if (parsed && parsed.assetinformation && Array.isArray(parsed.assetinformation)) {
+              rawList = parsed.assetinformation;
+            } else if (parsed && parsed.AssetInformation && Array.isArray(parsed.AssetInformation)) {
+              rawList = parsed.AssetInformation;
+            } else if (parsed && parsed.assetInformation && Array.isArray(parsed.assetInformation)) {
+              rawList = parsed.assetInformation;
+            }
+
+            if (rawList.length > 0 || (parsed && typeof parsed === 'object')) {
+              const normalizedAssets: AssetInformation[] = rawList.map((item) => ({
                 ...item,
                 Category: resolveCategory(item)
               }));
