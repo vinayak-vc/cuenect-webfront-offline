@@ -1,6 +1,6 @@
 import React from 'react';
 import { useStage } from '../../context/StageContext';
-import { Box, RefreshCw, ListPlus, Users } from 'lucide-react';
+import { Box, RefreshCw, ListPlus, Users, Sliders } from 'lucide-react';
 
 interface HeaderProps {
   onOpenConnection: () => void;
@@ -11,7 +11,14 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenConnection,
   onOpenPlaylistMaker
 }) => {
-  const { connectionState, connectedUsers, refreshAssets, selectedPlaylist, customPlaylistIds } = useStage();
+  const {
+    connectionState,
+    connectedUsers,
+    refreshAssets,
+    selectedPlaylist,
+    customPlaylistIds,
+    setIsSettingsOpen
+  } = useStage();
 
   const getStatusText = (): string => {
     switch (connectionState) {
@@ -56,6 +63,14 @@ export const Header: React.FC<HeaderProps> = ({
           disabled={connectionState !== 'connected'}
         >
           <RefreshCw size={18} />
+        </button>
+
+        <button
+          className="btn-icon"
+          onClick={() => setIsSettingsOpen(true)}
+          title="Stage & 3D Settings"
+        >
+          <Sliders size={18} />
         </button>
 
         <button

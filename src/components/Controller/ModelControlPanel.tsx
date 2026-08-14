@@ -2,7 +2,7 @@ import React from 'react';
 import { useStage } from '../../context/StageContext';
 import { MoveableAssetType } from '../../types/protocol';
 import { DPad } from './DPad';
-import { Eye, Box, Move, Search, SunMedium } from 'lucide-react';
+import { Eye, Box, Move, Search, SunMedium, Sliders } from 'lucide-react';
 
 export const ModelControlPanel: React.FC = () => {
   const {
@@ -11,7 +11,9 @@ export const ModelControlPanel: React.FC = () => {
     toggleOrthographic,
     isOrthographic,
     toggleStereoscopic,
-    triggerFullscreen
+    stereoSettings,
+    triggerFullscreen,
+    setIsSettingsOpen
   } = useStage();
 
   const modes = [
@@ -64,12 +66,28 @@ export const ModelControlPanel: React.FC = () => {
 
         <button
           type="button"
-          className="btn btn-secondary"
+          className={`btn btn-secondary ${stereoSettings.isStereo ? 'active' : ''}`}
           onClick={toggleStereoscopic}
-          style={{ fontSize: '0.75rem', padding: '8px 10px' }}
+          style={{
+            fontSize: '0.75rem',
+            padding: '8px 10px',
+            borderColor: stereoSettings.isStereo ? 'var(--color-primary)' : undefined,
+            color: stereoSettings.isStereo ? 'var(--color-primary)' : undefined
+          }}
         >
           <Eye size={14} />
-          3D SBS
+          {stereoSettings.isStereo ? '3D SBS On' : '3D SBS'}
+        </button>
+
+        <button
+          type="button"
+          className="btn btn-secondary"
+          onClick={() => setIsSettingsOpen(true)}
+          style={{ fontSize: '0.75rem', padding: '8px 10px' }}
+          title="Adjust IPD, Zero Parallax, FOV, and Light"
+        >
+          <Sliders size={14} />
+          Calibrate
         </button>
 
         <button

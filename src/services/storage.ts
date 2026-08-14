@@ -1,4 +1,5 @@
 // Local storage helpers
+import { StereoAdjustSettings, DEFAULT_STEREO_SETTINGS } from '../types/protocol';
 
 const STORAGE_KEYS = {
   SERVER_IP: 'cuenect_server_ip',
@@ -6,7 +7,8 @@ const STORAGE_KEYS = {
   PORT: 'cuenect_port',
   AUTO_CONNECT: 'cuenect_auto_connect',
   SLIDE_DURATION: 'cuenect_slide_duration',
-  CUSTOM_PLAYLIST: 'cuenect_custom_playlist'
+  CUSTOM_PLAYLIST: 'cuenect_custom_playlist',
+  STEREO_SETTINGS: 'cuenect_stereo_settings'
 } as const;
 
 export interface ConnectionConfig {
@@ -39,6 +41,20 @@ export const StorageService = {
 
   saveAutoConnect(enabled: boolean): void {
     localStorage.setItem(STORAGE_KEYS.AUTO_CONNECT, enabled ? 'true' : 'false');
+  },
+
+  getStereoSettings(): StereoAdjustSettings {
+    const raw = localStorage.getItem(STORAGE_KEYS.STEREO_SETTINGS);
+    if (!raw) return DEFAULT_STEREO_SETTINGS;
+    try {
+      return { ...DEFAULT_STEREO_SETTINGS, ...JSON.parse(raw) };
+    } catch {
+      return DEFAULT_STEREO_SETTINGS;
+    }
+  },
+
+  saveStereoSettings(settings: StereoAdjustSettings): void {
+    localStorage.setItem(STORAGE_KEYS.STEREO_SETTINGS, JSON.stringify(settings));
   },
 
   getSlideDuration(): number {

@@ -13,7 +13,9 @@ import {
   CameraOrthographic,
   User,
   resolveCategory,
-  MovableModeActionNames
+  MovableModeActionNames,
+  StereoAdjustSettings,
+  DEFAULT_STEREO_SETTINGS
 } from '../types/protocol';
 import { stageWebSocket } from '../services/websocket';
 import { StorageService, ConnectionConfig } from '../services/storage';
@@ -42,6 +44,8 @@ interface StageContextValue {
   unloadAsset: () => void;
   isControllerOpen: boolean;
   setIsControllerOpen: (open: boolean) => void;
+  isSettingsOpen: boolean;
+  setIsSettingsOpen: (open: boolean) => void;
   
   // Model controls
   sendModelJoystick: (direction: JoyStickDirection, xPos?: number, yPos?: number, zoom?: number) => void;
@@ -52,6 +56,11 @@ interface StageContextValue {
   isOrthographic: boolean;
   toggleStereoscopic: () => void;
   triggerFullscreen: () => void;
+  
+  // Stereoscopic & Stage Calibration Settings
+  stereoSettings: StereoAdjustSettings;
+  updateStereoSettings: (settings: Partial<StereoAdjustSettings>) => void;
+  resetStereoSettings: () => void;
   
   // Video controls
   playVideo: () => void;
@@ -97,10 +106,12 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [thumbnails, setThumbnails] = useState<Record<string, string>>({});
   const [activeAsset, setActiveAsset] = useState<AssetInformation | null>(null);
   const [isControllerOpen, setIsControllerOpen] = useState<boolean>(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
   
   // Model & stage state
   const [currentMovableMode, setCurrentMovableMode] = useState<MoveableAssetType>(MoveableAssetType.Rotate);
   const [isOrthographic, setIsOrthographic] = useState<boolean>(false);
+  const [stereoSettings, setStereoSettings] = useState<StereoAdjustSettings>(StorageService.getStereoSettings());
   
   // Video state
   const [isVideoPlaying, setIsVideoPlaying] = useState<boolean>(false);
@@ -191,6 +202,9 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         // Proactively ask for asset size / assets in case desktop app is already connected
         stageWebSocket.send(StaticStrings.ReqAssetSize);
         stageWebSocket.send(StaticStrings.ReqAsset);
+        // Sync saved stereoscopic settings to stage
+        const currentSettings = StorageService.getStereoSettings();
+        stageWebSocket.sendJson(StaticStrings.StereoSettingsActionKey, currentSettings);
       } else if (command === StaticStrings.AppVersion) {
         // Desktop app returned its AppVersion -> request assets
         stageWebSocket.send(StaticStrings.ReqAssetSize);
@@ -305,8 +319,28 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, [isOrthographic, addToast]);
 
   const toggleStereoscopic = useCallback(() => {
-    stageWebSocket.send(StaticStrings.StereoscopicKey);
-    addToast('3D View', 'Toggled Stereoscopic Holo-Wall Mode', 'info');
+    const nextStereo = !stereoSettings.isStereo;
+    const updated = { ...stereoSettings, isStereo: nextStereo };
+    setStereoSettings(updated);
+    StorageService.saveStereoSettings(updated);
+    stageWebSocket.sendJson(StaticStrings.StereoSettingsActionKey, updated);
+    addToast('3D View', `Stereoscopic Mode ${nextStereo ? 'Enabled' : 'Disabled'}`, 'info');
+  }, [stereoSettings, addToast]);
+
+  const updateStereoSettings = useCallback((partial: Partial<StereoAdjustSettings>) => {
+    setStereoSettings((prev) => {
+      const updated: StereoAdjustSettings = { ...prev, ...partial };
+      StorageService.saveStereoSettings(updated);
+      stageWebSocket.sendJson(StaticStrings.StereoSettingsActionKey, updated);
+      return updated;
+    });
+  }, []);
+
+  const resetStereoSettings = useCallback(() => {
+    setStereoSettings(DEFAULT_STEREO_SETTINGS);
+    StorageService.saveStereoSettings(DEFAULT_STEREO_SETTINGS);
+    stageWebSocket.sendJson(StaticStrings.StereoSettingsActionKey, DEFAULT_STEREO_SETTINGS);
+    addToast('Settings Reset', 'Restored standard stereoscopic & stage settings', 'info');
   }, [addToast]);
 
   const triggerFullscreen = useCallback(() => {
@@ -457,6 +491,8 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     unloadAsset,
     isControllerOpen,
     setIsControllerOpen,
+    isSettingsOpen,
+    setIsSettingsOpen,
     sendModelJoystick,
     resetModelTransform,
     setMovableMode,
@@ -465,6 +501,9 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     isOrthographic,
     toggleStereoscopic,
     triggerFullscreen,
+    stereoSettings,
+    updateStereoSettings,
+    resetStereoSettings,
     playVideo,
     pauseVideo,
     stopVideo,

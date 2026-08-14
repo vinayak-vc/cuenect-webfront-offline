@@ -5,6 +5,7 @@ import { AssetGrid } from './components/Catalog/AssetGrid';
 import { ConnectionModal } from './components/Connection/ConnectionModal';
 import { FullScreenController } from './components/Controller/FullScreenController';
 import { PlaylistMakerModal } from './components/Playlist/PlaylistMakerModal';
+import { StageSettingsModal } from './components/Settings/StageSettingsModal';
 import { SlideshowBar } from './components/Playlist/SlideshowBar';
 import { ToastContainer } from './components/Common/Toast';
 
@@ -36,6 +37,8 @@ export const App: React.FC = () => {
         isOpen={isPlaylistMakerOpen}
         onClose={() => setIsPlaylistMakerOpen(false)}
       />
+
+      <StageSettingsModal />
 
       <FullScreenController />
 

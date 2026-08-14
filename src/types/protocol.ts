@@ -96,6 +96,24 @@ export interface CameraOrthographic {
   isOrthographic: boolean;
 }
 
+export interface StereoAdjustSettings {
+  ipd: number;            // Inter-pupillary distance (in meters, e.g. 0.065 = 65mm)
+  zeroParallax: number;   // Zero parallax plane distance (in meters, e.g. 3.0)
+  fov: number;            // Camera FOV (degrees, e.g. 60.0)
+  enableToeIn: boolean;   // Inward convergence rotation
+  isStereo: boolean;      // Stereoscopic SBS active vs Mono 2D
+  lightBrightness: number;// Directional light intensity (e.g. 0.8)
+}
+
+export const DEFAULT_STEREO_SETTINGS: StereoAdjustSettings = {
+  ipd: 0.065,
+  zeroParallax: 3.0,
+  fov: 60.0,
+  enableToeIn: false,
+  isStereo: true,
+  lightBrightness: 0.8
+};
+
 export const StaticStrings = {
   AppVersion: 'AppVersion',
   Reconnect: 'Reconnect',
@@ -112,6 +130,7 @@ export const StaticStrings = {
   ModelControlActionKey: 'ModelControlActionKey',
   VideoControlActionKey: 'VideoControlActionKey',
   StereoscopicKey: 'StereoscopicKey',
+  StereoSettingsActionKey: 'StereoSettingsActionKey',
   CameraOrthographicAction: 'CameraOrthographicActionKey',
   DeleteAsset: 'DeleteAsset'
 } as const;
