@@ -10,7 +10,7 @@ import {
 } from '../types/protocol';
 
 export type SocketMessageHandler = (event: string, data: any) => void;
-export type SocketStateChangeHandler = (state: ConnectionState, detail?: string) => void;
+export type SocketStateChangeHandler = (state: ConnectionState, detail?: string, isInitial?: boolean) => void;
 export type SocketUsersChangeHandler = (users: User[]) => void;
 
 export class StageSocketService {
@@ -48,7 +48,10 @@ export class StageSocketService {
 
   public onStateChange(handler: SocketStateChangeHandler): () => void {
     this.stateHandlers.add(handler);
-    handler(this.state);
+    // Replay the current state synchronously so a late subscriber sees it immediately.
+    // Flagged as isInitial so subscribers can skip side effects (e.g. toasts) that
+    // should only fire on a real transition, not on this replay of the pre-connect default.
+    handler(this.state, undefined, true);
     return () => {
       this.stateHandlers.delete(handler);
     };

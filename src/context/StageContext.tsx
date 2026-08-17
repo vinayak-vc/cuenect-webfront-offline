@@ -219,8 +219,9 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // Socket.IO event listeners (single transport for the stage connection)
   useEffect(() => {
-    const unsubState = stageSocket.onStateChange((state, detail) => {
+    const unsubState = stageSocket.onStateChange((state, detail, isInitial) => {
       setConnectionState(state);
+      if (isInitial) return;
       if (state === 'connected') {
         addToast('Connected', 'Connected to Stage Server', 'success');
 
