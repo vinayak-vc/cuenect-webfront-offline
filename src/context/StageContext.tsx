@@ -164,6 +164,11 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     stageSocket.requestThumbnail(assetId);
   }, []);
 
+  // Stage/Node re-deliver the full catalog on every reconnect and on every ReqAsset
+  // handshake. Track the last-applied catalog's signature so a redundant, unchanged
+  // delivery updates nothing and stays silent instead of re-rendering and re-toasting.
+  const lastAssetsSignatureRef = useRef<string>('');
+
   const parseAndSetAssets = useCallback((dataOrString: any) => {
     try {
       let rawList: any[] = [];
@@ -186,6 +191,13 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           ...item,
           Category: resolveCategory(item)
         }));
+
+        const signature = normalizedAssets.map((a) => `${a.AssetID}:${a.isloaded ? 1 : 0}`).join('|');
+        if (signature === lastAssetsSignatureRef.current) {
+          return;
+        }
+        lastAssetsSignatureRef.current = signature;
+
         setAssets(normalizedAssets);
         const names = Array.from(
           new Set(normalizedAssets.map((a) => a.PlaylistName).filter(Boolean))
