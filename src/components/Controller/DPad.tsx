@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useStage } from '../../context/StageContext';
 import { JoyStickDirection } from '../../types/protocol';
 import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, RotateCcw, ZoomIn, ZoomOut } from 'lucide-react';
@@ -22,6 +22,29 @@ export const DPad: React.FC = () => {
     sendModelJoystick(JoyStickDirection.End, 0, 0);
     sendModelJoystick(JoyStickDirection.Move, 0, 0);
   };
+
+  // Global safety release: catches pointer releases outside the button bounding boxes
+  useEffect(() => {
+    const handleGlobalRelease = () => {
+      if (activeBtn !== null) {
+        setActiveBtn(null);
+        sendModelJoystick(JoyStickDirection.End, 0, 0);
+        sendModelJoystick(JoyStickDirection.Move, 0, 0);
+      }
+    };
+
+    window.addEventListener('pointerup', handleGlobalRelease);
+    window.addEventListener('pointercancel', handleGlobalRelease);
+    window.addEventListener('mouseup', handleGlobalRelease);
+    window.addEventListener('touchend', handleGlobalRelease);
+
+    return () => {
+      window.removeEventListener('pointerup', handleGlobalRelease);
+      window.removeEventListener('pointercancel', handleGlobalRelease);
+      window.removeEventListener('mouseup', handleGlobalRelease);
+      window.removeEventListener('touchend', handleGlobalRelease);
+    };
+  }, [activeBtn, sendModelJoystick]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 20 }}>

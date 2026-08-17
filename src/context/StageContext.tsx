@@ -345,7 +345,11 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const event: MovableActionEvent = { action: actionName };
     stageSocket.sendMovableAction(event);
     stageWebSocket.sendJson(StaticStrings.MovableActionEvent, event);
-  }, []);
+
+    // Reset joystick velocity to 0,0 on mode switch
+    sendModelJoystick(JoyStickDirection.End, 0, 0);
+    sendModelJoystick(JoyStickDirection.Move, 0, 0);
+  }, [sendModelJoystick]);
 
   const toggleOrthographic = useCallback(() => {
     const nextVal = !isOrthographic;
