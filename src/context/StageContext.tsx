@@ -293,19 +293,18 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const assetPayload = {
       uuid: asset.AssetID,
       title: asset.AssetName,
-      name: asset.AssetName,
-      action: asset.ModelPath,
-      thumb_image: asset.ThumbnailImagePath,
+      name: asset.ModelPath || asset.AssetName,
+      action: asset.ModelPath || asset.AssetName,
+      thumb_image: asset.ThumbnailImagePath || '',
       type: normalized.Category.toString()
     };
+
     stageSocket.sendLoadAsset(assetPayload);
-    stageWebSocket.send(`${StaticStrings.LoadModel}#${asset.AssetID}`);
     
     if (normalized.Category === DataType.Model) {
       setCurrentMovableMode(MoveableAssetType.Rotate);
       const event: MovableActionEvent = { action: 'rotate' };
       stageSocket.sendMovableAction(event);
-      stageWebSocket.sendJson(StaticStrings.MovableActionEvent, event);
     } else if (normalized.Category === DataType.Video) {
       setIsVideoPlaying(true);
     }
