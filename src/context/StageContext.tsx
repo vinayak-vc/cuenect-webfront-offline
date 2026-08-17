@@ -274,10 +274,40 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
     });
 
+    // Socket.IO event listeners for mid-session asset catalog synchronization
+    const unsubSocketMsg = stageSocket.onMessage((eventName: string, data: any) => {
+      if (eventName === 'hologram-asset-list') {
+        let rawList: any[] = [];
+        if (Array.isArray(data)) {
+          rawList = data;
+        } else if (data && data.assetinformation && Array.isArray(data.assetinformation)) {
+          rawList = data.assetinformation;
+        } else if (data && data.AssetInformation && Array.isArray(data.AssetInformation)) {
+          rawList = data.AssetInformation;
+        } else if (data && data.assetInformation && Array.isArray(data.assetInformation)) {
+          rawList = data.assetInformation;
+        }
+
+        if (rawList.length > 0) {
+          const normalizedAssets: AssetInformation[] = rawList.map((item) => ({
+            ...item,
+            Category: resolveCategory(item)
+          }));
+          setAssets(normalizedAssets);
+          const names = Array.from(
+            new Set(normalizedAssets.map((a) => a.PlaylistName).filter(Boolean))
+          );
+          setPlaylists(['All', ...names]);
+          addToast('Loaded', `Received ${normalizedAssets.length} stage assets`, 'success');
+        }
+      }
+    });
+
     return () => {
       unsubState();
       unsubUsers();
       unsubMsg();
+      unsubSocketMsg();
     };
   }, [addToast]);
 
