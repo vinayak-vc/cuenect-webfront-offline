@@ -19,7 +19,8 @@ export const DPad: React.FC = () => {
 
   const handlePointerUp = () => {
     setActiveBtn(null);
-    sendModelJoystick(JoyStickDirection.End);
+    sendModelJoystick(JoyStickDirection.End, 0, 0);
+    sendModelJoystick(JoyStickDirection.Move, 0, 0);
   };
 
   return (
@@ -35,6 +36,8 @@ export const DPad: React.FC = () => {
           }}
           onPointerUp={handlePointerUp}
           onPointerLeave={handlePointerUp}
+          onPointerCancel={handlePointerUp}
+          onTouchEnd={handlePointerUp}
           aria-label="Tilt Up"
         >
           <ChevronUp size={28} />
@@ -49,6 +52,8 @@ export const DPad: React.FC = () => {
           }}
           onPointerUp={handlePointerUp}
           onPointerLeave={handlePointerUp}
+          onPointerCancel={handlePointerUp}
+          onTouchEnd={handlePointerUp}
           aria-label="Tilt Down"
         >
           <ChevronDown size={28} />
@@ -63,6 +68,8 @@ export const DPad: React.FC = () => {
           }}
           onPointerUp={handlePointerUp}
           onPointerLeave={handlePointerUp}
+          onPointerCancel={handlePointerUp}
+          onTouchEnd={handlePointerUp}
           aria-label="Rotate Left"
         >
           <ChevronLeft size={28} />
@@ -77,6 +84,8 @@ export const DPad: React.FC = () => {
           }}
           onPointerUp={handlePointerUp}
           onPointerLeave={handlePointerUp}
+          onPointerCancel={handlePointerUp}
+          onTouchEnd={handlePointerUp}
           aria-label="Rotate Right"
         >
           <ChevronRight size={28} />
@@ -103,6 +112,8 @@ export const DPad: React.FC = () => {
           }}
           onPointerUp={handlePointerUp}
           onPointerLeave={handlePointerUp}
+          onPointerCancel={handlePointerUp}
+          onTouchEnd={handlePointerUp}
         >
           <ZoomIn size={18} />
           Zoom In
@@ -117,6 +128,8 @@ export const DPad: React.FC = () => {
           }}
           onPointerUp={handlePointerUp}
           onPointerLeave={handlePointerUp}
+          onPointerCancel={handlePointerUp}
+          onTouchEnd={handlePointerUp}
         >
           <ZoomOut size={18} />
           Zoom Out
