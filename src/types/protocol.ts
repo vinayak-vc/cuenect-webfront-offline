@@ -90,6 +90,9 @@ export interface VideoControl {
   isMute?: boolean;
   volume?: number;
   isLoop?: boolean;
+  isPlaying?: string;
+  isStop?: string;
+  isLooping?: string;
 }
 
 export interface CameraOrthographic {

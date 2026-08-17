@@ -6,8 +6,7 @@ import {
   VideoControl,
   MovableActionEvent,
   CameraOrthographic,
-  StereoAdjustSettings,
-  AssetInformation
+  StereoAdjustSettings
 } from '../types/protocol';
 
 export type SocketMessageHandler = (event: string, data: any) => void;
@@ -173,31 +172,31 @@ export class StageSocketService {
   }
 
   // Unified Stage Actions
-  public sendLoadAsset(asset: Partial<AssetInformation>): void {
+  public sendLoadAsset(asset: any): void {
     this.emitEvent('hologram-asset-action', asset);
   }
 
-  public sendModelControl(control: ModelControl): void {
+  public sendModelControl(control: ModelControl | any): void {
     this.emitEvent('hologram-model-action', control);
   }
 
-  public sendJoystickControl(control: ModelControl): void {
+  public sendJoystickControl(control: ModelControl | any): void {
     this.emitEvent('hologram-joystick-action', control);
   }
 
-  public sendVideoControl(control: VideoControl): void {
+  public sendVideoControl(control: VideoControl | any): void {
     this.emitEvent('hologram-video-action', control);
   }
 
-  public sendMovableAction(action: MovableActionEvent): void {
+  public sendMovableAction(action: MovableActionEvent | any): void {
     this.emitEvent('hologram-action', action);
   }
 
-  public sendCameraOrthographic(camera: CameraOrthographic): void {
+  public sendCameraOrthographic(camera: CameraOrthographic | any): void {
     this.emitEvent('hologram-camera-orthographic-action', camera);
   }
 
-  public sendStereoSettings(settings: StereoAdjustSettings & { lightIntensity: number }): void {
+  public sendStereoSettings(settings: Partial<StereoAdjustSettings> | any): void {
     this.emitEvent('StereoSettingsActionKey', settings);
   }
 }

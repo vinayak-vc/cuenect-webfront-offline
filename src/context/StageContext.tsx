@@ -17,6 +17,7 @@ import {
   DEFAULT_STEREO_SETTINGS
 } from '../types/protocol';
 import { stageWebSocket } from '../services/websocket';
+import { stageSocket } from '../services/socketService';
 import { StorageService, ConnectionConfig } from '../services/storage';
 
 export interface ToastMessage {
@@ -147,11 +148,13 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     StorageService.saveConnectionConfig(newConfig);
     StorageService.saveAutoConnect(true);
     stageWebSocket.connect(newConfig.serverIp, newConfig.usePort, newConfig.port);
+    stageSocket.connect(newConfig.serverIp, newConfig.usePort, newConfig.port);
   }, []);
 
   const disconnect = useCallback(() => {
     StorageService.saveAutoConnect(false);
     stageWebSocket.disconnect();
+    stageSocket.disconnect();
     requestedThumbnailsRef.current.clear();
     setActiveAsset(null);
     setIsControllerOpen(false);
@@ -286,11 +289,22 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     };
     setActiveAsset(normalized);
     setIsControllerOpen(true);
+
+    const assetPayload = {
+      uuid: asset.AssetID,
+      title: asset.AssetName,
+      name: asset.AssetName,
+      action: asset.ModelPath,
+      thumb_image: asset.ThumbnailImagePath,
+      type: normalized.Category.toString()
+    };
+    stageSocket.sendLoadAsset(assetPayload);
     stageWebSocket.send(`${StaticStrings.LoadModel}#${asset.AssetID}`);
     
     if (normalized.Category === DataType.Model) {
       setCurrentMovableMode(MoveableAssetType.Rotate);
       const event: MovableActionEvent = { action: 'rotate' };
+      stageSocket.sendMovableAction(event);
       stageWebSocket.sendJson(StaticStrings.MovableActionEvent, event);
     } else if (normalized.Category === DataType.Video) {
       setIsVideoPlaying(true);
@@ -299,7 +313,8 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // Unload Asset
   const unloadAsset = useCallback(() => {
-    const modelControl: ModelControl = { isAssetClose: 'true' };
+    const modelControl: ModelControl = { isAssetClose: 'true', action: 'reset' };
+    stageSocket.sendModelControl(modelControl);
     stageWebSocket.sendJson(StaticStrings.ModelControlActionKey, modelControl);
     setActiveAsset(null);
     setIsControllerOpen(false);
@@ -310,15 +325,18 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const sendModelJoystick = useCallback((direction: JoyStickDirection, xPos?: number, yPos?: number, zoom?: number) => {
     const payload: ModelControl = {
       direction: direction.toString(),
+      action: direction.toString().toLowerCase(),
       xPos: xPos ?? 0,
       yPos: yPos ?? 0,
       zoom: zoom ?? 0
     };
+    stageSocket.sendJoystickControl(payload);
     stageWebSocket.sendJson(StaticStrings.SendModelControl, payload);
   }, []);
 
   const resetModelTransform = useCallback(() => {
-    const payload: ModelControl = { direction: JoyStickDirection.Reset };
+    const payload: ModelControl = { direction: JoyStickDirection.Reset, action: 'reset' };
+    stageSocket.sendModelControl(payload);
     stageWebSocket.sendJson(StaticStrings.SendModelControl, payload);
   }, []);
 
@@ -326,6 +344,7 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setCurrentMovableMode(mode);
     const actionName = MovableModeActionNames[mode] || 'rotate';
     const event: MovableActionEvent = { action: actionName };
+    stageSocket.sendMovableAction(event);
     stageWebSocket.sendJson(StaticStrings.MovableActionEvent, event);
   }, []);
 
@@ -333,6 +352,7 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const nextVal = !isOrthographic;
     setIsOrthographic(nextVal);
     const payload: CameraOrthographic = { isOrthographic: nextVal };
+    stageSocket.sendCameraOrthographic(payload);
     stageWebSocket.sendJson(StaticStrings.CameraOrthographicAction, payload);
   }, [isOrthographic]);
 
@@ -341,6 +361,7 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const updated = { ...stereoSettings, isStereo: nextStereo };
     setStereoSettings(updated);
     StorageService.saveStereoSettings(updated);
+    stageSocket.sendStereoSettings(updated);
     stageWebSocket.sendJson(StaticStrings.StereoSettingsActionKey, updated);
   }, [stereoSettings]);
 
@@ -348,6 +369,7 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setStereoSettings((prev) => {
       const updated: StereoAdjustSettings = { ...prev, ...partial };
       StorageService.saveStereoSettings(updated);
+      stageSocket.sendStereoSettings(updated);
       stageWebSocket.sendJson(StaticStrings.StereoSettingsActionKey, updated);
       return updated;
     });
@@ -356,6 +378,7 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const resetStereoSettings = useCallback(() => {
     setStereoSettings(DEFAULT_STEREO_SETTINGS);
     StorageService.saveStereoSettings(DEFAULT_STEREO_SETTINGS);
+    stageSocket.sendStereoSettings(DEFAULT_STEREO_SETTINGS);
     stageWebSocket.sendJson(StaticStrings.StereoSettingsActionKey, DEFAULT_STEREO_SETTINGS);
   }, []);
 
@@ -366,19 +389,22 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // Video Controls
   const playVideo = useCallback(() => {
     setIsVideoPlaying(true);
-    const payload: VideoControl = { videoAction: 'play' };
+    const payload: VideoControl = { videoAction: 'play', isPlaying: 'true' };
+    stageSocket.sendVideoControl(payload);
     stageWebSocket.sendJson(StaticStrings.VideoControlActionKey, payload);
   }, []);
 
   const pauseVideo = useCallback(() => {
     setIsVideoPlaying(false);
-    const payload: VideoControl = { videoAction: 'pause' };
+    const payload: VideoControl = { videoAction: 'pause', isPlaying: 'false' };
+    stageSocket.sendVideoControl(payload);
     stageWebSocket.sendJson(StaticStrings.VideoControlActionKey, payload);
   }, []);
 
   const stopVideo = useCallback(() => {
     setIsVideoPlaying(false);
-    const payload: VideoControl = { videoAction: 'stop' };
+    const payload: VideoControl = { videoAction: 'stop', isStop: 'true' };
+    stageSocket.sendVideoControl(payload);
     stageWebSocket.sendJson(StaticStrings.VideoControlActionKey, payload);
   }, []);
 
@@ -387,6 +413,7 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       videoAction: offsetSeconds > 0 ? 'seekForward' : 'seekBackward',
       seekTime: Math.abs(offsetSeconds)
     };
+    stageSocket.sendVideoControl(payload);
     stageWebSocket.sendJson(StaticStrings.VideoControlActionKey, payload);
   }, []);
 
@@ -394,6 +421,7 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const clamped = Math.max(0, Math.min(1, vol));
     setVideoVolumeState(clamped);
     const payload: VideoControl = { videoAction: 'volume', volume: clamped };
+    stageSocket.sendVideoControl(payload);
     stageWebSocket.sendJson(StaticStrings.VideoControlActionKey, payload);
   }, []);
 
@@ -401,6 +429,7 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const nextMute = !isVideoMuted;
     setIsVideoMuted(nextMute);
     const payload: VideoControl = { videoAction: 'mute', isMute: nextMute };
+    stageSocket.sendVideoControl(payload);
     stageWebSocket.sendJson(StaticStrings.VideoControlActionKey, payload);
   }, [isVideoMuted]);
 
