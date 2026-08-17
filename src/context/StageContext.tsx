@@ -167,12 +167,48 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     stageWebSocket.send(`${StaticStrings.ModelThumbnailID}#${assetId}`);
   }, []);
 
+  const parseAndSetAssets = useCallback((dataOrString: any) => {
+    try {
+      let rawList: any[] = [];
+      let parsed = dataOrString;
+      if (typeof dataOrString === 'string') {
+        parsed = JSON.parse(dataOrString);
+      }
+      if (Array.isArray(parsed)) {
+        rawList = parsed;
+      } else if (parsed && parsed.assetinformation && Array.isArray(parsed.assetinformation)) {
+        rawList = parsed.assetinformation;
+      } else if (parsed && parsed.AssetInformation && Array.isArray(parsed.AssetInformation)) {
+        rawList = parsed.AssetInformation;
+      } else if (parsed && parsed.assetInformation && Array.isArray(parsed.assetInformation)) {
+        rawList = parsed.assetInformation;
+      }
+
+      if (rawList.length > 0) {
+        const normalizedAssets: AssetInformation[] = rawList.map((item) => ({
+          ...item,
+          Category: resolveCategory(item)
+        }));
+        setAssets(normalizedAssets);
+        const names = Array.from(
+          new Set(normalizedAssets.map((a) => a.PlaylistName).filter(Boolean))
+        );
+        setPlaylists(['All', ...names]);
+        addToast('Loaded', `Received ${normalizedAssets.length} stage assets`, 'success');
+      }
+    } catch (e) {
+      console.error('Error parsing assets JSON:', e);
+    }
+  }, [addToast]);
+
   const refreshAssets = useCallback(() => {
     if (connectionState === 'connected') {
       requestedThumbnailsRef.current.clear();
       setThumbnails({});
       stageWebSocket.send(StaticStrings.ReqAssetSize);
       stageWebSocket.send(StaticStrings.ReqAsset);
+      stageSocket.emitEvent('message', StaticStrings.ReqAsset);
+      stageSocket.emitEvent('stage-message', StaticStrings.ReqAsset);
       addToast('Sync', 'Requesting assets from stage...', 'info');
     }
   }, [connectionState, addToast]);
@@ -183,10 +219,11 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const savedConfig = StorageService.getConnectionConfig();
     if (shouldAutoConnect && savedConfig.serverIp.trim()) {
       stageWebSocket.connect(savedConfig.serverIp, savedConfig.usePort, savedConfig.port);
+      stageSocket.connect(savedConfig.serverIp, savedConfig.usePort, savedConfig.port);
     }
   }, []);
 
-  // WebSocket event listeners
+  // WebSocket and Socket.IO event listeners
   useEffect(() => {
     const unsubState = stageWebSocket.onStateChange((state, detail) => {
       setConnectionState(state);
@@ -207,65 +244,28 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (command === '__STAGE_LOGGED_IN__') {
         // Once logged into server.js, start handshake with Unity desktop app
         stageWebSocket.send(`${StaticStrings.AppVersion}#1.0.0`);
-        // Proactively ask for asset size / assets in case desktop app is already connected
         stageWebSocket.send(StaticStrings.ReqAssetSize);
         stageWebSocket.send(StaticStrings.ReqAsset);
-        // Fallback retry for mobile Wi-Fi latency
         window.setTimeout(() => {
           stageWebSocket.send(StaticStrings.ReqAssetSize);
           stageWebSocket.send(StaticStrings.ReqAsset);
         }, 500);
-        // Sync saved stereoscopic settings to stage
         const currentSettings = StorageService.getStereoSettings();
         stageWebSocket.sendJson(StaticStrings.StereoSettingsActionKey, currentSettings);
       } else if (command === StaticStrings.AppVersion) {
-        // Desktop app returned its AppVersion -> request assets
         stageWebSocket.send(StaticStrings.ReqAssetSize);
         stageWebSocket.send(StaticStrings.ReqAsset);
       } else if (command === StaticStrings.ReqAssetSize) {
-        // Server confirms size, request actual payload
         stageWebSocket.send(StaticStrings.ReqAsset);
       } else if (command === StaticStrings.SendingAsset || command === 'SendingAssets' || command === 'SendingAsset') {
-        // SendingAssets#<json>
         const hashIndex = rawMessage.indexOf('#');
         if (hashIndex !== -1) {
-          const jsonPayload = rawMessage.substring(hashIndex + 1).trim();
-          try {
-            const parsed = JSON.parse(jsonPayload);
-            let rawList: any[] = [];
-            if (Array.isArray(parsed)) {
-              rawList = parsed;
-            } else if (parsed && parsed.assetinformation && Array.isArray(parsed.assetinformation)) {
-              rawList = parsed.assetinformation;
-            } else if (parsed && parsed.AssetInformation && Array.isArray(parsed.AssetInformation)) {
-              rawList = parsed.AssetInformation;
-            } else if (parsed && parsed.assetInformation && Array.isArray(parsed.assetInformation)) {
-              rawList = parsed.assetInformation;
-            }
-
-            if (rawList.length > 0 || (parsed && typeof parsed === 'object')) {
-              const normalizedAssets: AssetInformation[] = rawList.map((item) => ({
-                ...item,
-                Category: resolveCategory(item)
-              }));
-              setAssets(normalizedAssets);
-              // Extract unique playlist names
-              const names = Array.from(
-                new Set(normalizedAssets.map((a) => a.PlaylistName).filter(Boolean))
-              );
-              setPlaylists(['All', ...names]);
-              addToast('Loaded', `Received ${normalizedAssets.length} stage assets`, 'success');
-            }
-          } catch (e) {
-            console.error('Error parsing assets JSON:', e, 'Raw:', jsonPayload);
-            addToast('Error', 'Malformed asset list from server', 'error');
-          }
+          parseAndSetAssets(rawMessage.substring(hashIndex + 1).trim());
         }
       } else if (command === StaticStrings.ModelImageReceving) {
-        // ModelImageReceving#<assetId>#<base64>
         if (parts.length > 2) {
           const assetId = parts[1];
-          const base64 = parts.slice(2).join('#'); // in case base64 contained '#'
+          const base64 = parts.slice(2).join('#');
           if (base64 && base64 !== '-1') {
             const imageSrc = base64.startsWith('data:') ? base64 : `data:image/png;base64,${base64}`;
             setThumbnails((prev) => ({ ...prev, [assetId]: imageSrc }));
@@ -277,28 +277,11 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     // Socket.IO event listeners for mid-session asset catalog synchronization
     const unsubSocketMsg = stageSocket.onMessage((eventName: string, data: any) => {
       if (eventName === 'hologram-asset-list') {
-        let rawList: any[] = [];
-        if (Array.isArray(data)) {
-          rawList = data;
-        } else if (data && data.assetinformation && Array.isArray(data.assetinformation)) {
-          rawList = data.assetinformation;
-        } else if (data && data.AssetInformation && Array.isArray(data.AssetInformation)) {
-          rawList = data.AssetInformation;
-        } else if (data && data.assetInformation && Array.isArray(data.assetInformation)) {
-          rawList = data.assetInformation;
-        }
-
-        if (rawList.length > 0) {
-          const normalizedAssets: AssetInformation[] = rawList.map((item) => ({
-            ...item,
-            Category: resolveCategory(item)
-          }));
-          setAssets(normalizedAssets);
-          const names = Array.from(
-            new Set(normalizedAssets.map((a) => a.PlaylistName).filter(Boolean))
-          );
-          setPlaylists(['All', ...names]);
-          addToast('Loaded', `Received ${normalizedAssets.length} stage assets`, 'success');
+        parseAndSetAssets(data);
+      } else if (eventName === 'message' && typeof data === 'string' && data.startsWith('SendingAsset#')) {
+        const hashIdx = data.indexOf('#');
+        if (hashIdx !== -1) {
+          parseAndSetAssets(data.substring(hashIdx + 1).trim());
         }
       }
     });
@@ -309,7 +292,7 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       unsubMsg();
       unsubSocketMsg();
     };
-  }, [addToast]);
+  }, [addToast, parseAndSetAssets]);
 
   // Load Asset on Stage
   const loadAsset = useCallback((asset: AssetInformation) => {

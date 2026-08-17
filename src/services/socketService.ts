@@ -115,6 +115,8 @@ export class StageSocketService {
       this.socket.on('connect', () => {
         this.setState('connected');
         this.socket?.emit('login', { name: this.clientName });
+        this.socket?.emit('message', 'ReqAsset');
+        this.socket?.emit('stage-message', 'ReqAsset');
       });
 
       this.socket.on('connect_error', (err) => {
