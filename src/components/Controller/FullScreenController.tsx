@@ -3,6 +3,7 @@ import { useStage } from '../../context/StageContext';
 import { DataType, resolveCategory } from '../../types/protocol';
 import { ModelControlPanel } from './ModelControlPanel';
 import { VideoControlPanel } from './VideoControlPanel';
+import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
 import { ArrowLeft, Box, Film, Image as ImageIcon, Power, AlertTriangle, Loader2 } from 'lucide-react';
 
 export const FullScreenController: React.FC = () => {
@@ -14,6 +15,8 @@ export const FullScreenController: React.FC = () => {
     thumbnails,
     connectionState
   } = useStage();
+
+  useBodyScrollLock(isControllerOpen && !!activeAsset);
 
   if (!isControllerOpen || !activeAsset) return null;
 

@@ -43,8 +43,18 @@ export const ConnectionModal: React.FC<ConnectionModalProps> = ({ isOpen, onClos
   };
 
   const handleScanSuccess = (decoded: string) => {
-    let cleaned = decoded.replace('ws://', '').replace('wss://', '');
-    if (cleaned.includes(':')) {
+    const trimmed = decoded.trim();
+    // A wss:// or https:// address is a public tunnel (e.g. ngrok) — no port, always secure.
+    const isSecureRemote = /^(wss|https):\/\//i.test(trimmed);
+    const cleaned = trimmed
+      .replace(/^wss?:\/\//i, '')
+      .replace(/^https?:\/\//i, '')
+      .replace(/\/+$/, '');
+
+    if (isSecureRemote) {
+      setIp(cleaned);
+      setUsePort(false);
+    } else if (cleaned.includes(':')) {
       const [host, portStr] = cleaned.split(':');
       setIp(host);
       setPort(parseInt(portStr, 10) || 9000);
@@ -52,6 +62,17 @@ export const ConnectionModal: React.FC<ConnectionModalProps> = ({ isOpen, onClos
     } else {
       setIp(cleaned);
     }
+  };
+
+  // Smart validity indicator: only true when a real IP/hostname was actually
+  // extracted from what was typed or scanned, not e.g. a mangled scheme fragment.
+  const isValidHost = (value: string): boolean => {
+    const v = value.trim();
+    if (!v) return false;
+    if (/^(wss?|https?)$/i.test(v)) return false;
+    const ipv4 = /^(\d{1,3}\.){3}\d{1,3}$/;
+    const hostname = /^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
+    return v.toLowerCase() === 'localhost' || ipv4.test(v) || hostname.test(v);
   };
 
   return (
@@ -178,6 +199,21 @@ export const ConnectionModal: React.FC<ConnectionModalProps> = ({ isOpen, onClos
               <QrCode size={18} />
             </button>
           </div>
+          {isValidHost(ip) && (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                marginTop: 6,
+                fontSize: '0.75rem',
+                color: 'var(--color-success)'
+              }}
+            >
+              <CheckCircle2 size={14} />
+              Valid address detected
+            </div>
+          )}
         </div>
 
         <div className="form-toggle-row">

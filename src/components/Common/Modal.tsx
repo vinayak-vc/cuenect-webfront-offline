@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { X } from 'lucide-react';
+import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
 
 interface ModalProps {
   isOpen: boolean;
@@ -27,6 +28,8 @@ export const Modal: React.FC<ModalProps> = ({
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose]);
+
+  useBodyScrollLock(isOpen);
 
   if (!isOpen) return null;
 

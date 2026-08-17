@@ -422,6 +422,7 @@ body {
   max-width: 480px;
   max-height: 90vh;
   overflow-y: auto;
+  overscroll-behavior: contain;
   display: flex;
   flex-direction: column;
   box-shadow: var(--shadow-md);

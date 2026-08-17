@@ -80,15 +80,14 @@ export class StageSocketService {
     this.clientName = `WebBrowser_${Math.random().toString(36).substring(2, 8)}`;
 
     let targetUrl = address.trim();
-    if (targetUrl.startsWith('ws://')) {
-      targetUrl = targetUrl.replace('ws://', 'http://');
-    } else if (targetUrl.startsWith('wss://')) {
-      targetUrl = targetUrl.replace('wss://', 'https://');
-    }
+    // Preserve an explicit scheme if the caller already included one (ws/wss/http/https).
+    const hadSecureScheme = /^(wss|https):\/\//i.test(targetUrl);
+    targetUrl = targetUrl.replace(/^wss?:\/\//i, '').replace(/^https?:\/\//i, '');
 
-    if (!targetUrl.startsWith('http://') && !targetUrl.startsWith('https://')) {
-      targetUrl = `http://${targetUrl}`;
-    }
+    // usePort=false means "public tunnel address, no dedicated port" (e.g. an ngrok
+    // hostname), which is always served over TLS — must be https/wss, never http/ws.
+    const useSecureScheme = hadSecureScheme || !usePort;
+    targetUrl = `${useSecureScheme ? 'https' : 'http'}://${targetUrl}`;
 
     if (usePort) {
       try {
