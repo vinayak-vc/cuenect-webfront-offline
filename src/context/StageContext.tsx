@@ -16,7 +16,6 @@ import {
   StereoAdjustSettings,
   DEFAULT_STEREO_SETTINGS
 } from '../types/protocol';
-import { stageWebSocket } from '../services/websocket';
 import { stageSocket } from '../services/socketService';
 import { StorageService, ConnectionConfig } from '../services/storage';
 
@@ -147,13 +146,11 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setConfig(newConfig);
     StorageService.saveConnectionConfig(newConfig);
     StorageService.saveAutoConnect(true);
-    stageWebSocket.connect(newConfig.serverIp, newConfig.usePort, newConfig.port);
     stageSocket.connect(newConfig.serverIp, newConfig.usePort, newConfig.port);
   }, []);
 
   const disconnect = useCallback(() => {
     StorageService.saveAutoConnect(false);
-    stageWebSocket.disconnect();
     stageSocket.disconnect();
     requestedThumbnailsRef.current.clear();
     setActiveAsset(null);
@@ -164,7 +161,7 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const requestThumbnail = useCallback((assetId: string) => {
     if (requestedThumbnailsRef.current.has(assetId)) return;
     requestedThumbnailsRef.current.add(assetId);
-    stageWebSocket.send(`${StaticStrings.ModelThumbnailID}#${assetId}`);
+    stageSocket.requestThumbnail(assetId);
   }, []);
 
   const parseAndSetAssets = useCallback((dataOrString: any) => {
@@ -205,8 +202,6 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (connectionState === 'connected') {
       requestedThumbnailsRef.current.clear();
       setThumbnails({});
-      stageWebSocket.send(StaticStrings.ReqAssetSize);
-      stageWebSocket.send(StaticStrings.ReqAsset);
       stageSocket.emitEvent('message', StaticStrings.ReqAsset);
       stageSocket.emitEvent('stage-message', StaticStrings.ReqAsset);
       addToast('Sync', 'Requesting assets from stage...', 'info');
@@ -218,17 +213,27 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const shouldAutoConnect = StorageService.getAutoConnect();
     const savedConfig = StorageService.getConnectionConfig();
     if (shouldAutoConnect && savedConfig.serverIp.trim()) {
-      stageWebSocket.connect(savedConfig.serverIp, savedConfig.usePort, savedConfig.port);
       stageSocket.connect(savedConfig.serverIp, savedConfig.usePort, savedConfig.port);
     }
   }, []);
 
-  // WebSocket and Socket.IO event listeners
+  // Socket.IO event listeners (single transport for the stage connection)
   useEffect(() => {
-    const unsubState = stageWebSocket.onStateChange((state, detail) => {
+    const unsubState = stageSocket.onStateChange((state, detail) => {
       setConnectionState(state);
       if (state === 'connected') {
         addToast('Connected', 'Connected to Stage Server', 'success');
+
+        // Handshake with Unity desktop app now that the socket is live
+        stageSocket.emitEvent('message', `${StaticStrings.AppVersion}#1.0.0`);
+        stageSocket.emitEvent('message', StaticStrings.ReqAsset);
+        stageSocket.emitEvent('stage-message', StaticStrings.ReqAsset);
+        window.setTimeout(() => {
+          stageSocket.emitEvent('message', StaticStrings.ReqAsset);
+          stageSocket.emitEvent('stage-message', StaticStrings.ReqAsset);
+        }, 500);
+        const currentSettings = StorageService.getStereoSettings();
+        stageSocket.sendStereoSettings(currentSettings);
       } else if (state === 'error') {
         addToast('Connection Error', detail || 'Failed to connect to stage server', 'error');
       } else if (state === 'disconnected') {
@@ -236,52 +241,34 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
     });
 
-    const unsubUsers = stageWebSocket.onUsersChange((users) => {
+    const unsubUsers = stageSocket.onUsersChange((users) => {
       setConnectedUsers(users);
     });
 
-    const unsubMsg = stageWebSocket.onMessage((command, rawMessage, parts) => {
-      if (command === '__STAGE_LOGGED_IN__') {
-        // Once logged into server.js, start handshake with Unity desktop app
-        stageWebSocket.send(`${StaticStrings.AppVersion}#1.0.0`);
-        stageWebSocket.send(StaticStrings.ReqAssetSize);
-        stageWebSocket.send(StaticStrings.ReqAsset);
-        window.setTimeout(() => {
-          stageWebSocket.send(StaticStrings.ReqAssetSize);
-          stageWebSocket.send(StaticStrings.ReqAsset);
-        }, 500);
-        const currentSettings = StorageService.getStereoSettings();
-        stageWebSocket.sendJson(StaticStrings.StereoSettingsActionKey, currentSettings);
-      } else if (command === StaticStrings.AppVersion) {
-        stageWebSocket.send(StaticStrings.ReqAssetSize);
-        stageWebSocket.send(StaticStrings.ReqAsset);
-      } else if (command === StaticStrings.ReqAssetSize) {
-        stageWebSocket.send(StaticStrings.ReqAsset);
-      } else if (command === StaticStrings.SendingAsset || command === 'SendingAssets' || command === 'SendingAsset') {
-        const hashIndex = rawMessage.indexOf('#');
-        if (hashIndex !== -1) {
-          parseAndSetAssets(rawMessage.substring(hashIndex + 1).trim());
-        }
-      } else if (command === StaticStrings.ModelImageReceving) {
-        if (parts.length > 2) {
-          const assetId = parts[1];
-          const base64 = parts.slice(2).join('#');
-          if (base64 && base64 !== '-1') {
-            const imageSrc = base64.startsWith('data:') ? base64 : `data:image/png;base64,${base64}`;
-            setThumbnails((prev) => ({ ...prev, [assetId]: imageSrc }));
-          }
-        }
-      }
-    });
-
-    // Socket.IO event listeners for mid-session asset catalog synchronization
     const unsubSocketMsg = stageSocket.onMessage((eventName: string, data: any) => {
       if (eventName === 'hologram-asset-list') {
         parseAndSetAssets(data);
-      } else if (eventName === 'message' && typeof data === 'string' && data.startsWith('SendingAsset#')) {
-        const hashIdx = data.indexOf('#');
-        if (hashIdx !== -1) {
-          parseAndSetAssets(data.substring(hashIdx + 1).trim());
+        return;
+      }
+
+      if ((eventName === 'message' || eventName === 'stage-message') && typeof data === 'string') {
+        const hashIndex = data.indexOf('#');
+        const command = hashIndex !== -1 ? data.substring(0, hashIndex) : data;
+
+        if (command === StaticStrings.SendingAsset) {
+          if (hashIndex !== -1) {
+            parseAndSetAssets(data.substring(hashIndex + 1).trim());
+          }
+        } else if (command === StaticStrings.ModelImageReceving) {
+          const parts = data.split('#');
+          if (parts.length > 2) {
+            const assetId = parts[1];
+            const base64 = parts.slice(2).join('#');
+            if (base64 && base64 !== '-1') {
+              const imageSrc = base64.startsWith('data:') ? base64 : `data:image/png;base64,${base64}`;
+              setThumbnails((prev) => ({ ...prev, [assetId]: imageSrc }));
+            }
+          }
         }
       }
     });
@@ -289,7 +276,6 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return () => {
       unsubState();
       unsubUsers();
-      unsubMsg();
       unsubSocketMsg();
     };
   }, [addToast, parseAndSetAssets]);
@@ -327,7 +313,6 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const unloadAsset = useCallback(() => {
     const modelControl: ModelControl = { isAssetClose: 'true', action: 'reset' };
     stageSocket.sendModelControl(modelControl);
-    stageWebSocket.sendJson(StaticStrings.ModelControlActionKey, modelControl);
     setActiveAsset(null);
     setIsControllerOpen(false);
     setIsVideoPlaying(false);
@@ -343,13 +328,11 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       zoom: zoom ?? 0
     };
     stageSocket.sendJoystickControl(payload);
-    stageWebSocket.sendJson(StaticStrings.SendModelControl, payload);
   }, []);
 
   const resetModelTransform = useCallback(() => {
     const payload: ModelControl = { direction: JoyStickDirection.Reset, action: 'reset' };
     stageSocket.sendModelControl(payload);
-    stageWebSocket.sendJson(StaticStrings.SendModelControl, payload);
   }, []);
 
   const setMovableMode = useCallback((mode: MoveableAssetType) => {
@@ -357,7 +340,6 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const actionName = MovableModeActionNames[mode] || 'rotate';
     const event: MovableActionEvent = { action: actionName };
     stageSocket.sendMovableAction(event);
-    stageWebSocket.sendJson(StaticStrings.MovableActionEvent, event);
 
     // Reset joystick velocity to 0,0 on mode switch
     sendModelJoystick(JoyStickDirection.End, 0, 0);
@@ -369,7 +351,6 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setIsOrthographic(nextVal);
     const payload: CameraOrthographic = { isOrthographic: nextVal };
     stageSocket.sendCameraOrthographic(payload);
-    stageWebSocket.sendJson(StaticStrings.CameraOrthographicAction, payload);
   }, [isOrthographic]);
 
   const toggleStereoscopic = useCallback(() => {
@@ -378,7 +359,6 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setStereoSettings(updated);
     StorageService.saveStereoSettings(updated);
     stageSocket.sendStereoSettings(updated);
-    stageWebSocket.sendJson(StaticStrings.StereoSettingsActionKey, updated);
   }, [stereoSettings]);
 
   const updateStereoSettings = useCallback((partial: Partial<StereoAdjustSettings>) => {
@@ -386,7 +366,6 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const updated: StereoAdjustSettings = { ...prev, ...partial };
       StorageService.saveStereoSettings(updated);
       stageSocket.sendStereoSettings(updated);
-      stageWebSocket.sendJson(StaticStrings.StereoSettingsActionKey, updated);
       return updated;
     });
   }, []);
@@ -395,11 +374,10 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setStereoSettings(DEFAULT_STEREO_SETTINGS);
     StorageService.saveStereoSettings(DEFAULT_STEREO_SETTINGS);
     stageSocket.sendStereoSettings(DEFAULT_STEREO_SETTINGS);
-    stageWebSocket.sendJson(StaticStrings.StereoSettingsActionKey, DEFAULT_STEREO_SETTINGS);
   }, []);
 
   const triggerFullscreen = useCallback(() => {
-    stageWebSocket.send(StaticStrings.FullScreen);
+    stageSocket.triggerFullscreen();
   }, []);
 
   // Video Controls
@@ -407,21 +385,18 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setIsVideoPlaying(true);
     const payload: VideoControl = { videoAction: 'play', isPlaying: 'true' };
     stageSocket.sendVideoControl(payload);
-    stageWebSocket.sendJson(StaticStrings.VideoControlActionKey, payload);
   }, []);
 
   const pauseVideo = useCallback(() => {
     setIsVideoPlaying(false);
     const payload: VideoControl = { videoAction: 'pause', isPlaying: 'false' };
     stageSocket.sendVideoControl(payload);
-    stageWebSocket.sendJson(StaticStrings.VideoControlActionKey, payload);
   }, []);
 
   const stopVideo = useCallback(() => {
     setIsVideoPlaying(false);
     const payload: VideoControl = { videoAction: 'stop', isStop: 'true' };
     stageSocket.sendVideoControl(payload);
-    stageWebSocket.sendJson(StaticStrings.VideoControlActionKey, payload);
   }, []);
 
   const seekVideo = useCallback((offsetSeconds: number) => {
@@ -430,7 +405,6 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       seekTime: Math.abs(offsetSeconds)
     };
     stageSocket.sendVideoControl(payload);
-    stageWebSocket.sendJson(StaticStrings.VideoControlActionKey, payload);
   }, []);
 
   const setVideoVolume = useCallback((vol: number) => {
@@ -438,7 +412,6 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setVideoVolumeState(clamped);
     const payload: VideoControl = { videoAction: 'volume', volume: clamped };
     stageSocket.sendVideoControl(payload);
-    stageWebSocket.sendJson(StaticStrings.VideoControlActionKey, payload);
   }, []);
 
   const toggleVideoMute = useCallback(() => {
@@ -446,7 +419,6 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setIsVideoMuted(nextMute);
     const payload: VideoControl = { videoAction: 'mute', isMute: nextMute };
     stageSocket.sendVideoControl(payload);
-    stageWebSocket.sendJson(StaticStrings.VideoControlActionKey, payload);
   }, [isVideoMuted]);
 
   // Custom Playlist Management

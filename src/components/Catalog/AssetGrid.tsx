@@ -48,7 +48,7 @@ export const AssetGrid: React.FC<AssetGridProps> = ({ onOpenConnection }) => {
         </div>
         <h2 style={{ fontSize: '1.25rem', fontWeight: 700 }}>Connecting to Stage...</h2>
         <p style={{ color: 'var(--text-secondary)', maxWidth: 360, fontSize: '0.85rem' }}>
-          Establishing WebSocket connection with {config.serverIp || 'stage server'}...
+          Establishing connection with {config.serverIp || 'stage server'}...
         </p>
         <button
           type="button"

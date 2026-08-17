@@ -80,7 +80,7 @@ export const ConnectionModal: React.FC<ConnectionModalProps> = ({ isOpen, onClos
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
                   {connectedUsers.length > 0
                     ? `${connectedUsers.length} Active User${connectedUsers.length > 1 ? 's' : ''} Online`
-                    : 'Stage WebSocket Active'}
+                    : 'Stage Connection Active'}
                 </div>
               </div>
             </div>

@@ -201,6 +201,18 @@ export class StageSocketService {
   public sendStereoSettings(settings: Partial<StereoAdjustSettings> | any): void {
     this.emitEvent('StereoSettingsActionKey', settings);
   }
+
+  // Bridged as raw stage command strings (same convention as ReqAsset) since
+  // Unity has no dedicated typed Socket.IO event for these yet.
+  public requestThumbnail(assetId: string): void {
+    this.emitEvent('message', `ModelImageRequest#${assetId}`);
+    this.emitEvent('stage-message', `ModelImageRequest#${assetId}`);
+  }
+
+  public triggerFullscreen(): void {
+    this.emitEvent('message', 'FullScreen');
+    this.emitEvent('stage-message', 'FullScreen');
+  }
 }
 
 export const stageSocket = new StageSocketService();
