@@ -222,8 +222,68 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, [connectionState, addToast]);
 
-  // Auto-connect on page refresh / initial load if previously connected
+  // Direct connect from scanned QR code URL or saved configuration
   useEffect(() => {
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const hashQuery = window.location.hash.includes('?') ? window.location.hash.split('?')[1] : '';
+      const hashParams = new URLSearchParams(hashQuery);
+
+      const serverParam = urlParams.get('server') || hashParams.get('server') || urlParams.get('url') || hashParams.get('url');
+      const hostParam = urlParams.get('host') || hashParams.get('host') || urlParams.get('ip') || hashParams.get('ip');
+      const portParam = urlParams.get('port') || hashParams.get('port');
+      const usePortParam = urlParams.get('usePort') || hashParams.get('usePort');
+
+      if (serverParam) {
+        let cleanHost = serverParam.replace(/^https?:\/\//i, '').replace(/^wss?:\/\//i, '').replace(/\/+$/, '');
+        let port = 9000;
+        let usePort = false;
+
+        if (cleanHost.includes(':')) {
+          const parts = cleanHost.split(':');
+          cleanHost = parts[0];
+          const parsedPort = parseInt(parts[1], 10);
+          if (!isNaN(parsedPort)) {
+            port = parsedPort;
+            usePort = true;
+          }
+        }
+
+        const newConfig: ConnectionConfig = {
+          serverIp: cleanHost,
+          usePort,
+          port
+        };
+
+        StorageService.saveConnectionConfig(newConfig);
+        StorageService.saveAutoConnect(true);
+        setConfig(newConfig);
+        stageSocket.connect(newConfig.serverIp, newConfig.usePort, newConfig.port);
+        return;
+      }
+
+      if (hostParam) {
+        const isPublic = hostParam.includes('ngrok') || hostParam.includes('.app') || hostParam.includes('.dev') || hostParam.includes('.io');
+        const usePort = usePortParam !== null ? usePortParam === 'true' : !isPublic;
+        const port = portParam ? parseInt(portParam, 10) : 9000;
+
+        const newConfig: ConnectionConfig = {
+          serverIp: hostParam.trim(),
+          usePort,
+          port
+        };
+
+        StorageService.saveConnectionConfig(newConfig);
+        StorageService.saveAutoConnect(true);
+        setConfig(newConfig);
+        stageSocket.connect(newConfig.serverIp, newConfig.usePort, newConfig.port);
+        return;
+      }
+    } catch (err) {
+      console.warn('Could not parse URL connect parameters:', err);
+    }
+
+    // Fallback: auto-connect if enabled in storage
     const shouldAutoConnect = StorageService.getAutoConnect();
     const savedConfig = StorageService.getConnectionConfig();
     if (shouldAutoConnect && savedConfig.serverIp.trim()) {

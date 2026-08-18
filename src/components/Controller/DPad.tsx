@@ -8,7 +8,6 @@ export const DPad: React.FC = () => {
   const [activeBtn, setActiveBtn] = useState<string | null>(null);
 
   const activeBtnRef = React.useRef<string | null>(null);
-
   const zoomIntervalRef = React.useRef<number | null>(null);
 
   const handlePointerDown = (dirKey: string, xPos: number, yPos: number) => {
@@ -43,7 +42,7 @@ export const DPad: React.FC = () => {
     }
   }, [sendModelJoystick]);
 
-  // Global safety release: catches pointer releases outside button boxes and window blur
+  // Global safety release
   useEffect(() => {
     const handleGlobalRelease = () => {
       handlePointerUp();
@@ -77,7 +76,7 @@ export const DPad: React.FC = () => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 20 }}>
-      {/* Directional Pad */}
+      {/* Directional Holographic Compass */}
       <div className="dpad-container">
         <button
           type="button"
@@ -92,7 +91,7 @@ export const DPad: React.FC = () => {
           onTouchEnd={handlePointerUp}
           aria-label="Tilt Up"
         >
-          <ChevronUp size={28} />
+          <ChevronUp size={30} />
         </button>
 
         <button
@@ -108,7 +107,7 @@ export const DPad: React.FC = () => {
           onTouchEnd={handlePointerUp}
           aria-label="Tilt Down"
         >
-          <ChevronDown size={28} />
+          <ChevronDown size={30} />
         </button>
 
         <button
@@ -124,7 +123,7 @@ export const DPad: React.FC = () => {
           onTouchEnd={handlePointerUp}
           aria-label="Rotate Left"
         >
-          <ChevronLeft size={28} />
+          <ChevronLeft size={30} />
         </button>
 
         <button
@@ -140,7 +139,7 @@ export const DPad: React.FC = () => {
           onTouchEnd={handlePointerUp}
           aria-label="Rotate Right"
         >
-          <ChevronRight size={28} />
+          <ChevronRight size={30} />
         </button>
 
         <button
@@ -149,11 +148,17 @@ export const DPad: React.FC = () => {
           onClick={resetModelTransform}
           title="Reset Rotation & Scale"
         >
-          <RotateCcw size={18} />
+          <img
+            src="/assets/mobile/reload (1).png"
+            alt="Reset"
+            style={{ width: 22, height: 22, objectFit: 'contain', filter: 'brightness(1.5)' }}
+            onError={(e) => { e.currentTarget.style.display = 'none'; }}
+          />
+          <RotateCcw size={18} style={{ display: 'none' }} />
         </button>
       </div>
 
-      {/* Zoom In & Out */}
+      {/* Zoom Controls */}
       <div className="zoom-controls">
         <button
           type="button"

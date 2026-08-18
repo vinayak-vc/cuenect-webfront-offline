@@ -1,6 +1,6 @@
 import React from 'react';
 import { useStage } from '../../context/StageContext';
-import { Play, Pause, Square, RotateCcw, RotateCw, Volume2, VolumeX } from 'lucide-react';
+import { RotateCcw, RotateCw, Play, Pause, Square, Volume2 } from 'lucide-react';
 
 export const VideoControlPanel: React.FC = () => {
   const {
@@ -25,7 +25,13 @@ export const VideoControlPanel: React.FC = () => {
           onClick={() => seekVideo(-10)}
           title="Rewind 10s"
         >
-          <RotateCcw size={18} />
+          <img
+            src="/assets/mobile/backward (1).png"
+            alt="Rewind"
+            style={{ width: 18, height: 18, objectFit: 'contain' }}
+            onError={(e) => { e.currentTarget.style.display = 'none'; }}
+          />
+          <RotateCcw size={18} style={{ display: 'none' }} />
         </button>
 
         {isVideoPlaying ? (
@@ -35,7 +41,13 @@ export const VideoControlPanel: React.FC = () => {
             onClick={pauseVideo}
             title="Pause Video"
           >
-            <Pause size={28} />
+            <img
+              src="/assets/mobile/pause.png"
+              alt="Pause"
+              style={{ width: 26, height: 26, objectFit: 'contain', filter: 'brightness(0.1)' }}
+              onError={(e) => { e.currentTarget.style.display = 'none'; }}
+            />
+            <Pause size={28} style={{ display: 'none' }} />
           </button>
         ) : (
           <button
@@ -44,7 +56,13 @@ export const VideoControlPanel: React.FC = () => {
             onClick={playVideo}
             title="Play Video"
           >
-            <Play size={28} style={{ marginLeft: 2 }} />
+            <img
+              src="/assets/mobile/play.png"
+              alt="Play"
+              style={{ width: 26, height: 26, objectFit: 'contain', filter: 'brightness(0.1)', marginLeft: 2 }}
+              onError={(e) => { e.currentTarget.style.display = 'none'; }}
+            />
+            <Play size={28} style={{ display: 'none' }} />
           </button>
         )}
 
@@ -54,7 +72,13 @@ export const VideoControlPanel: React.FC = () => {
           onClick={stopVideo}
           title="Stop Video"
         >
-          <Square size={18} />
+          <img
+            src="/assets/mobile/stop.png"
+            alt="Stop"
+            style={{ width: 18, height: 18, objectFit: 'contain' }}
+            onError={(e) => { e.currentTarget.style.display = 'none'; }}
+          />
+          <Square size={18} style={{ display: 'none' }} />
         </button>
 
         <button
@@ -63,7 +87,13 @@ export const VideoControlPanel: React.FC = () => {
           onClick={() => seekVideo(10)}
           title="Forward 10s"
         >
-          <RotateCw size={18} />
+          <img
+            src="/assets/ui/forward.png"
+            alt="Forward"
+            style={{ width: 18, height: 18, objectFit: 'contain' }}
+            onError={(e) => { e.currentTarget.style.display = 'none'; }}
+          />
+          <RotateCw size={18} style={{ display: 'none' }} />
         </button>
       </div>
 
@@ -75,7 +105,22 @@ export const VideoControlPanel: React.FC = () => {
           onClick={toggleVideoMute}
           title={isVideoMuted ? 'Unmute' : 'Mute'}
         >
-          {isVideoMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
+          {isVideoMuted ? (
+            <img
+              src="/assets/mobile/volume-mute.png"
+              alt="Muted"
+              style={{ width: 18, height: 18, objectFit: 'contain' }}
+              onError={(e) => { e.currentTarget.style.display = 'none'; }}
+            />
+          ) : (
+            <img
+              src="/assets/mobile/volume.png"
+              alt="Volume"
+              style={{ width: 18, height: 18, objectFit: 'contain' }}
+              onError={(e) => { e.currentTarget.style.display = 'none'; }}
+            />
+          )}
+          <Volume2 size={20} style={{ display: 'none' }} />
         </button>
 
         <input
@@ -87,7 +132,7 @@ export const VideoControlPanel: React.FC = () => {
           onChange={(e) => setVideoVolume(parseFloat(e.target.value))}
           className="volume-slider"
         />
-        <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', width: 36, textAlign: 'right' }}>
+        <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', width: 40, textAlign: 'right', fontFamily: 'var(--font-mono)' }}>
           {Math.round((isVideoMuted ? 0 : videoVolume) * 100)}%
         </span>
       </div>

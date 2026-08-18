@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useStage } from '../../context/StageContext';
-import { Box, RefreshCw, ListPlus, Users, Sliders } from 'lucide-react';
+import { RefreshCw, ListPlus, Users, Sliders, Layers } from 'lucide-react';
 
 interface HeaderProps {
   onOpenConnection: () => void;
@@ -20,6 +20,8 @@ export const Header: React.FC<HeaderProps> = ({
     setIsSettingsOpen
   } = useStage();
 
+  const [logoError, setLogoError] = useState<boolean>(false);
+
   const getStatusText = (): string => {
     switch (connectionState) {
       case 'connected':
@@ -36,11 +38,22 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <header className="app-header">
       <div className="header-brand">
-        <Box className="header-logo" />
-        <div>
+        {!logoError ? (
+          <img
+            src="/assets/branding/cuenect - white - 01.png"
+            alt="Cuenect Hologram Stage"
+            className="header-logo-img"
+            onError={() => setLogoError(true)}
+          />
+        ) : (
+          <div className="header-logo-fallback">
+            <Layers size={28} />
+          </div>
+        )}
+        <div className="header-title-wrap">
           <h1 className="header-title">CUENECT</h1>
           <div className="header-subtitle">
-            {selectedPlaylist !== 'All' ? `Playlist: ${selectedPlaylist}` : 'Holo Stage Controller'}
+            {selectedPlaylist !== 'All' ? `Playlist: ${selectedPlaylist}` : 'Hologram Stage Controller'}
           </div>
         </div>
       </div>
@@ -84,18 +97,19 @@ export const Header: React.FC<HeaderProps> = ({
             <span
               style={{
                 position: 'absolute',
-                top: 4,
-                right: 4,
+                top: 2,
+                right: 2,
                 width: 16,
                 height: 16,
                 borderRadius: '50%',
                 background: 'var(--color-primary)',
-                color: '#000',
+                color: '#041017',
                 fontSize: '0.65rem',
-                fontWeight: 700,
+                fontWeight: 800,
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'center'
+                justifyContent: 'center',
+                boxShadow: '0 0 8px rgba(100, 197, 190, 0.6)'
               }}
             >
               {customPlaylistIds.length}

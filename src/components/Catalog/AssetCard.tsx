@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { AssetInformation, DataType, resolveCategory } from '../../types/protocol';
 import { useStage } from '../../context/StageContext';
-import { Box, Film, Image as ImageIcon, Play, Plus, Check } from 'lucide-react';
+import { Play, Plus, Check, Box, Image as ImageIcon } from 'lucide-react';
 
 interface AssetCardProps {
   asset: AssetInformation;
@@ -73,16 +73,25 @@ export const AssetCard: React.FC<AssetCardProps> = ({ asset }) => {
     }
   };
 
-  const renderIcon = () => {
+  const renderBadgeIcon = () => {
     switch (category) {
       case DataType.Model:
-        return <Box size={36} />;
+        return <img src="/assets/ui/3d-modeling.png" alt="3D" style={{ width: 14, height: 14, objectFit: 'contain' }} onError={(e) => { e.currentTarget.style.display = 'none'; }} />;
       case DataType.Video:
-        return <Film size={36} />;
-      case DataType.Image:
-        return <ImageIcon size={36} />;
+        return <img src="/assets/ui/video icon.png" alt="Video" style={{ width: 14, height: 14, objectFit: 'contain' }} onError={(e) => { e.currentTarget.style.display = 'none'; }} />;
       default:
-        return <Box size={36} />;
+        return <Box size={12} />;
+    }
+  };
+
+  const renderPlaceholderIcon = () => {
+    switch (category) {
+      case DataType.Model:
+        return <img src="/assets/ui/3d-printer.png" alt="3D Model" style={{ width: 44, height: 44, opacity: 0.8 }} onError={(e) => { e.currentTarget.style.display = 'none'; }} />;
+      case DataType.Video:
+        return <img src="/assets/ui/video icon.png" alt="Video" style={{ width: 44, height: 44, opacity: 0.8 }} onError={(e) => { e.currentTarget.style.display = 'none'; }} />;
+      default:
+        return <ImageIcon size={36} />;
     }
   };
 
@@ -92,9 +101,12 @@ export const AssetCard: React.FC<AssetCardProps> = ({ asset }) => {
         {thumbUrl ? (
           <img src={thumbUrl} alt={asset.AssetName} className="asset-thumb" loading="lazy" />
         ) : (
-          <div className="asset-thumb-placeholder">{renderIcon()}</div>
+          <div className="asset-thumb-placeholder">{renderPlaceholderIcon()}</div>
         )}
-        <span className={`category-badge ${getCategoryClass()}`}>{getCategoryName()}</span>
+        <span className={`category-badge ${getCategoryClass()}`}>
+          {renderBadgeIcon()}
+          <span>{getCategoryName()}</span>
+        </span>
       </div>
 
       <div className="asset-info">
