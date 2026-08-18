@@ -84,12 +84,22 @@ export class StageSocketService {
     const hadSecureScheme = /^(wss|https):\/\//i.test(targetUrl);
     targetUrl = targetUrl.replace(/^wss?:\/\//i, '').replace(/^https?:\/\//i, '');
 
-    // usePort=false means "public tunnel address, no dedicated port" (e.g. an ngrok
-    // hostname), which is always served over TLS — must be https/wss, never http/ws.
-    const useSecureScheme = hadSecureScheme || !usePort;
+    // Extract bare host for type check (URL vs IP)
+    let bareHost = targetUrl;
+    if (bareHost.includes(':')) {
+      bareHost = bareHost.split(':')[0];
+    }
+    bareHost = bareHost.replace(/\/+.*$/, '');
+
+    const isRawIp = /^(\d{1,3}\.){3}\d{1,3}$/.test(bareHost) || bareHost === 'localhost' || bareHost === '127.0.0.1';
+    const isPublicTunnel = !isRawIp || bareHost.includes('ngrok') || bareHost.includes('.app');
+
+    // usePort=false means "public tunnel address, no dedicated port" (e.g. an ngrok hostname)
+    const effectiveUsePort = isPublicTunnel ? false : usePort;
+    const useSecureScheme = hadSecureScheme || isPublicTunnel || !effectiveUsePort;
     targetUrl = `${useSecureScheme ? 'https' : 'http'}://${targetUrl}`;
 
-    if (usePort) {
+    if (effectiveUsePort) {
       try {
         const urlObj = new URL(targetUrl);
         if (!urlObj.port) {
@@ -97,9 +107,13 @@ export class StageSocketService {
           targetUrl = urlObj.origin;
         }
       } catch {
-        // Fallback for IP inputs
         targetUrl = `${targetUrl}:${port}`;
       }
+    } else {
+      try {
+        const urlObj = new URL(targetUrl);
+        targetUrl = `${urlObj.protocol}//${urlObj.hostname}`;
+      } catch {}
     }
 
     this.url = targetUrl;
@@ -108,10 +122,10 @@ export class StageSocketService {
     try {
       this.socket = io(this.url, {
         transports: ['websocket', 'polling'],
-        reconnection: true,
-        reconnectionAttempts: 10,
+        reconnection: !isPublicTunnel,
+        reconnectionAttempts: isPublicTunnel ? 0 : 10,
         reconnectionDelay: 1000,
-        timeout: 10000
+        timeout: 8000
       });
 
       this.socket.on('connect', () => {
@@ -121,6 +135,9 @@ export class StageSocketService {
 
       this.socket.on('connect_error', (err) => {
         this.setState('error', err.message);
+        if (isPublicTunnel) {
+          this.disconnect();
+        }
       });
 
       this.socket.on('disconnect', (reason) => {

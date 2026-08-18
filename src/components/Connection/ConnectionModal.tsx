@@ -31,12 +31,54 @@ export const ConnectionModal: React.FC<ConnectionModalProps> = ({ isOpen, onClos
     usePort !== config.usePort ||
     (usePort && Number(port) !== (config.port || 9000));
 
+  const cleanHostInput = (raw: string) => {
+    let str = (raw || '').trim();
+    const hasProtocol = /^(wss?|https?):\/\//i.test(str);
+    const isSecure = /^(wss|https):\/\//i.test(str);
+    str = str.replace(/^(wss?|https?):\/\//i, '').replace(/\/+.*$/, '');
+
+    let host = str;
+    let detectedPort = 9000;
+    let hasExplicitPort = false;
+
+    if (str.includes(':')) {
+      const parts = str.split(':');
+      host = parts[0];
+      const parsed = parseInt(parts[1], 10);
+      if (!isNaN(parsed)) {
+        detectedPort = parsed;
+        hasExplicitPort = true;
+      }
+    }
+
+    const isTunnel = host.includes('ngrok') || host.includes('.app') || host.includes('.dev') || host.includes('.io') || (hasProtocol && isSecure);
+    return {
+      host,
+      isTunnel,
+      hasExplicitPort,
+      port: detectedPort
+    };
+  };
+
+  const handleIpChange = (newVal: string) => {
+    setIp(newVal);
+    const { isTunnel } = cleanHostInput(newVal);
+    if (isTunnel) {
+      setUsePort(false);
+    }
+  };
+
   const handleConnect = () => {
-    if (!ip.trim()) return;
+    const { host, isTunnel, hasExplicitPort, port: detectedPort } = cleanHostInput(ip);
+    if (!host) return;
+
+    const finalUsePort = isTunnel ? false : (hasExplicitPort ? true : usePort);
+    const finalPort = isTunnel ? 9000 : (Number(port) || detectedPort || 9000);
+
     const newConfig: ConnectionConfig = {
-      serverIp: ip.trim(),
-      usePort,
-      port: Number(port) || 9000
+      serverIp: host,
+      usePort: finalUsePort,
+      port: finalPort
     };
     connect(newConfig);
     onClose();
@@ -44,35 +86,21 @@ export const ConnectionModal: React.FC<ConnectionModalProps> = ({ isOpen, onClos
 
   const handleScanSuccess = (decoded: string) => {
     const trimmed = decoded.trim();
-    // A wss:// or https:// address is a public tunnel (e.g. ngrok) — no port, always secure.
-    const isSecureRemote = /^(wss|https):\/\//i.test(trimmed);
-    const cleaned = trimmed
-      .replace(/^wss?:\/\//i, '')
-      .replace(/^https?:\/\//i, '')
-      .replace(/\/+$/, '');
-
-    if (isSecureRemote) {
-      setIp(cleaned);
+    const { host, isTunnel, hasExplicitPort, port: detectedPort } = cleanHostInput(trimmed);
+    setIp(host);
+    if (isTunnel) {
       setUsePort(false);
-    } else if (cleaned.includes(':')) {
-      const [host, portStr] = cleaned.split(':');
-      setIp(host);
-      setPort(parseInt(portStr, 10) || 9000);
+    } else if (hasExplicitPort) {
+      setPort(detectedPort);
       setUsePort(true);
-    } else {
-      setIp(cleaned);
     }
   };
 
-  // Smart validity indicator: only true when a real IP/hostname was actually
-  // extracted from what was typed or scanned, not e.g. a mangled scheme fragment.
   const isValidHost = (value: string): boolean => {
-    const v = value.trim();
+    const v = (value || '').trim();
     if (!v) return false;
-    if (/^(wss?|https?)$/i.test(v)) return false;
-    const ipv4 = /^(\d{1,3}\.){3}\d{1,3}$/;
-    const hostname = /^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
-    return v.toLowerCase() === 'localhost' || ipv4.test(v) || hostname.test(v);
+    const { host } = cleanHostInput(v);
+    return host.length > 0;
   };
 
   return (
@@ -186,7 +214,7 @@ export const ConnectionModal: React.FC<ConnectionModalProps> = ({ isOpen, onClos
               style={{ flex: 1 }}
               placeholder="e.g. 192.168.1.50 or localhost"
               value={ip}
-              onChange={(e) => setIp(e.target.value)}
+              onChange={(e) => handleIpChange(e.target.value)}
               disabled={connectionState === 'connecting'}
             />
             <button

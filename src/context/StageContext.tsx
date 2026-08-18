@@ -245,6 +245,13 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const currentSettings = StorageService.getStereoSettings();
         stageSocket.sendStereoSettings(currentSettings);
       } else if (state === 'error') {
+        const savedConfig = StorageService.getConnectionConfig();
+        const host = savedConfig.serverIp || '';
+        const isRawIp = /^(\d{1,3}\.){3}\d{1,3}$/.test(host) || host === 'localhost' || host === '127.0.0.1';
+        if (!isRawIp) {
+          // Stop auto-connect immediately on first error for public cloud URLs
+          StorageService.saveAutoConnect(false);
+        }
         addToast('Connection Error', detail || 'Failed to connect to stage server', 'error');
       } else if (state === 'disconnected') {
         addToast('Disconnected', 'Disconnected from stage', 'warning');
