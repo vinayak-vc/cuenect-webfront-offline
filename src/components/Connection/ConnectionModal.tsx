@@ -255,7 +255,7 @@ export const ConnectionModal: React.FC<ConnectionModalProps> = ({ isOpen, onClos
                   className="btn btn-primary"
                   style={{ flex: 1 }}
                   onClick={handleConnect}
-                  disabled={!ip.trim()}
+                  disabled={!isValidHost(ip)}
                 >
                   <Wifi size={16} />
                   Reconnect with New Settings
@@ -277,7 +277,7 @@ export const ConnectionModal: React.FC<ConnectionModalProps> = ({ isOpen, onClos
               className="btn btn-primary"
               style={{ flex: 1 }}
               onClick={handleConnect}
-              disabled={!ip.trim() || connectionState === 'connecting'}
+              disabled={!isValidHost(ip) || connectionState === 'connecting'}
             >
               {connectionState === 'connecting' ? (
                 <>

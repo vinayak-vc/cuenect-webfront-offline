@@ -111,6 +111,9 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [currentMovableMode, setCurrentMovableMode] = useState<MoveableAssetType>(MoveableAssetType.Rotate);
   const [isOrthographic, setIsOrthographic] = useState<boolean>(false);
   const [stereoSettings, setStereoSettings] = useState<StereoAdjustSettings>(StorageService.getStereoSettings());
+  const stereoSettingsRef = useRef<StereoAdjustSettings>(stereoSettings);
+  stereoSettingsRef.current = stereoSettings;
+  const stereoDebounceTimerRef = useRef<number | null>(null);
   
   // Video state
   const [isVideoPlaying, setIsVideoPlaying] = useState<boolean>(false);
@@ -215,7 +218,6 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       requestedThumbnailsRef.current.clear();
       setThumbnails({});
       stageSocket.emitEvent('message', StaticStrings.ReqAsset);
-      stageSocket.emitEvent('stage-message', StaticStrings.ReqAsset);
       addToast('Sync', 'Requesting assets from stage...', 'info');
     }
   }, [connectionState, addToast]);
@@ -240,11 +242,6 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         // Handshake with Unity desktop app now that the socket is live
         stageSocket.emitEvent('message', `${StaticStrings.AppVersion}#1.0.0`);
         stageSocket.emitEvent('message', StaticStrings.ReqAsset);
-        stageSocket.emitEvent('stage-message', StaticStrings.ReqAsset);
-        window.setTimeout(() => {
-          stageSocket.emitEvent('message', StaticStrings.ReqAsset);
-          stageSocket.emitEvent('stage-message', StaticStrings.ReqAsset);
-        }, 500);
         const currentSettings = StorageService.getStereoSettings();
         stageSocket.sendStereoSettings(currentSettings);
       } else if (state === 'error') {
@@ -375,12 +372,18 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, [stereoSettings]);
 
   const updateStereoSettings = useCallback((partial: Partial<StereoAdjustSettings>) => {
-    setStereoSettings((prev) => {
-      const updated: StereoAdjustSettings = { ...prev, ...partial };
-      StorageService.saveStereoSettings(updated);
-      stageSocket.sendStereoSettings(updated);
-      return updated;
-    });
+    const updated: StereoAdjustSettings = { ...stereoSettingsRef.current, ...partial };
+    stereoSettingsRef.current = updated;
+    setStereoSettings(updated);
+    StorageService.saveStereoSettings(updated);
+
+    if (stereoDebounceTimerRef.current) {
+      window.clearTimeout(stereoDebounceTimerRef.current);
+    }
+    stereoDebounceTimerRef.current = window.setTimeout(() => {
+      stageSocket.sendStereoSettings(stereoSettingsRef.current);
+      stereoDebounceTimerRef.current = null;
+    }, 40);
   }, []);
 
   const resetStereoSettings = useCallback(() => {
@@ -466,9 +469,11 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, []);
 
   // Slideshow Player Loop
-  const playlistAssets = customPlaylistIds
-    .map((id) => assets.find((a) => a.AssetID === id))
-    .filter((a): a is AssetInformation => Boolean(a));
+  const playlistAssets = React.useMemo(() => {
+    return customPlaylistIds
+      .map((id) => assets.find((a) => a.AssetID === id))
+      .filter((a): a is AssetInformation => Boolean(a));
+  }, [customPlaylistIds, assets]);
 
   const startSlideshow = useCallback((startIndex: number = 0) => {
     if (playlistAssets.length === 0) {
@@ -498,6 +503,9 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setSlideshowIndex((prev) => (prev - 1 + playlistAssets.length) % playlistAssets.length);
   }, [playlistAssets.length]);
 
+  const playlistAssetsRef = useRef<AssetInformation[]>(playlistAssets);
+  playlistAssetsRef.current = playlistAssets;
+
   useEffect(() => {
     if (!isSlideshowActive || playlistAssets.length === 0) {
       return;
@@ -508,7 +516,7 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       loadAsset(currentItem);
       const totalWait = (slideDuration + (currentItem.videoDuration || 0)) * 1000;
       slideshowTimerRef.current = window.setTimeout(() => {
-        setSlideshowIndex((prev) => (prev + 1) % playlistAssets.length);
+        setSlideshowIndex((prev) => (prev + 1) % (playlistAssetsRef.current.length || 1));
       }, totalWait);
     }
 
@@ -517,7 +525,7 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         window.clearTimeout(slideshowTimerRef.current);
       }
     };
-  }, [isSlideshowActive, slideshowIndex, playlistAssets, slideDuration, loadAsset]);
+  }, [isSlideshowActive, slideshowIndex, slideDuration, loadAsset, playlistAssets.length]);
 
   const value: StageContextValue = {
     connectionState,

@@ -117,8 +117,6 @@ export class StageSocketService {
       this.socket.on('connect', () => {
         this.setState('connected');
         this.socket?.emit('login', { name: this.clientName });
-        this.socket?.emit('message', 'ReqAsset');
-        this.socket?.emit('stage-message', 'ReqAsset');
       });
 
       this.socket.on('connect_error', (err) => {
@@ -150,22 +148,24 @@ export class StageSocketService {
         }
       });
 
-      // Catch-all event listener to dispatch to subscribers
-      this.socket.onAny((eventName: string, ...args: any[]) => {
-        this.messageHandlers.forEach((h) => h(eventName, args[0]));
+      this.socket.onAny((event: string, ...args: any[]) => {
+        this.messageHandlers.forEach((handler) => handler(event, args[0]));
       });
     } catch (err: any) {
-      this.setState('error', err.message || 'Failed to initialize Socket.IO');
+      this.setState('error', err.message || 'Failed to initialize socket');
     }
   }
 
   public disconnect(): void {
+    const wasConnected = this.state !== 'disconnected';
     if (this.socket) {
       this.socket.removeAllListeners();
       this.socket.disconnect();
       this.socket = null;
     }
-    this.setState('disconnected');
+    if (wasConnected) {
+      this.setState('disconnected');
+    }
     this.setUsers([]);
   }
 
@@ -188,8 +188,26 @@ export class StageSocketService {
     this.emitEvent('hologram-joystick-action', control);
   }
 
-  public sendVideoControl(control: VideoControl | any): void {
-    this.emitEvent('hologram-video-action', control);
+  public sendModelAction(action: string): void {
+    this.emitEvent('hologram-model-action', { action });
+  }
+
+  public sendVideoControl(control: Partial<VideoControl>): void {
+    const payload: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(control)) {
+      if (v !== undefined) payload[k] = v;
+    }
+    if (control.mute !== undefined || control.isMute !== undefined) {
+      const m = control.mute ?? control.isMute;
+      payload.mute = m;
+      payload.isMute = m;
+    }
+    if (control.seekTime !== undefined || control.backForwardSeconds !== undefined) {
+      const s = control.seekTime ?? control.backForwardSeconds;
+      payload.seekTime = s;
+      payload.backForwardSeconds = s;
+    }
+    this.emitEvent('hologram-video-action', payload);
   }
 
   public sendMovableAction(action: MovableActionEvent | any): void {
@@ -201,19 +219,25 @@ export class StageSocketService {
   }
 
   public sendStereoSettings(settings: Partial<StereoAdjustSettings> | any): void {
-    this.emitEvent('StereoSettingsActionKey', settings);
+    const payload = {
+      ...settings,
+      zeroParallaxDistance: settings.zeroParallaxDistance ?? settings.zeroParallax,
+      zeroParallax: settings.zeroParallax ?? settings.zeroParallaxDistance,
+      fieldOfView: settings.fieldOfView ?? settings.fov,
+      fov: settings.fov ?? settings.fieldOfView,
+      lightIntensity: settings.lightIntensity ?? settings.lightBrightness,
+      lightBrightness: settings.lightBrightness ?? settings.lightIntensity
+    };
+    this.emitEvent('StereoSettingsActionKey', payload);
   }
 
-  // Bridged as raw stage command strings (same convention as ReqAsset) since
-  // Unity has no dedicated typed Socket.IO event for these yet.
+  // Bridged as raw stage command strings (same convention as ReqAsset)
   public requestThumbnail(assetId: string): void {
     this.emitEvent('message', `ModelImageRequest#${assetId}`);
-    this.emitEvent('stage-message', `ModelImageRequest#${assetId}`);
   }
 
   public triggerFullscreen(): void {
     this.emitEvent('message', 'FullScreen');
-    this.emitEvent('stage-message', 'FullScreen');
   }
 }
 

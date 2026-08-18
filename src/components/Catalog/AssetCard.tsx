@@ -18,15 +18,33 @@ export const AssetCard: React.FC<AssetCardProps> = ({ asset }) => {
     removeFromCustomPlaylist
   } = useStage();
 
+  const cardRef = React.useRef<HTMLDivElement>(null);
   const thumbUrl = thumbnails[asset.AssetID];
   const isActive = activeAsset?.AssetID === asset.AssetID;
   const isInCustomPlaylist = customPlaylistIds.includes(asset.AssetID);
   const category = resolveCategory(asset);
 
   useEffect(() => {
-    if (!thumbUrl) {
+    if (thumbUrl) return;
+
+    const el = cardRef.current;
+    if (!el || typeof IntersectionObserver === 'undefined') {
       requestThumbnail(asset.AssetID);
+      return;
     }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          requestThumbnail(asset.AssetID);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: '100px' }
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
   }, [asset.AssetID, thumbUrl, requestThumbnail]);
 
   const getCategoryClass = (): string => {
@@ -69,7 +87,7 @@ export const AssetCard: React.FC<AssetCardProps> = ({ asset }) => {
   };
 
   return (
-    <div className={`asset-card ${isActive ? 'active-stage' : ''}`}>
+    <div ref={cardRef} className={`asset-card ${isActive ? 'active-stage' : ''}`}>
       <div className="asset-thumb-wrapper">
         {thumbUrl ? (
           <img src={thumbUrl} alt={asset.AssetName} className="asset-thumb" loading="lazy" />

@@ -85,9 +85,11 @@ export interface MovableActionEvent {
 }
 
 export interface VideoControl {
-  videoAction: string;
+  videoAction?: string;
   seekTime?: number;
+  backForwardSeconds?: number;
   isMute?: boolean;
+  mute?: boolean;
   volume?: number;
   isLoop?: boolean;
   isPlaying?: string;
@@ -102,10 +104,13 @@ export interface CameraOrthographic {
 export interface StereoAdjustSettings {
   ipd: number;            // Inter-pupillary distance (in meters, e.g. 0.065 = 65mm)
   zeroParallax: number;   // Zero parallax plane distance (in meters, e.g. 3.0)
+  zeroParallaxDistance?: number;
   fov: number;            // Camera FOV (degrees, e.g. 60.0)
+  fieldOfView?: number;
   enableToeIn: boolean;   // Inward convergence rotation
   isStereo: boolean;      // Stereoscopic SBS active vs Mono 2D
   lightBrightness: number;// Directional light intensity (e.g. 0.8)
+  lightIntensity?: number;
 }
 
 export const DEFAULT_STEREO_SETTINGS: StereoAdjustSettings = {

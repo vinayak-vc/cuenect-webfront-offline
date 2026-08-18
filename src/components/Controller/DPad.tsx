@@ -7,44 +7,73 @@ export const DPad: React.FC = () => {
   const { sendModelJoystick, resetModelTransform } = useStage();
   const [activeBtn, setActiveBtn] = useState<string | null>(null);
 
+  const activeBtnRef = React.useRef<string | null>(null);
+
+  const zoomIntervalRef = React.useRef<number | null>(null);
+
   const handlePointerDown = (dirKey: string, xPos: number, yPos: number) => {
     setActiveBtn(dirKey);
+    activeBtnRef.current = dirKey;
     sendModelJoystick(JoyStickDirection.Move, xPos, yPos);
   };
 
   const handleZoomDown = (zoomKey: string, zoomVal: number) => {
     setActiveBtn(zoomKey);
+    activeBtnRef.current = zoomKey;
     sendModelJoystick(JoyStickDirection.Scale, 0, 0, zoomVal);
+
+    if (zoomIntervalRef.current) {
+      window.clearInterval(zoomIntervalRef.current);
+    }
+    zoomIntervalRef.current = window.setInterval(() => {
+      sendModelJoystick(JoyStickDirection.Scale, 0, 0, zoomVal);
+    }, 150);
   };
 
-  const handlePointerUp = () => {
-    setActiveBtn(null);
-    sendModelJoystick(JoyStickDirection.End, 0, 0);
-    sendModelJoystick(JoyStickDirection.Move, 0, 0);
-  };
+  const handlePointerUp = React.useCallback(() => {
+    if (zoomIntervalRef.current) {
+      window.clearInterval(zoomIntervalRef.current);
+      zoomIntervalRef.current = null;
+    }
+    if (activeBtnRef.current !== null) {
+      activeBtnRef.current = null;
+      setActiveBtn(null);
+      sendModelJoystick(JoyStickDirection.End, 0, 0);
+      sendModelJoystick(JoyStickDirection.Move, 0, 0);
+    }
+  }, [sendModelJoystick]);
 
-  // Global safety release: catches pointer releases outside the button bounding boxes
+  // Global safety release: catches pointer releases outside button boxes and window blur
   useEffect(() => {
     const handleGlobalRelease = () => {
-      if (activeBtn !== null) {
-        setActiveBtn(null);
-        sendModelJoystick(JoyStickDirection.End, 0, 0);
-        sendModelJoystick(JoyStickDirection.Move, 0, 0);
-      }
+      handlePointerUp();
     };
 
     window.addEventListener('pointerup', handleGlobalRelease);
     window.addEventListener('pointercancel', handleGlobalRelease);
     window.addEventListener('mouseup', handleGlobalRelease);
     window.addEventListener('touchend', handleGlobalRelease);
+    window.addEventListener('blur', handleGlobalRelease);
+    document.addEventListener('visibilitychange', handleGlobalRelease);
 
     return () => {
       window.removeEventListener('pointerup', handleGlobalRelease);
       window.removeEventListener('pointercancel', handleGlobalRelease);
       window.removeEventListener('mouseup', handleGlobalRelease);
       window.removeEventListener('touchend', handleGlobalRelease);
+      window.removeEventListener('blur', handleGlobalRelease);
+      document.removeEventListener('visibilitychange', handleGlobalRelease);
     };
-  }, [activeBtn, sendModelJoystick]);
+  }, [handlePointerUp]);
+
+  useEffect(() => {
+    return () => {
+      if (zoomIntervalRef.current) {
+        window.clearInterval(zoomIntervalRef.current);
+        zoomIntervalRef.current = null;
+      }
+    };
+  }, []);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 20 }}>
