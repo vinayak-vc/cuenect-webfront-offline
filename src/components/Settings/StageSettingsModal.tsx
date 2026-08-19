@@ -88,17 +88,17 @@ export const StageSettingsModal: React.FC = () => {
               </div>
               <input
                 type="range"
-                min={0.01}
-                max={0.15}
+                min={0.005}
+                max={0.3}
                 step={0.001}
                 value={stereoSettings.ipd}
                 onChange={(e) => updateStereoSettings({ ipd: parseFloat(e.target.value) })}
                 style={{ width: '100%', accentColor: 'var(--color-primary)' }}
               />
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                <span>10 mm (Narrow)</span>
-                <span>65 mm (Standard)</span>
-                <span>150 mm (Wide)</span>
+                <span>5 mm (Flat)</span>
+                <span>65 mm (Human)</span>
+                <span>300 mm (Hyperstereo)</span>
               </div>
             </div>
 
@@ -112,17 +112,17 @@ export const StageSettingsModal: React.FC = () => {
               </div>
               <input
                 type="range"
-                min={0.5}
-                max={10.0}
+                min={0.3}
+                max={20.0}
                 step={0.1}
                 value={stereoSettings.zeroParallax}
                 onChange={(e) => updateStereoSettings({ zeroParallax: parseFloat(e.target.value) })}
                 style={{ width: '100%', accentColor: 'var(--color-primary)' }}
               />
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                <span>0.5 m (Close)</span>
+                <span>0.3 m (All recede)</span>
                 <span>3.0 m (Default)</span>
-                <span>10.0 m (Far)</span>
+                <span>20.0 m (All pop out)</span>
               </div>
             </div>
 
@@ -136,26 +136,28 @@ export const StageSettingsModal: React.FC = () => {
               </div>
               <input
                 type="range"
-                min={20}
-                max={100}
+                min={15}
+                max={120}
                 step={1}
                 value={stereoSettings.fov}
                 onChange={(e) => updateStereoSettings({ fov: parseFloat(e.target.value) })}
                 style={{ width: '100%', accentColor: 'var(--color-primary)' }}
               />
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                <span>20° (Tele)</span>
+                <span>15° (Tele)</span>
                 <span>60° (Default)</span>
-                <span>100° (Wide)</span>
+                <span>120° (Wide)</span>
               </div>
             </div>
 
             {/* Toe-In Convergence Toggle */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 4 }}>
               <div>
-                <div style={{ fontSize: '0.85rem', fontWeight: 600 }}>Toe-In Convergence</div>
-                <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
-                  Angled inward camera alignment for deep parallax
+                <div style={{ fontSize: '0.85rem', fontWeight: 600 }}>Toe-In Convergence (Legacy)</div>
+                <div style={{ fontSize: '0.7rem', color: 'var(--color-warning)' }}>
+                  Rotates the cameras inward. Adds keystone distortion and vertical
+                  parallax at the frame corners — a known cause of eye strain. Leave off:
+                  the default off-axis frustum is the correct method for a flat wall.
                 </div>
               </div>
               <input
@@ -194,17 +196,17 @@ export const StageSettingsModal: React.FC = () => {
               </div>
               <input
                 type="range"
-                min={0.2}
-                max={2.0}
+                min={0.1}
+                max={4.0}
                 step={0.05}
                 value={stereoSettings.lightBrightness}
                 onChange={(e) => updateStereoSettings({ lightBrightness: parseFloat(e.target.value) })}
                 style={{ width: '100%', accentColor: 'var(--color-primary)' }}
               />
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                <span>20% (Dim)</span>
+                <span>10% (Dim)</span>
                 <span>80% (Default)</span>
-                <span>200% (Bright)</span>
+                <span>400% (Bright)</span>
               </div>
             </div>
 
