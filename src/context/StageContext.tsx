@@ -424,11 +424,17 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, [sendModelJoystick]);
 
   const toggleOrthographic = useCallback(() => {
+    if (stereoSettings.isStereo) {
+      // Locked to Perspective in SBS mode
+      setIsOrthographic(false);
+      stageSocket.sendCameraOrthographic({ isOrthographic: false });
+      return;
+    }
     const nextVal = !isOrthographic;
     setIsOrthographic(nextVal);
     const payload: CameraOrthographic = { isOrthographic: nextVal };
     stageSocket.sendCameraOrthographic(payload);
-  }, [isOrthographic]);
+  }, [isOrthographic, stereoSettings.isStereo]);
 
   const toggleStereoscopic = useCallback(() => {
     const nextStereo = !stereoSettings.isStereo;
@@ -436,6 +442,10 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setStereoSettings(updated);
     StorageService.saveStereoSettings(updated);
     stageSocket.sendStereoSettings(updated);
+    if (nextStereo) {
+      setIsOrthographic(false);
+      stageSocket.sendCameraOrthographic({ isOrthographic: false });
+    }
   }, [stereoSettings]);
 
   const updateStereoSettings = useCallback((partial: Partial<StereoAdjustSettings>) => {
@@ -443,6 +453,11 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     stereoSettingsRef.current = updated;
     setStereoSettings(updated);
     StorageService.saveStereoSettings(updated);
+
+    if (partial.isStereo === true) {
+      setIsOrthographic(false);
+      stageSocket.sendCameraOrthographic({ isOrthographic: false });
+    }
 
     if (stereoDebounceTimerRef.current) {
       window.clearTimeout(stereoDebounceTimerRef.current);
