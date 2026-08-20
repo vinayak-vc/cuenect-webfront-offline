@@ -14,7 +14,8 @@ import {
   resolveCategory,
   MovableModeActionNames,
   StereoAdjustSettings,
-  DEFAULT_STEREO_SETTINGS
+  DEFAULT_STEREO_SETTINGS,
+  DisplayMode
 } from '../types/protocol';
 import { stageSocket } from '../services/socketService';
 import { StorageService, ConnectionConfig } from '../services/storage';
@@ -56,6 +57,10 @@ interface StageContextValue {
   toggleStereoscopic: () => void;
   triggerFullscreen: () => void;
   
+  // Display path: 2D / SBS stereo / HOLO device
+  displayMode: DisplayMode;
+  setDisplayMode: (mode: DisplayMode) => void;
+
   // Stereoscopic & Stage Calibration Settings
   stereoSettings: StereoAdjustSettings;
   updateStereoSettings: (settings: Partial<StereoAdjustSettings>) => void;
@@ -114,6 +119,7 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const stereoSettingsRef = useRef<StereoAdjustSettings>(stereoSettings);
   stereoSettingsRef.current = stereoSettings;
   const stereoDebounceTimerRef = useRef<number | null>(null);
+  const [displayMode, setDisplayModeState] = useState<DisplayMode>(StorageService.getDisplayMode());
   
   // Video state
   const [isVideoPlaying, setIsVideoPlaying] = useState<boolean>(false);
@@ -304,6 +310,8 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         stageSocket.emitEvent('message', StaticStrings.ReqAsset);
         const currentSettings = StorageService.getStereoSettings();
         stageSocket.sendStereoSettings(currentSettings);
+        // Re-assert the display path: the stage may have restarted since we last set it.
+        stageSocket.sendDisplayMode(StorageService.getDisplayMode());
       } else if (state === 'error') {
         const savedConfig = StorageService.getConnectionConfig();
         const host = savedConfig.serverIp || '';
@@ -436,12 +444,43 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     stageSocket.sendCameraOrthographic(payload);
   }, [isOrthographic, stereoSettings.isStereo]);
 
+  /**
+   * Switch the stage display path.
+   *
+   * `stereoSettings.isStereo` is kept in sync so the existing SBS calibration UI
+   * and the older StereoSettingsActionKey consumers never contradict the selected
+   * mode: SBS implies isStereo, 2D and HOLO both imply the SBS compositor is off
+   * (HOLO renders through the device's own head cameras).
+   */
+  const setDisplayMode = useCallback((mode: DisplayMode) => {
+    setDisplayModeState(mode);
+    StorageService.saveDisplayMode(mode);
+    stageSocket.sendDisplayMode(mode);
+
+    const wantsSbs = mode === DisplayMode.StereoSbs;
+    const updated: StereoAdjustSettings = { ...stereoSettingsRef.current, isStereo: wantsSbs };
+    stereoSettingsRef.current = updated;
+    setStereoSettings(updated);
+    StorageService.saveStereoSettings(updated);
+    stageSocket.sendStereoSettings(updated);
+
+    if (mode !== DisplayMode.Mono2D) {
+      // Both stereo paths require a perspective projection.
+      setIsOrthographic(false);
+      stageSocket.sendCameraOrthographic({ isOrthographic: false });
+    }
+  }, []);
+
   const toggleStereoscopic = useCallback(() => {
     const nextStereo = !stereoSettings.isStereo;
     const updated = { ...stereoSettings, isStereo: nextStereo };
     setStereoSettings(updated);
     StorageService.saveStereoSettings(updated);
     stageSocket.sendStereoSettings(updated);
+    const nextMode = nextStereo ? DisplayMode.StereoSbs : DisplayMode.Mono2D;
+    setDisplayModeState(nextMode);
+    StorageService.saveDisplayMode(nextMode);
+    stageSocket.sendDisplayMode(nextMode);
     if (nextStereo) {
       setIsOrthographic(false);
       stageSocket.sendCameraOrthographic({ isOrthographic: false });
@@ -453,6 +492,13 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     stereoSettingsRef.current = updated;
     setStereoSettings(updated);
     StorageService.saveStereoSettings(updated);
+
+    if (partial.isStereo !== undefined) {
+      const nextMode = partial.isStereo ? DisplayMode.StereoSbs : DisplayMode.Mono2D;
+      setDisplayModeState(nextMode);
+      StorageService.saveDisplayMode(nextMode);
+      stageSocket.sendDisplayMode(nextMode);
+    }
 
     if (partial.isStereo === true) {
       setIsOrthographic(false);
@@ -636,6 +682,8 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     isOrthographic,
     toggleStereoscopic,
     triggerFullscreen,
+    displayMode,
+    setDisplayMode,
     stereoSettings,
     updateStereoSettings,
     resetStereoSettings,

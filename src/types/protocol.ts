@@ -113,6 +113,39 @@ export interface StereoAdjustSettings {
   lightIntensity?: number;
 }
 
+/**
+ * Stage display path. Mirrors HoloDisplayMode in
+ * Scripts/HoloWall/HoloDisplayModeController.cs on the Unity side.
+ */
+export enum DisplayMode {
+  Mono2D = 0,
+  StereoSbs = 1,
+  HoloDevice = 2
+}
+
+export const DisplayModeNames: Record<DisplayMode, string> = {
+  [DisplayMode.Mono2D]: '2d',
+  [DisplayMode.StereoSbs]: 'sbs',
+  [DisplayMode.HoloDevice]: 'holo'
+};
+
+export const DisplayModeLabels: Record<DisplayMode, string> = {
+  [DisplayMode.Mono2D]: '2D',
+  [DisplayMode.StereoSbs]: 'Stereoscopic (SBS)',
+  [DisplayMode.HoloDevice]: 'HOLO Stereoscopic'
+};
+
+/**
+ * Payload for `hologram-display-mode-action`.
+ * Unity accepts either field; `modeName` wins when both are present.
+ */
+export interface DisplayModePayload {
+  mode: DisplayMode;
+  modeName: string;
+}
+
+export const DEFAULT_DISPLAY_MODE: DisplayMode = DisplayMode.Mono2D;
+
 export const DEFAULT_STEREO_SETTINGS: StereoAdjustSettings = {
   ipd: 0.065,
   zeroParallax: 3.0,
@@ -140,6 +173,7 @@ export const StaticStrings = {
   StereoscopicKey: 'StereoscopicKey',
   StereoSettingsActionKey: 'StereoSettingsActionKey',
   CameraOrthographicAction: 'CameraOrthographicActionKey',
+  DisplayModeActionKey: 'hologram-display-mode-action',
   DeleteAsset: 'DeleteAsset'
 } as const;
 

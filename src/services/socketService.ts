@@ -6,7 +6,11 @@ import {
   VideoControl,
   MovableActionEvent,
   CameraOrthographic,
-  StereoAdjustSettings
+  StereoAdjustSettings,
+  DisplayMode,
+  DisplayModePayload,
+  DisplayModeNames,
+  StaticStrings
 } from '../types/protocol';
 
 export type SocketMessageHandler = (event: string, data: any) => void;
@@ -246,6 +250,23 @@ export class StageSocketService {
       lightBrightness: settings.lightBrightness ?? settings.lightIntensity
     };
     this.emitEvent('StereoSettingsActionKey', payload);
+  }
+
+  /**
+   * Switch the stage display path: 2D / side-by-side stereo / HOLO device.
+   * Both `mode` and `modeName` are sent so either Unity parse branch resolves it.
+   */
+  public sendDisplayMode(mode: DisplayMode): void {
+    const payload: DisplayModePayload = {
+      mode,
+      modeName: DisplayModeNames[mode]
+    };
+    this.emitEvent(StaticStrings.DisplayModeActionKey, payload);
+
+    // Fallback over the raw `message` channel: bridges that relay only known
+    // typed events still pass `message` through (same route as ReqAsset /
+    // FullScreen). Unity's handler is idempotent, so the duplicate is harmless.
+    this.emitEvent('message', `DisplayMode#${DisplayModeNames[mode]}`);
   }
 
   // Bridged as raw stage command strings (same convention as ReqAsset)

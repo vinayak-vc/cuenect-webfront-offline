@@ -1,5 +1,5 @@
 // Local storage helpers
-import { StereoAdjustSettings, DEFAULT_STEREO_SETTINGS } from '../types/protocol';
+import { StereoAdjustSettings, DEFAULT_STEREO_SETTINGS, DisplayMode, DEFAULT_DISPLAY_MODE } from '../types/protocol';
 
 const STORAGE_KEYS = {
   SERVER_IP: 'cuenect_server_ip',
@@ -8,7 +8,8 @@ const STORAGE_KEYS = {
   AUTO_CONNECT: 'cuenect_auto_connect',
   SLIDE_DURATION: 'cuenect_slide_duration',
   CUSTOM_PLAYLIST: 'cuenect_custom_playlist',
-  STEREO_SETTINGS: 'cuenect_stereo_settings'
+  STEREO_SETTINGS: 'cuenect_stereo_settings',
+  DISPLAY_MODE: 'cuenect_display_mode'
 } as const;
 
 export interface ConnectionConfig {
@@ -55,6 +56,20 @@ export const StorageService = {
 
   saveStereoSettings(settings: StereoAdjustSettings): void {
     localStorage.setItem(STORAGE_KEYS.STEREO_SETTINGS, JSON.stringify(settings));
+  },
+
+  getDisplayMode(): DisplayMode {
+    const raw = localStorage.getItem(STORAGE_KEYS.DISPLAY_MODE);
+    if (raw === null) return DEFAULT_DISPLAY_MODE;
+    const parsed = parseInt(raw, 10);
+    if (parsed === DisplayMode.Mono2D || parsed === DisplayMode.StereoSbs || parsed === DisplayMode.HoloDevice) {
+      return parsed;
+    }
+    return DEFAULT_DISPLAY_MODE;
+  },
+
+  saveDisplayMode(mode: DisplayMode): void {
+    localStorage.setItem(STORAGE_KEYS.DISPLAY_MODE, mode.toString());
   },
 
   getSlideDuration(): number {
