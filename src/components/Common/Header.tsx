@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useStage } from '../../context/StageContext';
-import { RefreshCw, ListPlus, Users, Sliders, Layers } from 'lucide-react';
+import { RefreshCw, ListPlus, Users, Sliders, Layers, Camera, Maximize } from 'lucide-react';
+import { DisplayMode, DisplayModeLabels } from '../../types/protocol';
 
 interface HeaderProps {
   onOpenConnection: () => void;
@@ -17,7 +18,12 @@ export const Header: React.FC<HeaderProps> = ({
     refreshAssets,
     selectedPlaylist,
     customPlaylistIds,
-    setIsSettingsOpen
+    setIsSettingsOpen,
+    displayMode,
+    setDisplayMode,
+    isOrthographic,
+    toggleOrthographic,
+    triggerFullscreen
   } = useStage();
 
   const [logoError, setLogoError] = useState<boolean>(false);
@@ -59,6 +65,19 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       <div className="header-actions">
+        <label className="header-projection" title="Stage projection mode">
+          <span className="header-projection-label">Projection</span>
+          <select
+            className="header-projection-select"
+            value={displayMode}
+            onChange={(e) => setDisplayMode(Number(e.target.value) as DisplayMode)}
+          >
+            <option value={DisplayMode.Mono2D}>{DisplayModeLabels[DisplayMode.Mono2D]}</option>
+            <option value={DisplayMode.StereoSbs}>{DisplayModeLabels[DisplayMode.StereoSbs]}</option>
+            <option value={DisplayMode.HoloDevice}>{DisplayModeLabels[DisplayMode.HoloDevice]}</option>
+          </select>
+        </label>
+
         <button
           className={`status-badge ${connectionState}`}
           onClick={onOpenConnection}
@@ -80,8 +99,28 @@ export const Header: React.FC<HeaderProps> = ({
 
         <button
           className="btn-icon"
+          onClick={toggleOrthographic}
+          title={isOrthographic ? 'Projection: Orthographic' : 'Projection: Perspective'}
+          style={{
+            borderColor: isOrthographic ? 'var(--color-primary)' : undefined,
+            color: isOrthographic ? 'var(--color-primary)' : undefined
+          }}
+        >
+          <Camera size={18} />
+        </button>
+
+        <button
+          className="btn-icon"
+          onClick={triggerFullscreen}
+          title="Toggle stage fullscreen"
+        >
+          <Maximize size={18} />
+        </button>
+
+        <button
+          className="btn-icon"
           onClick={() => setIsSettingsOpen(true)}
-          title="Stage & 3D Settings"
+          title="Stereo calibration & stage settings (IPD, Zero Parallax, FOV, Light)"
         >
           <Sliders size={18} />
         </button>

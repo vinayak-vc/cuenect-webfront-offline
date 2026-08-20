@@ -4,14 +4,13 @@ import { DataType, resolveCategory } from '../../types/protocol';
 import { ModelControlPanel } from './ModelControlPanel';
 import { VideoControlPanel } from './VideoControlPanel';
 import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
-import { ArrowLeft, Box, Film, Image as ImageIcon, Power, AlertTriangle, Loader2 } from 'lucide-react';
+import { ArrowLeft, Box, Film, Image as ImageIcon, AlertTriangle, Loader2 } from 'lucide-react';
 
 export const FullScreenController: React.FC = () => {
   const {
     activeAsset,
     unloadAsset,
     isControllerOpen,
-    setIsControllerOpen,
     thumbnails,
     connectionState
   } = useStage();
@@ -63,8 +62,8 @@ export const FullScreenController: React.FC = () => {
         <button
           type="button"
           className="btn-icon"
-          onClick={() => setIsControllerOpen(false)}
-          title="Back to Catalog"
+          onClick={unloadAsset}
+          title="Back to Catalog (unloads the stage and restores the company logo)"
         >
           <ArrowLeft size={20} />
         </button>
@@ -76,14 +75,6 @@ export const FullScreenController: React.FC = () => {
           </div>
         </div>
 
-        <button
-          type="button"
-          className="btn-icon btn-danger"
-          onClick={unloadAsset}
-          title="Unload from Stage"
-        >
-          <Power size={18} />
-        </button>
       </div>
 
       {/* Disconnection Alert Banner */}

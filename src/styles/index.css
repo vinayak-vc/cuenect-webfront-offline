@@ -145,6 +145,50 @@ body {
   display: flex;
   align-items: center;
   gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* Stage projection mode (2D / SBS / HOLO) - lives in the header so it is
+   reachable from the catalog, loading and model-control screens alike. */
+.header-projection {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px 4px 12px;
+  border-radius: var(--radius-full);
+  background: rgba(30, 41, 59, 0.6);
+  border: 1px solid var(--border-glass);
+}
+
+.header-projection-label {
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.header-projection-select {
+  background: transparent;
+  border: none;
+  color: var(--color-primary);
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 4px 2px;
+  outline: none;
+}
+
+/* Native option lists render on the OS surface, so they need explicit colors. */
+.header-projection-select option {
+  background: #0f172a;
+  color: #e2e8f0;
+}
+
+@media (max-width: 600px) {
+  .header-projection-label {
+    display: none;
+  }
 }
 
 /* Status Badge */

@@ -1,7 +1,6 @@
 import React from 'react';
 import { useStage } from '../../context/StageContext';
-import { DisplayMode, DisplayModeLabels } from '../../types/protocol';
-import { X, Sliders, Sun, Eye, RotateCcw, Camera, Monitor } from 'lucide-react';
+import { X, Sliders, Sun, Eye, RotateCcw, Camera } from 'lucide-react';
 
 export const StageSettingsModal: React.FC = () => {
   const {
@@ -11,9 +10,7 @@ export const StageSettingsModal: React.FC = () => {
     updateStereoSettings,
     resetStereoSettings,
     isOrthographic,
-    toggleOrthographic,
-    displayMode,
-    setDisplayMode
+    toggleOrthographic
   } = useStage();
 
   if (!isSettingsOpen) return null;
@@ -43,58 +40,6 @@ export const StageSettingsModal: React.FC = () => {
 
         {/* Modal Body */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-          {/* Section: Display Mode (2D / SBS / HOLO device) */}
-          <div
-            style={{
-              background: 'var(--bg-tertiary)',
-              borderRadius: 'var(--border-radius)',
-              padding: 16,
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 12,
-              border: '1px solid var(--border-color)'
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Monitor size={18} style={{ color: 'var(--color-primary)' }} />
-              <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>Display Mode</span>
-            </div>
-
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              {[DisplayMode.Mono2D, DisplayMode.StereoSbs, DisplayMode.HoloDevice].map((mode) => {
-                const isActive = displayMode === mode;
-                return (
-                  <button
-                    key={mode}
-                    type="button"
-                    onClick={() => setDisplayMode(mode)}
-                    style={{
-                      flex: '1 1 120px',
-                      padding: '10px 12px',
-                      borderRadius: 'var(--border-radius)',
-                      cursor: 'pointer',
-                      fontSize: '0.85rem',
-                      fontWeight: isActive ? 700 : 500,
-                      color: isActive ? 'var(--color-primary)' : 'var(--text-secondary)',
-                      background: isActive ? 'var(--bg-secondary)' : 'transparent',
-                      border: isActive
-                        ? '1px solid var(--color-primary)'
-                        : '1px solid var(--border-color)'
-                    }}
-                  >
-                    {DisplayModeLabels[mode]}
-                  </button>
-                );
-              })}
-            </div>
-
-            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-              HOLO drives the Axiom holo device directly. The stage falls back to 2D and
-              reports why if the device path is unavailable (it requires the stage to run
-              on OpenGL Core).
-            </span>
-          </div>
-
           {/* Section: Stereoscopic 3D Holo-Wall */}
           <div
             style={{
