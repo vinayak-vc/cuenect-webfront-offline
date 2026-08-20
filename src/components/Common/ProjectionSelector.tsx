@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ChevronDown, Monitor, Layers, Box, Check } from 'lucide-react';
 import { useStage } from '../../context/StageContext';
-import { DisplayMode, DisplayModeLabels } from '../../types/protocol';
+import { DisplayMode, DisplayModeLabels, DisplayModeShortLabels } from '../../types/protocol';
 import { useIsMobile } from '../../hooks/useMediaQuery';
 import { BottomSheet } from './BottomSheet';
 
@@ -104,7 +104,10 @@ export const ProjectionSelector: React.FC = () => {
       >
         <span className="projection-trigger-label">
           <span className="projection-trigger-caption">Projection</span>
-          <span className="projection-trigger-value">{DisplayModeLabels[displayMode]}</span>
+          <span className="projection-trigger-value">
+            <span className="label-full">{DisplayModeLabels[displayMode]}</span>
+            <span className="label-short">{DisplayModeShortLabels[displayMode]}</span>
+          </span>
         </span>
         <ChevronDown size={14} style={{ color: 'var(--text-muted)' }} />
       </button>

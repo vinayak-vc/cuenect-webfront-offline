@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
 
@@ -71,7 +72,10 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
 
   if (!isOpen) return null;
 
-  return (
+  // Portal to <body>: the header uses backdrop-filter, which promotes it to a
+  // containing block for fixed-position descendants. Rendering in place put the
+  // sheet inside the header and pushed it off screen on mobile.
+  return createPortal(
     <div className="sheet-backdrop" onClick={onClose}>
       <div
         ref={sheetRef}
@@ -110,6 +114,7 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
 
         {footer && <div className="sheet-footer">{footer}</div>}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

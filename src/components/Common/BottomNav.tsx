@@ -1,8 +1,8 @@
 import React from 'react';
-import { LayoutGrid, ListMusic, Gamepad2, SlidersHorizontal } from 'lucide-react';
+import { LayoutGrid, ListMusic, Gamepad2, MoreHorizontal } from 'lucide-react';
 import { useStage } from '../../context/StageContext';
 
-export type MobileSection = 'assets' | 'playlist' | 'control' | 'settings';
+export type MobileSection = 'assets' | 'playlist' | 'control' | 'more';
 
 interface BottomNavProps {
   active: MobileSection;
@@ -10,11 +10,15 @@ interface BottomNavProps {
 }
 
 /**
- * Mobile primary navigation. Four destinations only - anything rarer lives in
- * a sheet reached from those screens, so the bar stays thumb-sized.
+ * Primary navigation: Find -> Arrange -> Control -> Configure.
+ *
+ * "Stage" was merged into "More": tapping Control already means controlling the
+ * stage, so a separate Stage destination only split one idea across two tabs.
+ * Configuration (connection, calibration, projection, diagnostics) now lives
+ * behind More.
  */
 export const BottomNav: React.FC<BottomNavProps> = ({ active, onSelect }) => {
-  const { customPlaylistIds, activeAsset } = useStage();
+  const { customPlaylistIds, activeAsset, controlLock } = useStage();
 
   const items: Array<{
     id: MobileSection;
@@ -26,7 +30,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({ active, onSelect }) => {
     { id: 'assets', label: 'Assets', icon: <LayoutGrid size={20} /> },
     { id: 'playlist', label: 'Playlist', icon: <ListMusic size={20} />, badge: customPlaylistIds.length },
     { id: 'control', label: 'Control', icon: <Gamepad2 size={20} />, dot: !!activeAsset },
-    { id: 'settings', label: 'Stage', icon: <SlidersHorizontal size={20} /> }
+    { id: 'more', label: 'More', icon: <MoreHorizontal size={20} />, dot: controlLock.locked && !controlLock.youHaveControl }
   ];
 
   return (
@@ -46,7 +50,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({ active, onSelect }) => {
             <span
               className="bottom-nav-badge"
               style={{ minWidth: 8, height: 8, padding: 0 }}
-              aria-label="Asset on stage"
+              aria-hidden="true"
             />
           )}
         </button>

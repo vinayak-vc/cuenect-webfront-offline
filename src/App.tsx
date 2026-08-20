@@ -11,6 +11,8 @@ import { BottomNav, MobileSection } from './components/Common/BottomNav';
 import { NowOnStage } from './components/Stage/NowOnStage';
 import { BottomSheet } from './components/Common/BottomSheet';
 import { StateView } from './components/Common/StateView';
+import { MoreSheet } from './components/Stage/MoreSheet';
+import { ProjectionSheet } from './components/Stage/ProjectionSheet';
 import { Gamepad2 } from 'lucide-react';
 import { useStage } from './context/StageContext';
 import { useIsMobile } from './hooks/useMediaQuery';
@@ -28,6 +30,8 @@ export const App: React.FC = () => {
   const [isConnectionModalOpen, setIsConnectionModalOpen] = useState<boolean>(false);
   const [isPlaylistMakerOpen, setIsPlaylistMakerOpen] = useState<boolean>(false);
   const [isNoAssetSheetOpen, setIsNoAssetSheetOpen] = useState<boolean>(false);
+  const [isMoreSheetOpen, setIsMoreSheetOpen] = useState<boolean>(false);
+  const [isProjectionSheetOpen, setIsProjectionSheetOpen] = useState<boolean>(false);
   const [query, setQuery] = useState<string>('');
 
   const isMobile = useIsMobile();
@@ -36,15 +40,17 @@ export const App: React.FC = () => {
   const activeSection: MobileSection = useMemo(() => {
     if (isControllerOpen) return 'control';
     if (isPlaylistMakerOpen) return 'playlist';
-    if (isSettingsOpen) return 'settings';
+    if (isMoreSheetOpen || isSettingsOpen || isProjectionSheetOpen) return 'more';
     return 'assets';
-  }, [isControllerOpen, isPlaylistMakerOpen, isSettingsOpen]);
+  }, [isControllerOpen, isPlaylistMakerOpen, isSettingsOpen, isMoreSheetOpen, isProjectionSheetOpen]);
 
   const closeAllSurfaces = () => {
     setIsPlaylistMakerOpen(false);
     setIsSettingsOpen(false);
     setIsControllerOpen(false);
     setIsNoAssetSheetOpen(false);
+    setIsMoreSheetOpen(false);
+    setIsProjectionSheetOpen(false);
   };
 
   const handleNavSelect = (section: MobileSection) => {
@@ -65,9 +71,9 @@ export const App: React.FC = () => {
           setIsNoAssetSheetOpen(true);
         }
         break;
-      case 'settings':
+      case 'more':
         closeAllSurfaces();
-        setIsSettingsOpen(true);
+        setIsMoreSheetOpen(true);
         break;
     }
   };
@@ -137,6 +143,18 @@ export const App: React.FC = () => {
           }
         />
       </BottomSheet>
+
+      <MoreSheet
+        isOpen={isMoreSheetOpen}
+        onClose={() => setIsMoreSheetOpen(false)}
+        onOpenConnection={() => setIsConnectionModalOpen(true)}
+        onOpenProjection={() => setIsProjectionSheetOpen(true)}
+      />
+
+      <ProjectionSheet
+        isOpen={isProjectionSheetOpen}
+        onClose={() => setIsProjectionSheetOpen(false)}
+      />
 
       <ToastContainer />
 

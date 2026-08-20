@@ -15,7 +15,9 @@ import {
   MovableModeActionNames,
   StereoAdjustSettings,
   DEFAULT_STEREO_SETTINGS,
-  DisplayMode
+  DisplayMode,
+  ControlLockState,
+  DEFAULT_CONTROL_LOCK
 } from '../types/protocol';
 import { stageSocket } from '../services/socketService';
 import { StorageService, ConnectionConfig } from '../services/storage';
@@ -57,6 +59,16 @@ interface StageContextValue {
   toggleStereoscopic: () => void;
   triggerFullscreen: () => void;
   
+  // Recently used + favourites (client-side only)
+  recentAssetIds: string[];
+  favouriteAssetIds: string[];
+  toggleFavourite: (assetId: string) => void;
+
+  // Stage control ownership
+  controlLock: ControlLockState;
+  requestControl: () => void;
+  releaseControl: () => void;
+
   // Display path: 2D / SBS stereo / HOLO device
   displayMode: DisplayMode;
   setDisplayMode: (mode: DisplayMode) => void;
@@ -120,6 +132,12 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   stereoSettingsRef.current = stereoSettings;
   const stereoDebounceTimerRef = useRef<number | null>(null);
   const [displayMode, setDisplayModeState] = useState<DisplayMode>(StorageService.getDisplayMode());
+  const [recentAssetIds, setRecentAssetIds] = useState<string[]>(StorageService.getRecentAssets());
+  const [favouriteAssetIds, setFavouriteAssetIds] = useState<string[]>(StorageService.getFavouriteAssets());
+  const [controlLock, setControlLock] = useState<ControlLockState>(DEFAULT_CONTROL_LOCK);
+  const controlLockRef = useRef<ControlLockState>(controlLock);
+  controlLockRef.current = controlLock;
+  const lastBlockedToastRef = useRef<number>(0);
   
   // Video state
   const [isVideoPlaying, setIsVideoPlaying] = useState<boolean>(false);
@@ -323,6 +341,8 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         addToast('Connection Error', detail || 'Failed to connect to stage server', 'error');
       } else if (state === 'disconnected') {
         addToast('Disconnected', 'Disconnected from stage', 'warning');
+        setControlLock(DEFAULT_CONTROL_LOCK);
+        stageSocket.setStageControl(true);
       }
     });
 
@@ -330,9 +350,42 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setConnectedUsers(users);
     });
 
+    // Throttled so a held joystick cannot spam the operator with toasts.
+    const unsubBlocked = stageSocket.onCommandBlocked(() => {
+      const now = Date.now();
+      if (now - lastBlockedToastRef.current < 4000) return;
+      lastBlockedToastRef.current = now;
+      addToast(
+        'Stage is locked',
+        `${controlLockRef.current.holderName || 'Another operator'} has control. Request control to drive the stage.`,
+        'warning'
+      );
+    });
+
     const unsubSocketMsg = stageSocket.onMessage((eventName: string, data: any) => {
       if (eventName === 'hologram-asset-list') {
         parseAndSetAssets(data);
+        return;
+      }
+
+      if (eventName === StaticStrings.ControlLockState && data) {
+        setControlLock((prev) => {
+          const next: ControlLockState = {
+            holderName: data.holderName ?? null,
+            youHaveControl: data.youHaveControl !== false,
+            locked: !!data.locked,
+            operators: Array.isArray(data.operators) ? data.operators : []
+          };
+          // Only announce genuine transitions, not every refresh.
+          if (prev.youHaveControl && !next.youHaveControl) {
+            addToast('Control taken', `${next.holderName || 'Another operator'} is now controlling the stage`, 'warning');
+          } else if (!prev.youHaveControl && next.youHaveControl) {
+            addToast('Control granted', 'You are controlling the stage', 'success');
+          }
+          // Keep the transport in sync so blocked commands never leave the device.
+          stageSocket.setStageControl(next.youHaveControl);
+          return next;
+        });
         return;
       }
 
@@ -362,17 +415,28 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       unsubState();
       unsubUsers();
       unsubSocketMsg();
+      unsubBlocked();
     };
   }, [addToast, parseAndSetAssets]);
 
   // Load Asset on Stage
   const loadAsset = useCallback((asset: AssetInformation) => {
+    if (!stageSocket.canDriveStage) {
+      addToast(
+        'Stage is locked',
+        `${controlLockRef.current.holderName || 'Another operator'} has control. Request control before loading assets.`,
+        'warning'
+      );
+      return;
+    }
+
     const normalized: AssetInformation = {
       ...asset,
       Category: resolveCategory(asset)
     };
     setActiveAsset(normalized);
     setIsControllerOpen(true);
+    setRecentAssetIds(StorageService.pushRecentAsset(asset.AssetID));
 
     const assetPayload = {
       uuid: asset.AssetID,
@@ -392,7 +456,7 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     } else if (normalized.Category === DataType.Video) {
       setIsVideoPlaying(true);
     }
-  }, []);
+  }, [addToast]);
 
   // Unload Asset
   const unloadAsset = useCallback(() => {
@@ -518,6 +582,22 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setStereoSettings(DEFAULT_STEREO_SETTINGS);
     StorageService.saveStereoSettings(DEFAULT_STEREO_SETTINGS);
     stageSocket.sendStereoSettings(DEFAULT_STEREO_SETTINGS);
+  }, []);
+
+  const toggleFavourite = useCallback((assetId: string) => {
+    setFavouriteAssetIds((prev) => {
+      const next = prev.includes(assetId) ? prev.filter((id) => id !== assetId) : [...prev, assetId];
+      StorageService.saveFavouriteAssets(next);
+      return next;
+    });
+  }, []);
+
+  const requestControl = useCallback(() => {
+    stageSocket.requestControl();
+  }, []);
+
+  const releaseControl = useCallback(() => {
+    stageSocket.releaseControl();
   }, []);
 
   const triggerFullscreen = useCallback(() => {
@@ -684,6 +764,12 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     triggerFullscreen,
     displayMode,
     setDisplayMode,
+    recentAssetIds,
+    favouriteAssetIds,
+    toggleFavourite,
+    controlLock,
+    requestControl,
+    releaseControl,
     stereoSettings,
     updateStereoSettings,
     resetStereoSettings,

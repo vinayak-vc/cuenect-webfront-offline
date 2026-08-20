@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useStage } from '../../context/StageContext';
 import { DataType, DisplayModeLabels, resolveCategory } from '../../types/protocol';
 import { ModelControlPanel } from './ModelControlPanel';
 import { VideoControlPanel } from './VideoControlPanel';
 import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
 import { useIsDesktop } from '../../hooks/useMediaQuery';
+import { BottomSheet } from '../Common/BottomSheet';
+import { ConfirmDialog } from '../Common/ConfirmDialog';
 import {
   ArrowLeft,
   Box,
@@ -15,16 +17,21 @@ import {
   RotateCcw,
   Square,
   Sliders,
-  Maximize
+  Maximize,
+  MoreHorizontal,
+  Lock,
+  Unlock
 } from 'lucide-react';
 
 /**
- * Stage controller surface.
+ * Stage controller.
  *
- * Desktop: three columns - live asset (left), controller (centre, the main
- * task), stage status + quick actions (right).
- * Mobile: single column ordered for thumb reach - asset context, then the
- * controller, then quick actions.
+ * Mobile target is zero-scroll for basic operation: asset line, control mode,
+ * pad, zoom and a one-line status strip fit on a phone. Everything secondary
+ * (calibration, clear stage, detailed status) is one tap away in a sheet.
+ *
+ * Desktop keeps three columns because the space exists: asset, controller,
+ * status + quick actions.
  */
 export const FullScreenController: React.FC = () => {
   const {
@@ -39,10 +46,15 @@ export const FullScreenController: React.FC = () => {
     resetModelTransform,
     triggerFullscreen,
     setIsSettingsOpen,
-    currentMovableMode
+    currentMovableMode,
+    controlLock,
+    requestControl
   } = useStage();
 
   const isDesktop = useIsDesktop();
+  const [isMoreOpen, setIsMoreOpen] = useState(false);
+  const [isStatusOpen, setIsStatusOpen] = useState(false);
+  const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false);
 
   useBodyScrollLock(isControllerOpen && !!activeAsset);
 
@@ -50,6 +62,7 @@ export const FullScreenController: React.FC = () => {
 
   const thumbUrl = thumbnails[activeAsset.AssetID];
   const category = resolveCategory(activeAsset);
+  const hasControl = controlLock.youHaveControl;
 
   const typeMeta = (): { label: string; cls: string; icon: React.ReactNode } => {
     switch (category) {
@@ -63,65 +76,75 @@ export const FullScreenController: React.FC = () => {
   };
 
   const meta = typeMeta();
+  const modeLabel = MOVABLE_LABELS[currentMovableMode] ?? 'Rotate';
 
-  const assetPanel = (
-    <div className="controller-panel">
-      <span className="u-section-label">Now on Stage</span>
+  // ---- Live asset identity -------------------------------------------------
+  const assetLine = (
+    <div className={isDesktop ? 'controller-panel' : 'controller-asset-line'}>
+      {isDesktop && <span className="u-section-label">Now on Stage</span>}
 
-      <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+      <div style={{ display: 'flex', gap: 12, alignItems: 'center', minWidth: 0 }}>
         {thumbUrl ? (
           <img
             src={thumbUrl}
             alt=""
-            style={{
-              width: isDesktop ? 84 : 60,
-              height: isDesktop ? 84 : 60,
-              borderRadius: 'var(--radius-md)',
-              objectFit: 'cover',
-              background: 'var(--surface-sunken)',
-              flexShrink: 0
-            }}
+            className="controller-asset-thumb"
+            style={isDesktop ? { width: 84, height: 84 } : undefined}
           />
         ) : (
           <div
+            className="controller-asset-thumb"
             style={{
-              width: isDesktop ? 84 : 60,
-              height: isDesktop ? 84 : 60,
-              borderRadius: 'var(--radius-md)',
-              background: 'var(--surface-sunken)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               color: 'var(--text-muted)',
-              flexShrink: 0
+              ...(isDesktop ? { width: 84, height: 84 } : {})
             }}
           >
-            <Box size={24} />
+            <Box size={20} />
           </div>
         )}
 
-        <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <span className={`category-badge ${meta.cls}`} style={{ position: 'static', alignSelf: 'flex-start' }}>
-            {meta.icon}
-            <span>{meta.label}</span>
-          </span>
-          <div style={{ fontWeight: 700, fontSize: '0.95rem' }} className="u-truncate">
-            {activeAsset.AssetName}
+        <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <div className="controller-asset-live">
+            <span className="live-dot" />
+            LIVE
           </div>
-          {activeAsset.AssetName !== activeAsset.AssetID && (
-            <div className="u-mono" style={{ color: 'var(--text-muted)' }}>
-              {activeAsset.AssetID}
-            </div>
+          <div className="controller-asset-name u-truncate">{activeAsset.AssetName}</div>
+          {isDesktop && (
+            <span className={`category-badge ${meta.cls}`} style={{ position: 'static', alignSelf: 'flex-start' }}>
+              {meta.icon}
+              <span>{meta.label}</span>
+            </span>
           )}
         </div>
       </div>
     </div>
   );
 
-  const statusPanel = (
-    <div className="controller-panel">
-      <span className="u-section-label">Stage Status</span>
+  // ---- Compact status strip (mobile) --------------------------------------
+  const statusStrip = (
+    <button type="button" className="status-strip" onClick={() => setIsStatusOpen(true)}>
+      <span className={`status-strip-dot ${connectionState === 'connected' ? 'ok' : 'bad'}`} />
+      <span className="status-strip-value">{connectionState === 'connected' ? 'Ready' : 'Offline'}</span>
+      <span className="status-strip-sep">·</span>
+      <span className="status-strip-value">{SHORT_MODE[displayMode] ?? '2D'}</span>
+      <span className="status-strip-sep">·</span>
+      <span className="status-strip-value">{isOrthographic ? 'Ortho' : 'Persp'}</span>
+      {controlLock.locked && !hasControl && (
+        <>
+          <span className="status-strip-sep">·</span>
+          <span className="status-strip-value warn">
+            <Lock size={11} /> {controlLock.holderName || 'Locked'}
+          </span>
+        </>
+      )}
+    </button>
+  );
 
+  const statusDetail = (
+    <>
       <div className="stage-readout">
         <span style={{ color: 'var(--text-secondary)' }}>Link</span>
         <span
@@ -131,44 +154,48 @@ export const FullScreenController: React.FC = () => {
           {connectionState === 'connected' ? 'Ready' : connectionState}
         </span>
       </div>
-
       <div className="stage-readout">
         <span style={{ color: 'var(--text-secondary)' }}>Projection</span>
         <span className="stage-readout-value">{DisplayModeLabels[displayMode]}</span>
       </div>
-
       <div className="stage-readout">
         <span style={{ color: 'var(--text-secondary)' }}>Camera</span>
         <span className="stage-readout-value">{isOrthographic ? 'Orthographic' : 'Perspective'}</span>
       </div>
-
       <div className="stage-readout">
-        <span style={{ color: 'var(--text-secondary)' }}>Mode</span>
-        <span className="stage-readout-value">{MOVABLE_LABELS[currentMovableMode] ?? 'Rotate'}</span>
+        <span style={{ color: 'var(--text-secondary)' }}>Control mode</span>
+        <span className="stage-readout-value">{modeLabel}</span>
       </div>
-
-      <span className="u-section-label" style={{ marginTop: 4 }}>
-        Quick Actions
-      </span>
-
-      <div className="quick-grid">
-        <button type="button" className="quick-btn" onClick={resetModelTransform}>
-          <RotateCcw size={14} />
-          Reset
-        </button>
-        <button type="button" className="quick-btn" onClick={() => setIsSettingsOpen(true)}>
-          <Sliders size={14} />
-          Calibrate
-        </button>
-        <button type="button" className="quick-btn" onClick={triggerFullscreen}>
-          <Maximize size={14} />
-          Fullscreen
-        </button>
-        <button type="button" className="quick-btn danger" onClick={unloadAsset}>
-          <Square size={14} />
-          Clear Stage
-        </button>
+      <div className="stage-readout">
+        <span style={{ color: 'var(--text-secondary)' }}>Control</span>
+        <span className="stage-readout-value">
+          {hasControl ? 'You have control' : controlLock.holderName || 'Another operator'}
+        </span>
       </div>
+      {!hasControl && (
+        <button type="button" className="btn btn-primary" onClick={requestControl} style={{ gap: 6 }}>
+          <Unlock size={15} />
+          Request Control
+        </button>
+      )}
+    </>
+  );
+
+  // ---- Primary + secondary actions ---------------------------------------
+  const primaryActions = (
+    <div className="controller-actions">
+      <button type="button" className="quick-btn" onClick={resetModelTransform} disabled={!hasControl}>
+        <RotateCcw size={14} />
+        Reset
+      </button>
+      <button type="button" className="quick-btn" onClick={triggerFullscreen}>
+        <Maximize size={14} />
+        Fullscreen
+      </button>
+      <button type="button" className="quick-btn" onClick={() => setIsMoreOpen(true)}>
+        <MoreHorizontal size={14} />
+        More
+      </button>
     </div>
   );
 
@@ -185,6 +212,34 @@ export const FullScreenController: React.FC = () => {
         </div>
       )}
     </>
+  );
+
+  const desktopStatusPanel = (
+    <div className="controller-panel">
+      <span className="u-section-label">Stage Status</span>
+      {statusDetail}
+      <span className="u-section-label" style={{ marginTop: 4 }}>
+        Quick Actions
+      </span>
+      <div className="quick-grid">
+        <button type="button" className="quick-btn" onClick={resetModelTransform} disabled={!hasControl}>
+          <RotateCcw size={14} />
+          Reset
+        </button>
+        <button type="button" className="quick-btn" onClick={triggerFullscreen}>
+          <Maximize size={14} />
+          Fullscreen
+        </button>
+        <button type="button" className="quick-btn" onClick={() => setIsSettingsOpen(true)}>
+          <Sliders size={14} />
+          Calibrate
+        </button>
+        <button type="button" className="quick-btn danger" onClick={() => setIsClearConfirmOpen(true)}>
+          <Square size={14} />
+          Clear Stage
+        </button>
+      </div>
+    </div>
   );
 
   return (
@@ -210,28 +265,16 @@ export const FullScreenController: React.FC = () => {
         <button
           type="button"
           className="btn-icon"
-          onClick={unloadAsset}
-          title="Clear the stage and restore the company logo"
-          aria-label="Clear stage"
+          onClick={() => setIsMoreOpen(true)}
+          title="More stage actions"
+          aria-label="More stage actions"
         >
-          <Square size={16} />
+          <MoreHorizontal size={18} />
         </button>
       </div>
 
       {connectionState !== 'connected' && (
-        <div
-          style={{
-            background: 'rgba(239, 68, 68, 0.12)',
-            borderBottom: '1px solid rgba(239, 68, 68, 0.3)',
-            padding: '8px 16px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 8,
-            fontSize: '0.8rem',
-            color: 'var(--color-danger)'
-          }}
-        >
+        <div className="controller-banner">
           {connectionState === 'connecting' ? (
             <>
               <Loader2 size={14} className="spin" />
@@ -246,21 +289,143 @@ export const FullScreenController: React.FC = () => {
         </div>
       )}
 
+      {controlLock.locked && !hasControl && (
+        <div className="controller-banner warn">
+          <Lock size={14} />
+          <span>{controlLock.holderName || 'Another operator'} has control</span>
+          <button type="button" className="banner-action" onClick={requestControl}>
+            Request
+          </button>
+        </div>
+      )}
+
       <div className="controller-body">
         {isDesktop ? (
           <>
-            <div className="controller-col-side">{assetPanel}</div>
+            <div className="controller-col-side">{assetLine}</div>
             <div className="controller-col-main">{controls}</div>
-            <div className="controller-col-side">{statusPanel}</div>
+            <div className="controller-col-side">{desktopStatusPanel}</div>
           </>
         ) : (
           <>
-            {assetPanel}
+            {assetLine}
             {controls}
-            {statusPanel}
+            {primaryActions}
+            {statusStrip}
           </>
         )}
       </div>
+
+      {/* Secondary / disruptive actions live behind an explicit tap. */}
+      <BottomSheet
+        isOpen={isMoreOpen}
+        onClose={() => setIsMoreOpen(false)}
+        title="Stage Actions"
+        subtitle={activeAsset.AssetName}
+      >
+        <div className="sheet-action-list">
+          <button
+            type="button"
+            className="sheet-action"
+            onClick={() => {
+              resetModelTransform();
+              setIsMoreOpen(false);
+            }}
+            disabled={!hasControl}
+          >
+            <RotateCcw size={17} />
+            <span>
+              <strong>Reset transform</strong>
+              <em>Return rotation, pan and scale to defaults</em>
+            </span>
+          </button>
+
+          <button
+            type="button"
+            className="sheet-action"
+            onClick={() => {
+              setIsMoreOpen(false);
+              setIsSettingsOpen(true);
+            }}
+          >
+            <Sliders size={17} />
+            <span>
+              <strong>Stage settings & calibration</strong>
+              <em>Stereo, lighting, camera</em>
+            </span>
+          </button>
+
+          <button
+            type="button"
+            className="sheet-action"
+            onClick={() => {
+              triggerFullscreen();
+              setIsMoreOpen(false);
+            }}
+          >
+            <Maximize size={17} />
+            <span>
+              <strong>Toggle stage fullscreen</strong>
+              <em>Switch the stage window mode</em>
+            </span>
+          </button>
+
+          {!hasControl && (
+            <button
+              type="button"
+              className="sheet-action"
+              onClick={() => {
+                requestControl();
+                setIsMoreOpen(false);
+              }}
+            >
+              <Unlock size={17} />
+              <span>
+                <strong>Request control</strong>
+                <em>Take over from {controlLock.holderName || 'the current operator'}</em>
+              </span>
+            </button>
+          )}
+
+          <button
+            type="button"
+            className="sheet-action danger"
+            onClick={() => {
+              setIsMoreOpen(false);
+              setIsClearConfirmOpen(true);
+            }}
+          >
+            <Square size={17} />
+            <span>
+              <strong>Clear stage</strong>
+              <em>Remove the current content and show the company logo</em>
+            </span>
+          </button>
+        </div>
+      </BottomSheet>
+
+      <BottomSheet
+        isOpen={isStatusOpen}
+        onClose={() => setIsStatusOpen(false)}
+        title="Stage Status"
+        subtitle="Live link, projection and control ownership"
+      >
+        {statusDetail}
+      </BottomSheet>
+
+      {/* Clearing the stage is visible to the audience - always confirm. */}
+      <ConfirmDialog
+        isOpen={isClearConfirmOpen}
+        title="Clear Stage?"
+        message="This removes the current content from the stage and restores the company logo. The audience will see this change."
+        confirmLabel="Clear Stage"
+        destructive
+        onCancel={() => setIsClearConfirmOpen(false)}
+        onConfirm={() => {
+          setIsClearConfirmOpen(false);
+          unloadAsset();
+        }}
+      />
     </div>
   );
 };
@@ -270,4 +435,10 @@ const MOVABLE_LABELS: Record<number, string> = {
   1: 'Zoom',
   2: 'Pan',
   3: 'Light'
+};
+
+const SHORT_MODE: Record<number, string> = {
+  0: '2D',
+  1: 'SBS',
+  2: 'HOLO'
 };

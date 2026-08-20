@@ -129,6 +129,13 @@ export const DisplayModeNames: Record<DisplayMode, string> = {
   [DisplayMode.HoloDevice]: 'holo'
 };
 
+/** Abbreviated labels for tight surfaces (header pill, status strip). */
+export const DisplayModeShortLabels: Record<DisplayMode, string> = {
+  [DisplayMode.Mono2D]: '2D',
+  [DisplayMode.StereoSbs]: 'SBS',
+  [DisplayMode.HoloDevice]: 'HOLO'
+};
+
 export const DisplayModeLabels: Record<DisplayMode, string> = {
   [DisplayMode.Mono2D]: '2D',
   [DisplayMode.StereoSbs]: 'Stereoscopic (SBS)',
@@ -155,6 +162,33 @@ export const DEFAULT_STEREO_SETTINGS: StereoAdjustSettings = {
   lightBrightness: 0.8
 };
 
+/** One connected operator, as reported by the bridge. */
+export interface ControlLockOperator {
+  name: string;
+  hasControl: boolean;
+}
+
+/**
+ * Who is allowed to drive the stage right now.
+ *
+ * The bridge is the only party that sees every client, so it arbitrates and
+ * pushes this state. Older bridges never send it - the client then assumes it
+ * has control, so an out-of-date server can never lock an operator out.
+ */
+export interface ControlLockState {
+  holderName: string | null;
+  youHaveControl: boolean;
+  locked: boolean;
+  operators: ControlLockOperator[];
+}
+
+export const DEFAULT_CONTROL_LOCK: ControlLockState = {
+  holderName: null,
+  youHaveControl: true,
+  locked: false,
+  operators: []
+};
+
 export const StaticStrings = {
   AppVersion: 'AppVersion',
   Reconnect: 'Reconnect',
@@ -174,6 +208,9 @@ export const StaticStrings = {
   StereoSettingsActionKey: 'StereoSettingsActionKey',
   CameraOrthographicAction: 'CameraOrthographicActionKey',
   DisplayModeActionKey: 'hologram-display-mode-action',
+  ControlLockState: 'control-lock-state',
+  ControlRequest: 'control-request',
+  ControlRelease: 'control-release',
   DeleteAsset: 'DeleteAsset'
 } as const;
 

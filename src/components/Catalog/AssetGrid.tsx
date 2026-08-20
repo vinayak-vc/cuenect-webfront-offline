@@ -12,10 +12,12 @@ interface AssetGridProps {
   onQueryChange: (value: string) => void;
 }
 
-type TypeFilter = 'all' | 'models' | 'videos' | 'images';
+type TypeFilter = 'all' | 'recent' | 'favourites' | 'models' | 'videos' | 'images';
 
 const TYPE_FILTERS: Array<{ id: TypeFilter; label: string }> = [
   { id: 'all', label: 'All' },
+  { id: 'recent', label: 'Recent' },
+  { id: 'favourites', label: 'Favorites' },
   { id: 'models', label: '3D Models' },
   { id: 'videos', label: 'Videos' },
   { id: 'images', label: 'Images' }
@@ -36,7 +38,9 @@ export const AssetGrid: React.FC<AssetGridProps> = ({ onOpenConnection, query, o
     setSelectedPlaylist,
     connectionState,
     refreshAssets,
-    config
+    config,
+    recentAssetIds,
+    favouriteAssetIds
   } = useStage();
 
   const [typeFilter, setTypeFilter] = React.useState<TypeFilter>('all');
@@ -51,16 +55,27 @@ export const AssetGrid: React.FC<AssetGridProps> = ({ onOpenConnection, query, o
       else if (c === DataType.Video) videos++;
       else if (c === DataType.Image) images++;
     }
-    return { all: assets.length, models, videos, images };
-  }, [assets]);
+    const known = new Set(assets.map((a) => a.AssetID));
+    return {
+      all: assets.length,
+      recent: recentAssetIds.filter((id) => known.has(id)).length,
+      favourites: favouriteAssetIds.filter((id) => known.has(id)).length,
+      models,
+      videos,
+      images
+    };
+  }, [assets, recentAssetIds, favouriteAssetIds]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
 
-    return assets.filter((a) => {
+    const matched = assets.filter((a) => {
       if (selectedPlaylist !== 'All' && a.PlaylistName !== selectedPlaylist) return false;
 
-      if (typeFilter !== 'all') {
+      if (typeFilter === 'recent' && !recentAssetIds.includes(a.AssetID)) return false;
+      if (typeFilter === 'favourites' && !favouriteAssetIds.includes(a.AssetID)) return false;
+
+      if (typeFilter === 'models' || typeFilter === 'videos' || typeFilter === 'images') {
         const c = resolveCategory(a);
         if (typeFilter === 'models' && c !== DataType.Model) return false;
         if (typeFilter === 'videos' && c !== DataType.Video) return false;
@@ -74,7 +89,17 @@ export const AssetGrid: React.FC<AssetGridProps> = ({ onOpenConnection, query, o
         (a.AssetID || '').toLowerCase().includes(q)
       );
     });
-  }, [assets, selectedPlaylist, typeFilter, query]);
+
+    // Recent is only useful in most-recent-first order.
+    if (typeFilter === 'recent') {
+      const order = new Map(recentAssetIds.map((id, i) => [id, i]));
+      return [...matched].sort(
+        (a, b) => (order.get(a.AssetID) ?? 999) - (order.get(b.AssetID) ?? 999)
+      );
+    }
+
+    return matched;
+  }, [assets, selectedPlaylist, typeFilter, query, recentAssetIds, favouriteAssetIds]);
 
   if (connectionState === 'connecting') {
     return (

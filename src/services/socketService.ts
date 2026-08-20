@@ -190,10 +190,61 @@ export class StageSocketService {
     this.setUsers([]);
   }
 
+  /**
+   * Commands that mutate what the audience sees. Blocked while another operator
+   * holds control so two controllers cannot fight over a live stage.
+   *
+   * Read-only traffic (thumbnail requests, catalog refresh, control requests)
+   * is deliberately absent: an observer must still be able to browse.
+   */
+  private static readonly STAGE_MUTATING_EVENTS = new Set<string>([
+    'hologram-asset-action',
+    'hologram-model-action',
+    'hologram-joystick-action',
+    'hologram-video-action',
+    'hologram-action',
+    'hologram-camera-orthographic-action',
+    'StereoSettingsActionKey',
+    'hologram-display-mode-action'
+  ]);
+
+  /**
+   * False when this client is an observer. Defaults to true, and stays true if
+   * the bridge never reports lock state, so an older server cannot lock the
+   * operator out of their own stage.
+   */
+  private hasStageControl: boolean = true;
+
+  /** Notified when a stage command is dropped because control is held elsewhere. */
+  private blockedHandler: ((eventName: string) => void) | null = null;
+
+  public onCommandBlocked(handler: (eventName: string) => void): () => void {
+    this.blockedHandler = handler;
+    return () => {
+      this.blockedHandler = null;
+    };
+  }
+
+  public setStageControl(hasControl: boolean): void {
+    this.hasStageControl = hasControl;
+  }
+
+  public get canDriveStage(): boolean {
+    return this.hasStageControl;
+  }
+
   public emitEvent(eventName: string, data: any): void {
-    if (this.socket && this.socket.connected) {
-      this.socket.emit(eventName, data);
+    if (!this.socket || !this.socket.connected) {
+      return;
     }
+
+    if (!this.hasStageControl && StageSocketService.STAGE_MUTATING_EVENTS.has(eventName)) {
+      // Silent drops look like a broken app; tell the UI so it can say why.
+      this.blockedHandler?.(eventName);
+      return;
+    }
+
+    this.socket.emit(eventName, data);
   }
 
   // Unified Stage Actions
@@ -267,6 +318,16 @@ export class StageSocketService {
     // typed events still pass `message` through (same route as ReqAsset /
     // FullScreen). Unity's handler is idempotent, so the duplicate is harmless.
     this.emitEvent('message', `DisplayMode#${DisplayModeNames[mode]}`);
+  }
+
+  /** Ask the bridge for exclusive control of the stage. */
+  public requestControl(): void {
+    this.emitEvent(StaticStrings.ControlRequest, {});
+  }
+
+  /** Give control back so another operator can take over. */
+  public releaseControl(): void {
+    this.emitEvent(StaticStrings.ControlRelease, {});
   }
 
   // Bridged as raw stage command strings (same convention as ReqAsset)

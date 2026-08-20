@@ -1,0 +1,487 @@
+/* ============================================================================
+   CUENECT Stage Controller - Operator console refinements
+   ----------------------------------------------------------------------------
+   Navigation merge (Stage folded into More), global live-state dock, zero-scroll
+   controller, sheet action rows, confirmation dialog, asset state badges and
+   control-ownership affordances.
+   ========================================================================= */
+
+/* ----------------------------------------------- Global live-state dock */
+
+.stage-dock {
+  text-align: left;
+  cursor: pointer;
+  color: var(--text-primary);
+  font: inherit;
+}
+
+.stage-dock:hover {
+  border-color: var(--line-interactive);
+}
+
+.stage-dock-mode {
+  display: block;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* ------------------------------------------ Controller: zero-scroll target */
+
+/* Compact identity line replaces the full asset panel on phones. */
+.controller-asset-line {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+  border: 1px solid var(--line-subtle);
+}
+
+.controller-asset-thumb {
+  width: 46px;
+  height: 46px;
+  border-radius: var(--radius-sm);
+  object-fit: cover;
+  background: var(--surface-sunken);
+  flex-shrink: 0;
+}
+
+.controller-asset-live {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: var(--color-primary);
+}
+
+.controller-asset-name {
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+/* One-line status. Tap opens the full readout instead of parking a panel
+   permanently on screen. */
+.status-strip {
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 40px;
+  padding: 0 12px;
+  border-radius: var(--radius-full);
+  background: var(--surface-1);
+  border: 1px solid var(--line-subtle);
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.status-strip-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.status-strip-dot.ok {
+  background: var(--color-success);
+}
+
+.status-strip-dot.bad {
+  background: var(--color-danger);
+}
+
+.status-strip-value {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: var(--text-primary);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.status-strip-value.warn {
+  color: var(--color-warning);
+}
+
+.status-strip-sep {
+  color: var(--text-muted);
+}
+
+.controller-actions {
+  width: 100%;
+  max-width: 420px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--sp-2);
+}
+
+.controller-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 16px;
+  font-size: 0.8rem;
+  color: var(--color-danger);
+  background: rgba(239, 68, 68, 0.12);
+  border-bottom: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.controller-banner.warn {
+  color: var(--color-warning);
+  background: rgba(245, 158, 11, 0.12);
+  border-bottom-color: rgba(245, 158, 11, 0.32);
+}
+
+.banner-action {
+  margin-left: 4px;
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  background: rgba(245, 158, 11, 0.18);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  color: var(--color-warning);
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+@media (max-width: 767px) {
+  .controller-body {
+    gap: var(--sp-3);
+    padding: var(--sp-3) var(--sp-3) var(--sp-4);
+  }
+}
+
+/* -------------------------------------------------- Sheet action rows */
+
+.sheet-action-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.sheet-action {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  width: 100%;
+  min-height: var(--touch-comfortable);
+  padding: 12px;
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+  border: 1px solid var(--line-subtle);
+  color: var(--text-primary);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color var(--dur-button) var(--ease-out),
+              background var(--dur-button) var(--ease-out);
+}
+
+.sheet-action:hover:not(:disabled) {
+  background: var(--surface-2);
+  border-color: var(--line-elevated);
+}
+
+.sheet-action:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.sheet-action > svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--color-primary);
+}
+
+.sheet-action strong {
+  display: block;
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.sheet-action em {
+  display: block;
+  font-style: normal;
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.sheet-action.danger > svg {
+  color: var(--color-danger);
+}
+
+.sheet-action.danger:hover {
+  border-color: rgba(239, 68, 68, 0.4);
+  background: rgba(239, 68, 68, 0.08);
+}
+
+/* ---------------------------------------------------- Confirm dialog */
+
+.confirm-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-5);
+  background: rgba(2, 4, 9, 0.66);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  animation: fade-in var(--dur-modal) var(--ease-out);
+}
+
+.confirm-dialog {
+  width: min(400px, 100%);
+  padding: var(--sp-5);
+  border-radius: var(--radius-xl);
+  background: var(--surface-modal);
+  border: 1px solid var(--line-elevated);
+  box-shadow: var(--elev-modal);
+  text-align: center;
+  animation: dialog-pop var(--dur-modal) var(--ease-out);
+}
+
+.confirm-icon {
+  width: 52px;
+  height: 52px;
+  margin: 0 auto var(--sp-3);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-2);
+  color: var(--color-warning);
+}
+
+.confirm-icon.danger {
+  background: rgba(239, 68, 68, 0.12);
+  color: var(--color-danger);
+}
+
+.confirm-title {
+  font: var(--type-heading);
+  margin-bottom: var(--sp-2);
+}
+
+.confirm-message {
+  font: var(--type-meta);
+  color: var(--text-secondary);
+  margin-bottom: var(--sp-4);
+}
+
+.confirm-actions {
+  display: flex;
+  gap: var(--sp-2);
+}
+
+.btn-danger-solid {
+  background: var(--color-danger);
+  border: 1px solid var(--color-danger);
+  color: #fff;
+  font-weight: 700;
+}
+
+.btn-danger-solid:hover {
+  background: #dc2626;
+}
+
+/* ------------------------------------------------- Asset card states */
+
+.asset-state-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: var(--radius-full);
+  background: rgba(5, 7, 14, 0.8);
+  border: 1px solid var(--line-elevated);
+  color: var(--text-secondary);
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.asset-fav {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(5, 7, 14, 0.72);
+  border: 1px solid var(--line-subtle);
+  color: var(--text-secondary);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--dur-button) var(--ease-out),
+              color var(--dur-button) var(--ease-out);
+}
+
+/* Touch devices have no hover, so the control must always be visible. */
+@media (hover: none) {
+  .asset-fav {
+    opacity: 1;
+  }
+}
+
+.asset-card:hover .asset-fav,
+.asset-fav:focus-visible,
+.asset-fav.on {
+  opacity: 1;
+}
+
+.asset-fav.on {
+  color: #fb7185;
+  border-color: rgba(251, 113, 133, 0.45);
+}
+
+/* Named playlist action instead of an unlabelled check mark. */
+.btn-card-playlist-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 0 10px;
+  flex-shrink: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  border: 1px solid var(--line-subtle);
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color var(--dur-button) var(--ease-out),
+              border-color var(--dur-button) var(--ease-out);
+}
+
+.btn-card-playlist-action:hover {
+  color: var(--text-primary);
+  border-color: var(--line-elevated);
+}
+
+.btn-card-playlist-action.in-playlist {
+  color: var(--color-primary);
+  border-color: var(--line-interactive);
+  background: rgba(100, 197, 190, 0.1);
+}
+
+/* Two-column cards keep the icon only; the label returns when space allows. */
+@media (max-width: 520px) {
+  .playlist-action-label {
+    display: none;
+  }
+  .btn-card-playlist-action {
+    padding: 0;
+    width: 40px;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 380px) {
+  .playlist-action-label {
+    display: inline;
+  }
+  .btn-card-playlist-action {
+    width: auto;
+    padding: 0 10px;
+  }
+}
+
+/* Header pill: full projection name when there is room, abbreviation when not.
+   The generic .label-full/.label-short rules in system.css invert below 380px
+   for card buttons, so the header opts out of that inversion explicitly. */
+@media (max-width: 520px) {
+  .projection-trigger-value .label-full { display: none; }
+  .projection-trigger-value .label-short { display: inline; }
+}
+
+@media (max-width: 380px) {
+  .projection-trigger-value .label-full { display: none; }
+  .projection-trigger-value .label-short { display: inline; }
+}
+
+/* Status pill must never wrap to two lines in the header. */
+.status-pill-primary,
+.status-pill-secondary {
+  white-space: nowrap;
+}
+
+/* --------------------------------------- D-pad centre: projection toggle */
+
+/* Reset moved to the actions row; the centre now shows the live projection
+   mode and opens the picker. Styled as a readout, not a fire-on-tap button. */
+.dpad-center-action {
+  position: absolute;
+  width: 62px;
+  height: 62px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-3);
+  border: 1px solid var(--line-interactive);
+  color: var(--color-primary);
+  cursor: pointer;
+  transition: transform var(--dur-micro) var(--ease-out),
+              background var(--dur-button) var(--ease-out);
+}
+
+.dpad-center-action:hover {
+  background: var(--surface-2);
+}
+
+.dpad-center-action:active {
+  transform: scale(0.94);
+}
+
+.dpad-center-mode {
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+@media (min-width: 1024px) {
+  .dpad-center-action {
+    width: 74px;
+    height: 74px;
+  }
+  .dpad-center-mode {
+    font-size: 0.9rem;
+  }
+}
+
+/* Explains why a mode is unavailable, in place, without hiding the control. */
+.mode-hint {
+  font-size: 0.7rem;
+  line-height: 1.35;
+  color: var(--color-warning);
+  padding: 0 2px;
+}
+
+/* Four modes need slightly tighter segments on narrow phones. */
+@media (max-width: 400px) {
+  .segmented.compact .segmented-item {
+    font-size: 0.68rem;
+    padding: 0 6px;
+    gap: 3px;
+  }
+}
