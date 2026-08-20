@@ -1,12 +1,18 @@
 import React, { useEffect } from 'react';
 import { AssetInformation, DataType, resolveCategory } from '../../types/protocol';
 import { useStage } from '../../context/StageContext';
-import { Play, Plus, Check, Box, Image as ImageIcon } from 'lucide-react';
+import { Play, Plus, Check, Box, Image as ImageIcon, Film, Sliders } from 'lucide-react';
 
 interface AssetCardProps {
   asset: AssetInformation;
 }
 
+/**
+ * Asset tile: preview first, then identity, then one obvious primary action.
+ *
+ * Thumbnails are still requested lazily through the existing IntersectionObserver
+ * path so scrolling a large catalog does not flood the bridge.
+ */
 export const AssetCard: React.FC<AssetCardProps> = ({ asset }) => {
   const {
     thumbnails,
@@ -15,7 +21,8 @@ export const AssetCard: React.FC<AssetCardProps> = ({ asset }) => {
     activeAsset,
     customPlaylistIds,
     addToCustomPlaylist,
-    removeFromCustomPlaylist
+    removeFromCustomPlaylist,
+    setIsControllerOpen
   } = useStage();
 
   const cardRef = React.useRef<HTMLDivElement>(null);
@@ -47,10 +54,8 @@ export const AssetCard: React.FC<AssetCardProps> = ({ asset }) => {
     return () => observer.disconnect();
   }, [asset.AssetID, thumbUrl, requestThumbnail]);
 
-  const getCategoryClass = (): string => {
+  const categoryClass = (): string => {
     switch (category) {
-      case DataType.Model:
-        return 'model';
       case DataType.Video:
         return 'video';
       case DataType.Image:
@@ -60,10 +65,8 @@ export const AssetCard: React.FC<AssetCardProps> = ({ asset }) => {
     }
   };
 
-  const getCategoryName = (): string => {
+  const categoryName = (): string => {
     switch (category) {
-      case DataType.Model:
-        return '3D Model';
       case DataType.Video:
         return 'Video';
       case DataType.Image:
@@ -73,27 +76,21 @@ export const AssetCard: React.FC<AssetCardProps> = ({ asset }) => {
     }
   };
 
-  const renderBadgeIcon = () => {
+  const categoryIcon = (size: number) => {
     switch (category) {
-      case DataType.Model:
-        return <img src="/assets/ui/3d-modeling.png" alt="3D" style={{ width: 14, height: 14, objectFit: 'contain' }} onError={(e) => { e.currentTarget.style.display = 'none'; }} />;
       case DataType.Video:
-        return <img src="/assets/ui/video icon.png" alt="Video" style={{ width: 14, height: 14, objectFit: 'contain' }} onError={(e) => { e.currentTarget.style.display = 'none'; }} />;
+        return <Film size={size} />;
+      case DataType.Image:
+        return <ImageIcon size={size} />;
       default:
-        return <Box size={12} />;
+        return <Box size={size} />;
     }
   };
 
-  const renderPlaceholderIcon = () => {
-    switch (category) {
-      case DataType.Model:
-        return <img src="/assets/ui/3d-printer.png" alt="3D Model" style={{ width: 44, height: 44, opacity: 0.8 }} onError={(e) => { e.currentTarget.style.display = 'none'; }} />;
-      case DataType.Video:
-        return <img src="/assets/ui/video icon.png" alt="Video" style={{ width: 44, height: 44, opacity: 0.8 }} onError={(e) => { e.currentTarget.style.display = 'none'; }} />;
-      default:
-        return <ImageIcon size={36} />;
-    }
-  };
+  const durationLabel =
+    category === DataType.Video && asset.videoDuration
+      ? `${Math.round(asset.videoDuration)}s`
+      : null;
 
   return (
     <div ref={cardRef} className={`asset-card ${isActive ? 'active-stage' : ''}`}>
@@ -101,12 +98,20 @@ export const AssetCard: React.FC<AssetCardProps> = ({ asset }) => {
         {thumbUrl ? (
           <img src={thumbUrl} alt={asset.AssetName} className="asset-thumb" loading="lazy" />
         ) : (
-          <div className="asset-thumb-placeholder">{renderPlaceholderIcon()}</div>
+          <div className="asset-thumb-placeholder">{categoryIcon(34)}</div>
         )}
-        <span className={`category-badge ${getCategoryClass()}`}>
-          {renderBadgeIcon()}
-          <span>{getCategoryName()}</span>
+
+        <span className={`category-badge ${categoryClass()}`}>
+          {categoryIcon(11)}
+          <span>{categoryName()}</span>
         </span>
+
+        {isActive && (
+          <span className="asset-live-badge">
+            <span className="live-dot" />
+            ON STAGE
+          </span>
+        )}
       </div>
 
       <div className="asset-info">
@@ -114,27 +119,42 @@ export const AssetCard: React.FC<AssetCardProps> = ({ asset }) => {
           {asset.AssetName}
         </div>
 
+        <div className="asset-meta-row">
+          {asset.AssetName !== asset.AssetID && <span>{asset.AssetID}</span>}
+          {asset.AssetName !== asset.AssetID && durationLabel && <span>·</span>}
+          {durationLabel && <span>{durationLabel}</span>}
+          {asset.AssetName === asset.AssetID && !durationLabel && <span>{categoryName()}</span>}
+        </div>
+
         <div className="asset-actions">
           <button
             type="button"
             className={`btn btn-card-load ${isActive ? 'btn-secondary' : 'btn-primary'}`}
-            onClick={() => loadAsset(asset)}
+            onClick={() => (isActive ? setIsControllerOpen(true) : loadAsset(asset))}
           >
-            <Play size={14} />
-            {isActive ? 'Control' : 'Load'}
+            {isActive ? <Sliders size={14} /> : <Play size={14} />}
+            {isActive ? (
+              'Control'
+            ) : (
+              <>
+                <span className="label-full">Load to Stage</span>
+                <span className="label-short">Load</span>
+              </>
+            )}
           </button>
 
           <button
             type="button"
-            className={`btn btn-card-playlist ${isInCustomPlaylist ? 'in-playlist' : ''}`}
+            className={`btn-card-icon ${isInCustomPlaylist ? 'in-playlist' : ''}`}
             onClick={() =>
               isInCustomPlaylist
                 ? removeFromCustomPlaylist(asset.AssetID)
                 : addToCustomPlaylist(asset.AssetID)
             }
-            title={isInCustomPlaylist ? 'Remove from Playlist' : 'Add to Playlist'}
+            title={isInCustomPlaylist ? 'Remove from playlist' : 'Add to playlist'}
+            aria-label={isInCustomPlaylist ? 'Remove from playlist' : 'Add to playlist'}
           >
-            {isInCustomPlaylist ? <Check size={14} /> : <Plus size={14} />}
+            {isInCustomPlaylist ? <Check size={16} /> : <Plus size={16} />}
           </button>
         </div>
       </div>

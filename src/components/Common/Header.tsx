@@ -1,45 +1,43 @@
 import React, { useState } from 'react';
 import { useStage } from '../../context/StageContext';
-import { RefreshCw, ListPlus, Users, Sliders, Layers, Camera, Maximize } from 'lucide-react';
-import { DisplayMode, DisplayModeLabels } from '../../types/protocol';
+import { RefreshCw, ListPlus, Sliders, Layers, Camera, Maximize } from 'lucide-react';
+import { ConnectionStatus } from './ConnectionStatus';
+import { ProjectionSelector } from './ProjectionSelector';
+import { SearchField } from './SearchField';
 
 interface HeaderProps {
   onOpenConnection: () => void;
   onOpenPlaylistMaker: () => void;
+  query: string;
+  onQueryChange: (value: string) => void;
 }
 
+/**
+ * Stage-level controls live here so they are reachable from every screen -
+ * catalog, loading and controller alike. Model-specific controls stay on the
+ * controller surface.
+ *
+ * Hierarchy: brand (left) - asset discovery (centre, desktop) - stage state and
+ * projection (right). Utility icons are visually quieter than both.
+ */
 export const Header: React.FC<HeaderProps> = ({
   onOpenConnection,
-  onOpenPlaylistMaker
+  onOpenPlaylistMaker,
+  query,
+  onQueryChange
 }) => {
   const {
     connectionState,
-    connectedUsers,
     refreshAssets,
     selectedPlaylist,
     customPlaylistIds,
     setIsSettingsOpen,
-    displayMode,
-    setDisplayMode,
     isOrthographic,
     toggleOrthographic,
     triggerFullscreen
   } = useStage();
 
   const [logoError, setLogoError] = useState<boolean>(false);
-
-  const getStatusText = (): string => {
-    switch (connectionState) {
-      case 'connected':
-        return connectedUsers.length > 0 ? `Connected (${connectedUsers.length})` : 'Connected';
-      case 'connecting':
-        return 'Connecting...';
-      case 'error':
-        return 'Connection Error';
-      default:
-        return 'Disconnected';
-    }
-  };
 
   return (
     <header className="app-header">
@@ -64,93 +62,58 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
       </div>
 
+      {/* Desktop asset discovery. Mobile gets its own field in the catalog. */}
+      <div className="header-search">
+        <SearchField value={query} onChange={onQueryChange} />
+      </div>
+
       <div className="header-actions">
-        <label className="header-projection" title="Stage projection mode">
-          <span className="header-projection-label">Projection</span>
-          <select
-            className="header-projection-select"
-            value={displayMode}
-            onChange={(e) => setDisplayMode(Number(e.target.value) as DisplayMode)}
-          >
-            <option value={DisplayMode.Mono2D}>{DisplayModeLabels[DisplayMode.Mono2D]}</option>
-            <option value={DisplayMode.StereoSbs}>{DisplayModeLabels[DisplayMode.StereoSbs]}</option>
-            <option value={DisplayMode.HoloDevice}>{DisplayModeLabels[DisplayMode.HoloDevice]}</option>
-          </select>
-        </label>
+        <ProjectionSelector />
+
+        <ConnectionStatus onClick={onOpenConnection} />
 
         <button
-          className={`status-badge ${connectionState}`}
-          onClick={onOpenConnection}
-          title="Click to change connection settings"
-        >
-          <span className="status-dot" />
-          {connectedUsers.length > 0 && <Users size={12} style={{ marginRight: 2 }} />}
-          <span>{getStatusText()}</span>
-        </button>
-
-        <button
-          className="btn-icon"
+          className="btn-icon hide-on-mobile"
           onClick={refreshAssets}
-          title="Refresh Assets"
+          title="Refresh asset catalog"
           disabled={connectionState !== 'connected'}
         >
           <RefreshCw size={18} />
         </button>
 
         <button
-          className="btn-icon"
+          className="btn-icon hide-on-mobile"
           onClick={toggleOrthographic}
-          title={isOrthographic ? 'Projection: Orthographic' : 'Projection: Perspective'}
+          title={isOrthographic ? 'Camera: Orthographic' : 'Camera: Perspective'}
           style={{
-            borderColor: isOrthographic ? 'var(--color-primary)' : undefined,
+            borderColor: isOrthographic ? 'var(--line-interactive)' : undefined,
             color: isOrthographic ? 'var(--color-primary)' : undefined
           }}
         >
           <Camera size={18} />
         </button>
 
-        <button
-          className="btn-icon"
-          onClick={triggerFullscreen}
-          title="Toggle stage fullscreen"
-        >
+        <button className="btn-icon hide-on-mobile" onClick={triggerFullscreen} title="Toggle stage fullscreen">
           <Maximize size={18} />
         </button>
 
         <button
-          className="btn-icon"
+          className="btn-icon hide-on-mobile"
           onClick={() => setIsSettingsOpen(true)}
-          title="Stereo calibration & stage settings (IPD, Zero Parallax, FOV, Light)"
+          title="Stereo calibration & stage settings"
         >
           <Sliders size={18} />
         </button>
 
         <button
-          className="btn-icon"
+          className="btn-icon hide-on-mobile"
           onClick={onOpenPlaylistMaker}
-          title="Playlist Builder"
+          title="Playlist builder"
           style={{ position: 'relative' }}
         >
           <ListPlus size={18} />
           {customPlaylistIds.length > 0 && (
-            <span
-              style={{
-                position: 'absolute',
-                top: 2,
-                right: 2,
-                width: 16,
-                height: 16,
-                borderRadius: '50%',
-                background: 'var(--color-primary)',
-                color: '#041017',
-                fontSize: '0.65rem',
-                fontWeight: 800,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                boxShadow: '0 0 8px rgba(100, 197, 190, 0.6)'
-              }}
-            >
+            <span className="bottom-nav-badge" style={{ top: -4, right: -4, transform: 'none' }}>
               {customPlaylistIds.length}
             </span>
           )}

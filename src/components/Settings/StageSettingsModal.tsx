@@ -1,7 +1,50 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useStage } from '../../context/StageContext';
-import { X, Sliders, Sun, Eye, RotateCcw, Camera } from 'lucide-react';
+import { BottomSheet } from '../Common/BottomSheet';
+import { Slider } from '../Common/Slider';
+import { ChevronDown, Eye, Sun, Camera, RotateCcw, FlaskConical } from 'lucide-react';
 
+interface SectionProps {
+  title: string;
+  subtitle?: string;
+  icon: React.ReactNode;
+  defaultOpen?: boolean;
+  children: React.ReactNode;
+}
+
+/** Collapsible group - keeps expert controls out of the operator's way. */
+const Section: React.FC<SectionProps> = ({ title, subtitle, icon, defaultOpen = false, children }) => {
+  const [open, setOpen] = useState(defaultOpen);
+
+  return (
+    <div className={`setting-section ${open ? 'open' : ''}`}>
+      <button
+        type="button"
+        className="setting-section-header"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+      >
+        <span style={{ color: 'var(--color-primary)', display: 'flex' }}>{icon}</span>
+        <span style={{ minWidth: 0 }}>
+          <span className="setting-section-title" style={{ display: 'block' }}>
+            {title}
+          </span>
+          {subtitle && <span className="setting-section-sub">{subtitle}</span>}
+        </span>
+        <ChevronDown size={18} className="chev" />
+      </button>
+
+      {open && <div className="setting-section-body">{children}</div>}
+    </div>
+  );
+};
+
+/**
+ * Stage settings. Grouped into Stereo / Lighting / Camera / Advanced so the
+ * everyday controls are one tap away and calibration parameters stay behind a
+ * deliberate disclosure. Renders as a bottom sheet on mobile and a centred
+ * dialog on desktop (handled by BottomSheet).
+ */
 export const StageSettingsModal: React.FC = () => {
   const {
     isSettingsOpen,
@@ -13,247 +56,116 @@ export const StageSettingsModal: React.FC = () => {
     toggleOrthographic
   } = useStage();
 
-  if (!isSettingsOpen) return null;
-
   return (
-    <div className="modal-overlay" onClick={() => setIsSettingsOpen(false)}>
-      <div
-        className="modal-container"
-        onClick={(e) => e.stopPropagation()}
-        style={{ maxWidth: 520, maxHeight: '90vh', overflowY: 'auto' }}
+    <BottomSheet
+      isOpen={isSettingsOpen}
+      onClose={() => setIsSettingsOpen(false)}
+      title="Stage Settings"
+      subtitle="Stereo, lighting and camera calibration"
+      footer={
+        <button
+          type="button"
+          className="btn btn-secondary"
+          onClick={resetStereoSettings}
+          style={{ flex: 1, gap: 6 }}
+        >
+          <RotateCcw size={15} />
+          Reset to Defaults
+        </button>
+      }
+    >
+      <Section
+        title="Stereo"
+        subtitle="Eye separation and focal depth"
+        icon={<Eye size={18} />}
+        defaultOpen
       >
-        {/* Modal Header */}
-        <div className="modal-header">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Sliders size={20} style={{ color: 'var(--color-primary)' }} />
-            <h2 className="modal-title">Stage & 3D Settings</h2>
-          </div>
-          <button
-            type="button"
-            className="btn-icon"
-            onClick={() => setIsSettingsOpen(false)}
-            title="Close"
-          >
-            <X size={18} />
-          </button>
-        </div>
+        <Slider
+          label="Inter-pupillary distance"
+          valueLabel={`${Math.round(stereoSettings.ipd * 1000)} mm`}
+          value={stereoSettings.ipd}
+          min={0.005}
+          max={0.3}
+          step={0.001}
+          onChange={(v) => updateStereoSettings({ ipd: v })}
+          scale={['5 mm', '65 mm human', '300 mm']}
+        />
 
-        {/* Modal Body */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-          {/* Section: Stereoscopic 3D Holo-Wall */}
-          <div
-            style={{
-              background: 'var(--bg-tertiary)',
-              borderRadius: 'var(--border-radius)',
-              padding: 16,
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 14,
-              border: '1px solid var(--border-color)'
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Eye size={18} style={{ color: 'var(--color-primary)' }} />
-                <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>Stereoscopic 3D Holo-Wall</span>
-              </div>
-              <label
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  cursor: 'pointer',
-                  fontSize: '0.85rem'
-                }}
-              >
-                <input
-                  type="checkbox"
-                  checked={stereoSettings.isStereo}
-                  onChange={(e) => updateStereoSettings({ isStereo: e.target.checked })}
-                  style={{ accentColor: 'var(--color-primary)', width: 16, height: 16 }}
-                />
-                <span style={{ color: stereoSettings.isStereo ? 'var(--color-primary)' : 'var(--text-secondary)' }}>
-                  {stereoSettings.isStereo ? '3D Active' : '2D Mono'}
-                </span>
-              </label>
-            </div>
+        <Slider
+          label="Zero parallax focal plane"
+          valueLabel={`${stereoSettings.zeroParallax.toFixed(1)} m`}
+          value={stereoSettings.zeroParallax}
+          min={0.3}
+          max={20}
+          step={0.1}
+          onChange={(v) => updateStereoSettings({ zeroParallax: v })}
+          scale={['0.3 m', '20 m']}
+        />
 
-            {/* IPD Slider */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-                <span style={{ color: 'var(--text-secondary)' }}>Inter-Pupillary Distance (IPD / Cam Spacing)</span>
-                <span style={{ fontWeight: 700, color: 'var(--color-primary)' }}>
-                  {Math.round(stereoSettings.ipd * 1000)} mm
-                </span>
-              </div>
-              <input
-                type="range"
-                min={0.005}
-                max={0.3}
-                step={0.001}
-                value={stereoSettings.ipd}
-                onChange={(e) => updateStereoSettings({ ipd: parseFloat(e.target.value) })}
-                style={{ width: '100%', accentColor: 'var(--color-primary)' }}
-              />
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                <span>5 mm (Flat)</span>
-                <span>65 mm (Human)</span>
-                <span>300 mm (Hyperstereo)</span>
-              </div>
-            </div>
+        <Slider
+          label="Field of view"
+          valueLabel={`${Math.round(stereoSettings.fov)}°`}
+          value={stereoSettings.fov}
+          min={20}
+          max={120}
+          step={1}
+          onChange={(v) => updateStereoSettings({ fov: v })}
+          scale={['20°', '120°']}
+        />
+      </Section>
 
-            {/* Zero Parallax Distance Slider */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-                <span style={{ color: 'var(--text-secondary)' }}>Zero Parallax Focal Plane</span>
-                <span style={{ fontWeight: 700, color: 'var(--color-primary)' }}>
-                  {stereoSettings.zeroParallax.toFixed(1)} m
-                </span>
-              </div>
-              <input
-                type="range"
-                min={0.3}
-                max={20.0}
-                step={0.1}
-                value={stereoSettings.zeroParallax}
-                onChange={(e) => updateStereoSettings({ zeroParallax: parseFloat(e.target.value) })}
-                style={{ width: '100%', accentColor: 'var(--color-primary)' }}
-              />
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                <span>0.3 m (All recede)</span>
-                <span>3.0 m (Default)</span>
-                <span>20.0 m (All pop out)</span>
-              </div>
-            </div>
+      <Section title="Lighting" subtitle="Stage brightness" icon={<Sun size={18} />}>
+        <Slider
+          label="Directional light intensity"
+          valueLabel={stereoSettings.lightBrightness.toFixed(2)}
+          value={stereoSettings.lightBrightness}
+          min={0}
+          max={3}
+          step={0.05}
+          onChange={(v) => updateStereoSettings({ lightBrightness: v })}
+          scale={['0', '3']}
+        />
+      </Section>
 
-            {/* Camera FOV Slider */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-                <span style={{ color: 'var(--text-secondary)' }}>Camera Field of View (FOV)</span>
-                <span style={{ fontWeight: 700, color: 'var(--color-primary)' }}>
-                  {Math.round(stereoSettings.fov)}°
-                </span>
-              </div>
-              <input
-                type="range"
-                min={15}
-                max={120}
-                step={1}
-                value={stereoSettings.fov}
-                onChange={(e) => updateStereoSettings({ fov: parseFloat(e.target.value) })}
-                style={{ width: '100%', accentColor: 'var(--color-primary)' }}
-              />
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                <span>15° (Tele)</span>
-                <span>60° (Default)</span>
-                <span>120° (Wide)</span>
-              </div>
-            </div>
-
-            {/* Toe-In Convergence Toggle */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 4 }}>
-              <div>
-                <div style={{ fontSize: '0.85rem', fontWeight: 600 }}>Toe-In Convergence (Legacy)</div>
-                <div style={{ fontSize: '0.7rem', color: 'var(--color-warning)' }}>
-                  Rotates the cameras inward. Adds keystone distortion and vertical
-                  parallax at the frame corners — a known cause of eye strain. Leave off:
-                  the default off-axis frustum is the correct method for a flat wall.
-                </div>
-              </div>
-              <input
-                type="checkbox"
-                checked={stereoSettings.enableToeIn}
-                onChange={(e) => updateStereoSettings({ enableToeIn: e.target.checked })}
-                style={{ accentColor: 'var(--color-primary)', width: 18, height: 18, cursor: 'pointer' }}
-              />
-            </div>
-          </div>
-
-          {/* Section: Stage Lighting & Projection */}
-          <div
-            style={{
-              background: 'var(--bg-tertiary)',
-              borderRadius: 'var(--border-radius)',
-              padding: 16,
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 14,
-              border: '1px solid var(--border-color)'
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Sun size={18} style={{ color: 'var(--color-primary)' }} />
-              <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>Stage Lighting & Projection</span>
-            </div>
-
-            {/* Directional Light Brightness */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-                <span style={{ color: 'var(--text-secondary)' }}>Directional Light Brightness</span>
-                <span style={{ fontWeight: 700, color: 'var(--color-primary)' }}>
-                  {Math.round(stereoSettings.lightBrightness * 100)}%
-                </span>
-              </div>
-              <input
-                type="range"
-                min={0.1}
-                max={4.0}
-                step={0.05}
-                value={stereoSettings.lightBrightness}
-                onChange={(e) => updateStereoSettings({ lightBrightness: parseFloat(e.target.value) })}
-                style={{ width: '100%', accentColor: 'var(--color-primary)' }}
-              />
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                <span>10% (Dim)</span>
-                <span>80% (Default)</span>
-                <span>400% (Bright)</span>
-              </div>
-            </div>
-
-            {/* Camera Projection Toggle */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 4 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Camera size={16} style={{ color: 'var(--text-secondary)' }} />
-                <div>
-                  <div style={{ fontSize: '0.85rem', fontWeight: 600 }}>Projection Mode</div>
-                  <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
-                    Current: {isOrthographic ? 'Orthographic' : 'Perspective'}
-                  </div>
-                </div>
-              </div>
-              <button
-                type="button"
-                className={`btn btn-secondary ${isOrthographic ? 'active' : ''}`}
-                onClick={toggleOrthographic}
-                style={{ fontSize: '0.8rem', padding: '6px 12px' }}
-              >
-                {isOrthographic ? 'Orthographic' : 'Perspective'}
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Modal Footer */}
-        <div className="modal-footer" style={{ marginTop: 20, display: 'flex', justifyContent: 'space-between' }}>
+      <Section title="Camera" subtitle="Stage projection geometry" icon={<Camera size={18} />}>
+        <div className="stage-readout">
+          <span style={{ color: 'var(--text-secondary)', fontSize: '0.82rem' }}>Projection</span>
           <button
             type="button"
             className="btn btn-secondary"
-            onClick={resetStereoSettings}
-            style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+            onClick={toggleOrthographic}
+            style={{ minHeight: 40, fontSize: '0.78rem' }}
           >
-            <RotateCcw size={14} />
-            Reset Defaults
-          </button>
-
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={() => setIsSettingsOpen(false)}
-          >
-            Done
+            {isOrthographic ? 'Orthographic' : 'Perspective'}
           </button>
         </div>
-      </div>
-    </div>
+        <p className="u-meta">
+          Both stereo modes require a perspective camera; the stage locks this while stereo is active.
+        </p>
+      </Section>
+
+      <Section
+        title="Advanced"
+        subtitle="Expert calibration — affects convergence"
+        icon={<FlaskConical size={18} />}
+      >
+        <label className="form-toggle-row" style={{ cursor: 'pointer' }}>
+          <span>
+            <span style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600 }}>
+              Toe-in convergence
+            </span>
+            <span className="setting-section-sub">
+              Rotates the eye cameras inward instead of shearing the frustum.
+            </span>
+          </span>
+          <input
+            type="checkbox"
+            checked={stereoSettings.enableToeIn}
+            onChange={(e) => updateStereoSettings({ enableToeIn: e.target.checked })}
+            style={{ accentColor: 'var(--color-primary)', width: 20, height: 20, flexShrink: 0 }}
+          />
+        </label>
+      </Section>
+    </BottomSheet>
   );
 };

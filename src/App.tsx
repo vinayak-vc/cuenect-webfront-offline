@@ -1,6 +1,5 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Header } from './components/Common/Header';
-import { PlaylistTabs } from './components/Catalog/PlaylistTabs';
 import { AssetGrid } from './components/Catalog/AssetGrid';
 import { ConnectionModal } from './components/Connection/ConnectionModal';
 import { FullScreenController } from './components/Controller/FullScreenController';
@@ -8,26 +7,100 @@ import { PlaylistMakerModal } from './components/Playlist/PlaylistMakerModal';
 import { StageSettingsModal } from './components/Settings/StageSettingsModal';
 import { SlideshowBar } from './components/Playlist/SlideshowBar';
 import { ToastContainer } from './components/Common/Toast';
+import { BottomNav, MobileSection } from './components/Common/BottomNav';
+import { NowOnStage } from './components/Stage/NowOnStage';
+import { BottomSheet } from './components/Common/BottomSheet';
+import { StateView } from './components/Common/StateView';
+import { Gamepad2 } from 'lucide-react';
+import { useStage } from './context/StageContext';
+import { useIsMobile } from './hooks/useMediaQuery';
 
 export const App: React.FC = () => {
+  const {
+    activeAsset,
+    isControllerOpen,
+    setIsControllerOpen,
+    isSettingsOpen,
+    setIsSettingsOpen,
+    isSlideshowActive
+  } = useStage();
+
   const [isConnectionModalOpen, setIsConnectionModalOpen] = useState<boolean>(false);
   const [isPlaylistMakerOpen, setIsPlaylistMakerOpen] = useState<boolean>(false);
+  const [isNoAssetSheetOpen, setIsNoAssetSheetOpen] = useState<boolean>(false);
+  const [query, setQuery] = useState<string>('');
+
+  const isMobile = useIsMobile();
+
+  // Nav highlight is derived from which surface is open - no duplicate state.
+  const activeSection: MobileSection = useMemo(() => {
+    if (isControllerOpen) return 'control';
+    if (isPlaylistMakerOpen) return 'playlist';
+    if (isSettingsOpen) return 'settings';
+    return 'assets';
+  }, [isControllerOpen, isPlaylistMakerOpen, isSettingsOpen]);
+
+  const closeAllSurfaces = () => {
+    setIsPlaylistMakerOpen(false);
+    setIsSettingsOpen(false);
+    setIsControllerOpen(false);
+    setIsNoAssetSheetOpen(false);
+  };
+
+  const handleNavSelect = (section: MobileSection) => {
+    switch (section) {
+      case 'assets':
+        closeAllSurfaces();
+        break;
+      case 'playlist':
+        closeAllSurfaces();
+        setIsPlaylistMakerOpen(true);
+        break;
+      case 'control':
+        closeAllSurfaces();
+        // Never navigate to a dead screen: explain the state instead.
+        if (activeAsset) {
+          setIsControllerOpen(true);
+        } else {
+          setIsNoAssetSheetOpen(true);
+        }
+        break;
+      case 'settings':
+        closeAllSurfaces();
+        setIsSettingsOpen(true);
+        break;
+    }
+  };
+
+  const showDock = !!activeAsset && !isControllerOpen && !isSlideshowActive;
 
   return (
-    <div className="app-container">
-      {/* Top Header */}
+    <div
+      className={[
+        'app-container',
+        isMobile ? 'has-bottom-nav' : '',
+        showDock && isMobile ? 'has-dock' : ''
+      ]
+        .filter(Boolean)
+        .join(' ')}
+    >
       <Header
         onOpenConnection={() => setIsConnectionModalOpen(true)}
         onOpenPlaylistMaker={() => setIsPlaylistMakerOpen(true)}
+        query={query}
+        onQueryChange={setQuery}
       />
 
-      {/* Playlist Filter Tabs */}
-      <PlaylistTabs />
+      <main className="app-main">
+        <AssetGrid
+          onOpenConnection={() => setIsConnectionModalOpen(true)}
+          query={query}
+          onQueryChange={setQuery}
+        />
+      </main>
 
-      {/* Main Asset Grid */}
-      <AssetGrid onOpenConnection={() => setIsConnectionModalOpen(true)} />
+      <NowOnStage onOpenController={() => setIsControllerOpen(true)} />
 
-      {/* Modals & FullScreen Overlays */}
       <ConnectionModal
         isOpen={isConnectionModalOpen}
         onClose={() => setIsConnectionModalOpen(false)}
@@ -44,7 +117,30 @@ export const App: React.FC = () => {
 
       <SlideshowBar />
 
+      <BottomSheet
+        isOpen={isNoAssetSheetOpen}
+        onClose={() => setIsNoAssetSheetOpen(false)}
+        title="Stage Controller"
+      >
+        <StateView
+          icon={<Gamepad2 size={26} />}
+          title="Nothing on the stage"
+          description="Load an asset to the stage, then return here to rotate, pan, zoom and light it."
+          actions={
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => setIsNoAssetSheetOpen(false)}
+            >
+              Browse Assets
+            </button>
+          }
+        />
+      </BottomSheet>
+
       <ToastContainer />
+
+      {isMobile && <BottomNav active={activeSection} onSelect={handleNavSelect} />}
     </div>
   );
 };
