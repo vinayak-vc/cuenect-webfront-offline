@@ -1,8 +1,8 @@
 import React from 'react';
 import { useStage } from '../../context/StageContext';
-import { MoveableAssetType } from '../../types/protocol';
+import { MoveableAssetType, DisplayMode } from '../../types/protocol';
 import { DPad } from './DPad';
-import { Eye, Box, Move, Search, SunMedium, Sliders } from 'lucide-react';
+import { Eye, Box, Move, Search, SunMedium, Sliders, Monitor } from 'lucide-react';
 
 export const ModelControlPanel: React.FC = () => {
   const {
@@ -13,8 +13,12 @@ export const ModelControlPanel: React.FC = () => {
     toggleStereoscopic,
     stereoSettings,
     triggerFullscreen,
-    setIsSettingsOpen
+    setIsSettingsOpen,
+    displayMode,
+    setDisplayMode
   } = useStage();
+
+  const isHolo = displayMode === DisplayMode.HoloDevice;
 
   const modes = [
     { type: MoveableAssetType.Rotate, label: 'Rotate', icon: Box },
@@ -77,6 +81,22 @@ export const ModelControlPanel: React.FC = () => {
         >
           <Eye size={14} />
           {stereoSettings.isStereo ? '3D SBS On' : '3D SBS'}
+        </button>
+
+        <button
+          type="button"
+          className={`btn btn-secondary ${isHolo ? 'active' : ''}`}
+          onClick={() => setDisplayMode(isHolo ? DisplayMode.Mono2D : DisplayMode.HoloDevice)}
+          style={{
+            fontSize: '0.75rem',
+            padding: '8px 10px',
+            borderColor: isHolo ? 'var(--color-primary)' : undefined,
+            color: isHolo ? 'var(--color-primary)' : undefined
+          }}
+          title="Switch the stage to the Axiom HOLO device"
+        >
+          <Monitor size={14} />
+          {isHolo ? 'HOLO On' : 'HOLO'}
         </button>
 
         <button
