@@ -113,6 +113,46 @@ export interface StereoAdjustSettings {
   lightIntensity?: number;
 }
 
+/**
+ * Stage display path. Mirrors HoloDisplayMode in
+ * Scripts/HoloWall/HoloDisplayModeController.cs on the Unity side.
+ */
+export enum DisplayMode {
+  Mono2D = 0,
+  StereoSbs = 1,
+  HoloDevice = 2
+}
+
+export const DisplayModeNames: Record<DisplayMode, string> = {
+  [DisplayMode.Mono2D]: '2d',
+  [DisplayMode.StereoSbs]: 'sbs',
+  [DisplayMode.HoloDevice]: 'holo'
+};
+
+/** Abbreviated labels for tight surfaces (header pill, status strip). */
+export const DisplayModeShortLabels: Record<DisplayMode, string> = {
+  [DisplayMode.Mono2D]: '2D',
+  [DisplayMode.StereoSbs]: 'SBS',
+  [DisplayMode.HoloDevice]: 'HOLO'
+};
+
+export const DisplayModeLabels: Record<DisplayMode, string> = {
+  [DisplayMode.Mono2D]: '2D',
+  [DisplayMode.StereoSbs]: 'Stereoscopic (SBS)',
+  [DisplayMode.HoloDevice]: 'HOLO Stereoscopic'
+};
+
+/**
+ * Payload for `hologram-display-mode-action`.
+ * Unity accepts either field; `modeName` wins when both are present.
+ */
+export interface DisplayModePayload {
+  mode: DisplayMode;
+  modeName: string;
+}
+
+export const DEFAULT_DISPLAY_MODE: DisplayMode = DisplayMode.Mono2D;
+
 export const DEFAULT_STEREO_SETTINGS: StereoAdjustSettings = {
   ipd: 0.065,
   zeroParallax: 3.0,
@@ -120,6 +160,33 @@ export const DEFAULT_STEREO_SETTINGS: StereoAdjustSettings = {
   enableToeIn: false,
   isStereo: true,
   lightBrightness: 0.8
+};
+
+/** One connected operator, as reported by the bridge. */
+export interface ControlLockOperator {
+  name: string;
+  hasControl: boolean;
+}
+
+/**
+ * Who is allowed to drive the stage right now.
+ *
+ * The bridge is the only party that sees every client, so it arbitrates and
+ * pushes this state. Older bridges never send it - the client then assumes it
+ * has control, so an out-of-date server can never lock an operator out.
+ */
+export interface ControlLockState {
+  holderName: string | null;
+  youHaveControl: boolean;
+  locked: boolean;
+  operators: ControlLockOperator[];
+}
+
+export const DEFAULT_CONTROL_LOCK: ControlLockState = {
+  holderName: null,
+  youHaveControl: true,
+  locked: false,
+  operators: []
 };
 
 export const StaticStrings = {
@@ -140,6 +207,10 @@ export const StaticStrings = {
   StereoscopicKey: 'StereoscopicKey',
   StereoSettingsActionKey: 'StereoSettingsActionKey',
   CameraOrthographicAction: 'CameraOrthographicActionKey',
+  DisplayModeActionKey: 'hologram-display-mode-action',
+  ControlLockState: 'control-lock-state',
+  ControlRequest: 'control-request',
+  ControlRelease: 'control-release',
   DeleteAsset: 'DeleteAsset'
 } as const;
 

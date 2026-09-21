@@ -1,0 +1,138 @@
+/* ============================================================================
+   CUENECT Stage Controller - Design Tokens
+   ----------------------------------------------------------------------------
+   Single source of truth for surface, text, border, radius, elevation, motion,
+   typography and spacing values. Component stylesheets must consume these
+   tokens rather than hard-coding colours or timings.
+
+   Existing token names from index.css are intentionally preserved so nothing
+   downstream breaks; this file adds the missing layers (elevation scale,
+   motion scale, type scale, spacing scale, z-index scale, safe areas).
+   ========================================================================= */
+
+:root {
+  /* --- Surfaces: ascending elevation ------------------------------------ */
+  --surface-app: #05070e;
+  --surface-sunken: #04060b;
+  --surface-1: rgba(16, 23, 39, 0.72);
+  --surface-2: rgba(22, 31, 51, 0.82);
+  --surface-3: rgba(30, 41, 66, 0.9);
+  --surface-nav: rgba(9, 14, 26, 0.88);
+  --surface-sheet: rgba(13, 19, 34, 0.96);
+  --surface-modal: rgba(15, 22, 38, 0.97);
+  --surface-input: rgba(9, 14, 25, 0.75);
+
+  /* --- Borders ---------------------------------------------------------- */
+  --line-subtle: rgba(255, 255, 255, 0.07);
+  --line-elevated: rgba(255, 255, 255, 0.12);
+  --line-interactive: rgba(100, 197, 190, 0.28);
+  --line-focus: rgba(0, 229, 255, 0.75);
+
+  /* --- Text ------------------------------------------------------------- */
+  --text-disabled: rgba(148, 163, 184, 0.45);
+
+  /* --- Radius ----------------------------------------------------------- */
+  --radius-xl: 24px;
+  --radius-sheet: 26px;
+
+  /* --- Elevation -------------------------------------------------------- */
+  --elev-soft: 0 1px 2px rgba(0, 0, 0, 0.4), 0 2px 6px rgba(0, 0, 0, 0.25);
+  --elev-raised: 0 2px 4px rgba(0, 0, 0, 0.4), 0 8px 20px rgba(0, 0, 0, 0.35);
+  --elev-floating: 0 8px 16px rgba(0, 0, 0, 0.45), 0 20px 48px rgba(0, 0, 0, 0.4);
+  --elev-modal: 0 24px 64px rgba(0, 0, 0, 0.62);
+  /* Restrained accent ring - used on active/primary states only. */
+  --ring-accent: 0 0 0 1px rgba(100, 197, 190, 0.5), 0 4px 18px rgba(100, 197, 190, 0.16);
+
+  /* --- Motion ----------------------------------------------------------- */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-emphasis: cubic-bezier(0.16, 1, 0.3, 1);
+
+  --dur-micro: 120ms;
+  --dur-button: 150ms;
+  --dur-card: 220ms;
+  --dur-panel: 280ms;
+  --dur-modal: 260ms;
+  --dur-sheet: 320ms;
+
+  /* --- Typography scale ------------------------------------------------- */
+  --type-display: 700 1.6rem/1.15 var(--font-sans);
+  --type-heading: 700 1.15rem/1.25 var(--font-sans);
+  --type-section: 700 0.82rem/1.3 var(--font-sans);
+  --type-body: 500 0.9rem/1.45 var(--font-sans);
+  --type-meta: 500 0.78rem/1.4 var(--font-sans);
+  --type-caption: 600 0.68rem/1.3 var(--font-sans);
+
+  /* --- Spacing ---------------------------------------------------------- */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+  --sp-10: 40px;
+
+  /* --- Touch targets ---------------------------------------------------- */
+  --touch-min: 44px;
+  --touch-comfortable: 52px;
+
+  /* --- Z-index ---------------------------------------------------------- */
+  --z-nav: 40;
+  --z-dock: 45;
+  --z-controller: 60;
+  --z-sheet: 70;
+  --z-modal: 80;
+  --z-toast: 90;
+
+  /* --- Safe areas (iOS notch / home indicator) -------------------------- */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+
+  /* --- Layout ----------------------------------------------------------- */
+  --bottom-nav-h: 64px;
+  --content-max: 1680px;
+}
+
+/* Section label: small, tracked, muted - used across panels and sheets. */
+.u-section-label {
+  font: var(--type-section);
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.u-meta {
+  font: var(--type-meta);
+  color: var(--text-secondary);
+}
+
+.u-mono {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.02em;
+}
+
+.u-truncate {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Visible focus for keyboard users only - pointer users never see a ring. */
+:where(button, a, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--line-focus);
+  outline-offset: 2px;
+}
+
+/* Respect the OS reduced-motion setting: keep state changes, drop movement. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

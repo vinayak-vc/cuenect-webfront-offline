@@ -1,10 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { useStage } from '../../context/StageContext';
 import { JoyStickDirection } from '../../types/protocol';
-import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, RotateCcw, ZoomIn, ZoomOut } from 'lucide-react';
+import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from 'lucide-react';
 
-export const DPad: React.FC = () => {
-  const { sendModelJoystick, resetModelTransform } = useStage();
+interface DPadProps {
+  /** Content for the pad's centre button. */
+  centerLabel?: React.ReactNode;
+  /** Centre button action. Omit to render no centre control. */
+  onCenterPress?: () => void;
+  centerTitle?: string;
+}
+
+export const DPad: React.FC<DPadProps> = ({ centerLabel, onCenterPress, centerTitle }) => {
+  const { sendModelJoystick } = useStage();
   const [activeBtn, setActiveBtn] = useState<string | null>(null);
 
   const activeBtnRef = React.useRef<string | null>(null);
@@ -142,20 +150,16 @@ export const DPad: React.FC = () => {
           <ChevronRight size={30} />
         </button>
 
-        <button
-          type="button"
-          className="dpad-center-reset"
-          onClick={resetModelTransform}
-          title="Reset Rotation & Scale"
-        >
-          <img
-            src="/assets/mobile/reload (1).png"
-            alt="Reset"
-            style={{ width: 22, height: 22, objectFit: 'contain', filter: 'brightness(1.5)' }}
-            onError={(e) => { e.currentTarget.style.display = 'none'; }}
-          />
-          <RotateCcw size={18} style={{ display: 'none' }} />
-        </button>
+        {onCenterPress && (
+          <button
+            type="button"
+            className="dpad-center-action"
+            onClick={onCenterPress}
+            title={centerTitle}
+          >
+            {centerLabel}
+          </button>
+        )}
       </div>
 
       {/* Zoom Controls */}

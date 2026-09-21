@@ -1,5 +1,5 @@
 // Local storage helpers
-import { StereoAdjustSettings, DEFAULT_STEREO_SETTINGS } from '../types/protocol';
+import { StereoAdjustSettings, DEFAULT_STEREO_SETTINGS, DisplayMode, DEFAULT_DISPLAY_MODE } from '../types/protocol';
 
 const STORAGE_KEYS = {
   SERVER_IP: 'cuenect_server_ip',
@@ -8,8 +8,14 @@ const STORAGE_KEYS = {
   AUTO_CONNECT: 'cuenect_auto_connect',
   SLIDE_DURATION: 'cuenect_slide_duration',
   CUSTOM_PLAYLIST: 'cuenect_custom_playlist',
-  STEREO_SETTINGS: 'cuenect_stereo_settings'
+  STEREO_SETTINGS: 'cuenect_stereo_settings',
+  DISPLAY_MODE: 'cuenect_display_mode',
+  RECENT_ASSETS: 'cuenect_recent_assets',
+  FAVOURITE_ASSETS: 'cuenect_favourite_assets'
 } as const;
+
+/** How many recently-loaded assets to remember. */
+const RECENT_LIMIT = 12;
 
 export interface ConnectionConfig {
   serverIp: string;
@@ -57,6 +63,40 @@ export const StorageService = {
     localStorage.setItem(STORAGE_KEYS.STEREO_SETTINGS, JSON.stringify(settings));
   },
 
+  getDisplayMode(): DisplayMode {
+    const raw = localStorage.getItem(STORAGE_KEYS.DISPLAY_MODE);
+    if (raw === null) return DEFAULT_DISPLAY_MODE;
+    const parsed = parseInt(raw, 10);
+    if (parsed === DisplayMode.Mono2D || parsed === DisplayMode.StereoSbs || parsed === DisplayMode.HoloDevice) {
+      return parsed;
+    }
+    return DEFAULT_DISPLAY_MODE;
+  },
+
+  saveDisplayMode(mode: DisplayMode): void {
+    localStorage.setItem(STORAGE_KEYS.DISPLAY_MODE, mode.toString());
+  },
+
+  getRecentAssets(): string[] {
+    return readIdList(STORAGE_KEYS.RECENT_ASSETS);
+  },
+
+  /** Most-recent-first, de-duplicated, capped. */
+  pushRecentAsset(assetId: string): string[] {
+    const next = [assetId, ...readIdList(STORAGE_KEYS.RECENT_ASSETS).filter((id) => id !== assetId)]
+      .slice(0, RECENT_LIMIT);
+    localStorage.setItem(STORAGE_KEYS.RECENT_ASSETS, JSON.stringify(next));
+    return next;
+  },
+
+  getFavouriteAssets(): string[] {
+    return readIdList(STORAGE_KEYS.FAVOURITE_ASSETS);
+  },
+
+  saveFavouriteAssets(ids: string[]): void {
+    localStorage.setItem(STORAGE_KEYS.FAVOURITE_ASSETS, JSON.stringify(ids));
+  },
+
   getSlideDuration(): number {
     const val = localStorage.getItem(STORAGE_KEYS.SLIDE_DURATION);
     return val ? parseFloat(val) : 5;
@@ -80,3 +120,14 @@ export const StorageService = {
     localStorage.setItem(STORAGE_KEYS.CUSTOM_PLAYLIST, JSON.stringify(assetIds));
   }
 };
+
+function readIdList(key: string): string[] {
+  const raw = localStorage.getItem(key);
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter((v): v is string => typeof v === 'string') : [];
+  } catch {
+    return [];
+  }
+}
