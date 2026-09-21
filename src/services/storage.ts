@@ -67,7 +67,12 @@ export const StorageService = {
     const raw = localStorage.getItem(STORAGE_KEYS.DISPLAY_MODE);
     if (raw === null) return DEFAULT_DISPLAY_MODE;
     const parsed = parseInt(raw, 10);
-    if (parsed === DisplayMode.Mono2D || parsed === DisplayMode.StereoSbs || parsed === DisplayMode.HoloDevice) {
+    if (
+      parsed === DisplayMode.Mono2D ||
+      parsed === DisplayMode.StereoSbs ||
+      parsed === DisplayMode.HoloDevice ||
+      parsed === DisplayMode.KmaxDevice
+    ) {
       return parsed;
     }
     return DEFAULT_DISPLAY_MODE;

@@ -120,26 +120,52 @@ export interface StereoAdjustSettings {
 export enum DisplayMode {
   Mono2D = 0,
   StereoSbs = 1,
-  HoloDevice = 2
+  HoloDevice = 2,
+  KmaxDevice = 3
 }
 
 export const DisplayModeNames: Record<DisplayMode, string> = {
   [DisplayMode.Mono2D]: '2d',
   [DisplayMode.StereoSbs]: 'sbs',
-  [DisplayMode.HoloDevice]: 'holo'
+  [DisplayMode.HoloDevice]: 'holo',
+  [DisplayMode.KmaxDevice]: 'kmax'
 };
+
+/**
+ * Resolve a display mode from whatever the stage reports. The stage echoes both
+ * the numeric mode and the wire name; either is accepted, and anything
+ * unrecognised returns null so a bad payload cannot silently flip the UI.
+ */
+export function parseDisplayMode(payload: { mode?: unknown; modeName?: unknown } | null | undefined): DisplayMode | null {
+  if (!payload) return null;
+
+  if (typeof payload.mode === 'number' && DisplayMode[payload.mode] !== undefined) {
+    return payload.mode as DisplayMode;
+  }
+
+  if (typeof payload.modeName === 'string') {
+    const name = payload.modeName.trim().toLowerCase();
+    const match = (Object.keys(DisplayModeNames) as unknown as DisplayMode[])
+      .find((key) => DisplayModeNames[key] === name);
+    if (match !== undefined) return Number(match) as DisplayMode;
+  }
+
+  return null;
+}
 
 /** Abbreviated labels for tight surfaces (header pill, status strip). */
 export const DisplayModeShortLabels: Record<DisplayMode, string> = {
   [DisplayMode.Mono2D]: '2D',
   [DisplayMode.StereoSbs]: 'SBS',
-  [DisplayMode.HoloDevice]: 'HOLO'
+  [DisplayMode.HoloDevice]: 'HOLO',
+  [DisplayMode.KmaxDevice]: 'KMAX'
 };
 
 export const DisplayModeLabels: Record<DisplayMode, string> = {
   [DisplayMode.Mono2D]: '2D',
   [DisplayMode.StereoSbs]: 'Stereoscopic (SBS)',
-  [DisplayMode.HoloDevice]: 'HOLO Stereoscopic'
+  [DisplayMode.HoloDevice]: 'HOLO Stereoscopic',
+  [DisplayMode.KmaxDevice]: 'KMAX Stereoscopic'
 };
 
 /**

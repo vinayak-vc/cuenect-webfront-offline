@@ -1,5 +1,5 @@
 import React from 'react';
-import { Check, Monitor, Layers, Box } from 'lucide-react';
+import { Check, Monitor, Layers, Box, Glasses } from 'lucide-react';
 import { BottomSheet } from '../Common/BottomSheet';
 import { useStage } from '../../context/StageContext';
 import { DisplayMode, DisplayModeLabels } from '../../types/protocol';
@@ -12,7 +12,8 @@ interface ProjectionSheetProps {
 const OPTIONS: Array<{ mode: DisplayMode; icon: React.ReactNode; desc: string }> = [
   { mode: DisplayMode.Mono2D, icon: <Monitor size={16} />, desc: 'Single camera, no stereo separation.' },
   { mode: DisplayMode.StereoSbs, icon: <Layers size={16} />, desc: 'Side-by-side stereo pair rendered on the stage.' },
-  { mode: DisplayMode.HoloDevice, icon: <Box size={16} />, desc: 'Axiom HOLO device with tracked per-eye rendering.' }
+  { mode: DisplayMode.HoloDevice, icon: <Box size={16} />, desc: 'Axiom HOLO device with tracked per-eye rendering.' },
+  { mode: DisplayMode.KmaxDevice, icon: <Glasses size={16} />, desc: 'Kmax XR panel with head-tracked per-eye rendering.' }
 ];
 
 /**

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ChevronDown, Monitor, Layers, Box, Check } from 'lucide-react';
+import { ChevronDown, Monitor, Layers, Box, Glasses, Check } from 'lucide-react';
 import { useStage } from '../../context/StageContext';
 import { DisplayMode, DisplayModeLabels, DisplayModeShortLabels } from '../../types/protocol';
 import { useIsMobile } from '../../hooks/useMediaQuery';
@@ -26,6 +26,11 @@ const OPTIONS: ProjectionOption[] = [
     mode: DisplayMode.HoloDevice,
     icon: <Box size={16} />,
     desc: 'Axiom HOLO device with tracked per-eye rendering.'
+  },
+  {
+    mode: DisplayMode.KmaxDevice,
+    icon: <Glasses size={16} />,
+    desc: 'Kmax XR panel with head-tracked per-eye rendering.'
   }
 ];
 
