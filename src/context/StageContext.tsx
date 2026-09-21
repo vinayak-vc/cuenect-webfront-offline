@@ -16,6 +16,7 @@ import {
   StereoAdjustSettings,
   DEFAULT_STEREO_SETTINGS,
   DisplayMode,
+  parseDisplayMode,
   ControlLockState,
   DEFAULT_CONTROL_LOCK
 } from '../types/protocol';
@@ -365,6 +366,27 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const unsubSocketMsg = stageSocket.onMessage((eventName: string, data: any) => {
       if (eventName === 'hologram-asset-list') {
         parseAndSetAssets(data);
+        return;
+      }
+
+      // The stage is authoritative about which projection is actually live: it can
+      // refuse HOLO (the player is not on OpenGL Core), be switched by its own F5
+      // hotkey, or be driven by another operator. Adopt what it reports and never
+      // send anything back, so this cannot loop.
+      if (eventName === StaticStrings.DisplayModeActionKey) {
+        const reported = parseDisplayMode(data);
+        if (reported !== null) {
+          setDisplayModeState(reported);
+          StorageService.saveDisplayMode(reported);
+
+          const wantsSbs = reported === DisplayMode.StereoSbs;
+          if (stereoSettingsRef.current.isStereo !== wantsSbs) {
+            const synced = { ...stereoSettingsRef.current, isStereo: wantsSbs };
+            stereoSettingsRef.current = synced;
+            setStereoSettings(synced);
+            StorageService.saveStereoSettings(synced);
+          }
+        }
         return;
       }
 
