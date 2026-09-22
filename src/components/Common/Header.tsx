@@ -3,6 +3,7 @@ import { useStage } from '../../context/StageContext';
 import { RefreshCw, ListPlus, Sliders, Layers, Camera, Maximize } from 'lucide-react';
 import { ConnectionStatus } from './ConnectionStatus';
 import { ProjectionSelector } from './ProjectionSelector';
+import { EnvironmentSelector } from './EnvironmentSelector';
 import { SearchField } from './SearchField';
 
 interface HeaderProps {
@@ -69,6 +70,8 @@ export const Header: React.FC<HeaderProps> = ({
 
       <div className="header-actions">
         <ProjectionSelector />
+
+        <EnvironmentSelector />
 
         <ConnectionStatus onClick={onOpenConnection} />
 

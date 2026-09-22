@@ -1,5 +1,13 @@
 // Local storage helpers
-import { StereoAdjustSettings, DEFAULT_STEREO_SETTINGS, DisplayMode, DEFAULT_DISPLAY_MODE } from '../types/protocol';
+import {
+  StereoAdjustSettings,
+  DEFAULT_STEREO_SETTINGS,
+  DisplayMode,
+  DEFAULT_DISPLAY_MODE,
+  EnvironmentPreset,
+  EnvironmentPresetNames,
+  DEFAULT_ENVIRONMENT_PRESET
+} from '../types/protocol';
 
 const STORAGE_KEYS = {
   SERVER_IP: 'cuenect_server_ip',
@@ -10,6 +18,7 @@ const STORAGE_KEYS = {
   CUSTOM_PLAYLIST: 'cuenect_custom_playlist',
   STEREO_SETTINGS: 'cuenect_stereo_settings',
   DISPLAY_MODE: 'cuenect_display_mode',
+  ENVIRONMENT_PRESET: 'cuenect_environment_preset',
   RECENT_ASSETS: 'cuenect_recent_assets',
   FAVOURITE_ASSETS: 'cuenect_favourite_assets'
 } as const;
@@ -80,6 +89,24 @@ export const StorageService = {
 
   saveDisplayMode(mode: DisplayMode): void {
     localStorage.setItem(STORAGE_KEYS.DISPLAY_MODE, mode.toString());
+  },
+
+  getEnvironmentPreset(): EnvironmentPreset {
+    const raw = localStorage.getItem(STORAGE_KEYS.ENVIRONMENT_PRESET);
+    if (raw === null) return DEFAULT_ENVIRONMENT_PRESET;
+    const parsed = parseInt(raw, 10);
+
+    // Validated against the wire-name map rather than against the enum's reverse
+    // lookup: a numeric TypeScript enum answers `EnvironmentPreset[2] !== undefined`
+    // as soon as a third member exists, which would let a stale stored value through.
+    if (EnvironmentPresetNames[parsed as EnvironmentPreset] !== undefined) {
+      return parsed as EnvironmentPreset;
+    }
+    return DEFAULT_ENVIRONMENT_PRESET;
+  },
+
+  saveEnvironmentPreset(preset: EnvironmentPreset): void {
+    localStorage.setItem(STORAGE_KEYS.ENVIRONMENT_PRESET, preset.toString());
   },
 
   getRecentAssets(): string[] {

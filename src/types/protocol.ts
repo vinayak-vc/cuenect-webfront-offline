@@ -179,6 +179,78 @@ export interface DisplayModePayload {
 
 export const DEFAULT_DISPLAY_MODE: DisplayMode = DisplayMode.Mono2D;
 
+/**
+ * Stage environment preset. Mirrors EnvironmentPreset in
+ * Scripts/StageEnvironment/StageEnvironment.cs on the Unity side.
+ *
+ * The numbering is part of the wire contract; do not renumber.
+ */
+export enum EnvironmentPreset {
+  Void = 0,
+  Space = 1
+}
+
+export const EnvironmentPresetNames: Record<EnvironmentPreset, string> = {
+  [EnvironmentPreset.Void]: 'void',
+  [EnvironmentPreset.Space]: 'space'
+};
+
+/**
+ * Resolve a preset from whatever the stage reports. The stage echoes both the
+ * numeric preset and the wire name; either is accepted, and anything
+ * unrecognised returns null so a bad payload cannot silently flip the UI.
+ *
+ * Deliberately NOT `EnvironmentPreset[payload.preset] !== undefined` on its own:
+ * a numeric enum in TypeScript has a reverse map, so that test passes for any
+ * value that happens to be a member index and would let 2 through today and
+ * break the moment a third preset is added.
+ */
+export function parseEnvironmentPreset(
+  payload: { preset?: unknown; presetName?: unknown } | null | undefined
+): EnvironmentPreset | null {
+  if (!payload) return null;
+
+  if (typeof payload.preset === 'number' && EnvironmentPresetNames[payload.preset as EnvironmentPreset] !== undefined) {
+    return payload.preset as EnvironmentPreset;
+  }
+
+  if (typeof payload.presetName === 'string') {
+    const name = payload.presetName.trim().toLowerCase();
+    const match = (Object.keys(EnvironmentPresetNames) as unknown as EnvironmentPreset[])
+      .find((key) => EnvironmentPresetNames[key] === name);
+    if (match !== undefined) return Number(match) as EnvironmentPreset;
+  }
+
+  return null;
+}
+
+/** Abbreviated labels for tight surfaces (header pill, status strip). */
+export const EnvironmentPresetShortLabels: Record<EnvironmentPreset, string> = {
+  [EnvironmentPreset.Void]: 'Void',
+  [EnvironmentPreset.Space]: 'Space'
+};
+
+export const EnvironmentPresetLabels: Record<EnvironmentPreset, string> = {
+  [EnvironmentPreset.Void]: 'Void (black)',
+  [EnvironmentPreset.Space]: 'Space'
+};
+
+export const EnvironmentPresetDescriptions: Record<EnvironmentPreset, string> = {
+  [EnvironmentPreset.Void]: 'The object alone on black. What the stage shipped with.',
+  [EnvironmentPreset.Space]: 'Drifting debris, dust and a starfield around the object.'
+};
+
+/**
+ * Payload for `hologram-environment-action`.
+ * Unity accepts either field; `presetName` wins when both are present.
+ */
+export interface EnvironmentPresetPayload {
+  preset: EnvironmentPreset;
+  presetName: string;
+}
+
+export const DEFAULT_ENVIRONMENT_PRESET: EnvironmentPreset = EnvironmentPreset.Space;
+
 export const DEFAULT_STEREO_SETTINGS: StereoAdjustSettings = {
   ipd: 0.065,
   zeroParallax: 3.0,
@@ -234,6 +306,7 @@ export const StaticStrings = {
   StereoSettingsActionKey: 'StereoSettingsActionKey',
   CameraOrthographicAction: 'CameraOrthographicActionKey',
   DisplayModeActionKey: 'hologram-display-mode-action',
+  EnvironmentActionKey: 'hologram-environment-action',
   ControlLockState: 'control-lock-state',
   ControlRequest: 'control-request',
   ControlRelease: 'control-release',

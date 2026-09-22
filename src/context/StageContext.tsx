@@ -17,6 +17,8 @@ import {
   DEFAULT_STEREO_SETTINGS,
   DisplayMode,
   parseDisplayMode,
+  EnvironmentPreset,
+  parseEnvironmentPreset,
   ControlLockState,
   DEFAULT_CONTROL_LOCK
 } from '../types/protocol';
@@ -73,6 +75,8 @@ interface StageContextValue {
   // Display path: 2D / SBS stereo / HOLO device
   displayMode: DisplayMode;
   setDisplayMode: (mode: DisplayMode) => void;
+  environmentPreset: EnvironmentPreset;
+  setEnvironmentPreset: (preset: EnvironmentPreset) => void;
 
   // Stereoscopic & Stage Calibration Settings
   stereoSettings: StereoAdjustSettings;
@@ -133,6 +137,7 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   stereoSettingsRef.current = stereoSettings;
   const stereoDebounceTimerRef = useRef<number | null>(null);
   const [displayMode, setDisplayModeState] = useState<DisplayMode>(StorageService.getDisplayMode());
+  const [environmentPreset, setEnvironmentPresetState] = useState<EnvironmentPreset>(StorageService.getEnvironmentPreset());
   const [recentAssetIds, setRecentAssetIds] = useState<string[]>(StorageService.getRecentAssets());
   const [favouriteAssetIds, setFavouriteAssetIds] = useState<string[]>(StorageService.getFavouriteAssets());
   const [controlLock, setControlLock] = useState<ControlLockState>(DEFAULT_CONTROL_LOCK);
@@ -331,6 +336,9 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         stageSocket.sendStereoSettings(currentSettings);
         // Re-assert the display path: the stage may have restarted since we last set it.
         stageSocket.sendDisplayMode(StorageService.getDisplayMode());
+        // Same for the environment: a stage restart drops back to whatever its own
+        // inspector says, which is not necessarily what the operator last chose.
+        stageSocket.sendEnvironmentPreset(StorageService.getEnvironmentPreset());
       } else if (state === 'error') {
         const savedConfig = StorageService.getConnectionConfig();
         const host = savedConfig.serverIp || '';
@@ -386,6 +394,18 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             setStereoSettings(synced);
             StorageService.saveStereoSettings(synced);
           }
+        }
+        return;
+      }
+
+      // Same contract for the environment: the stage is authoritative. A Build can
+      // decline - a missing layer asset leaves the stage bare - and a controller
+      // showing "Space" over a black void is worse than one that never offered it.
+      if (eventName === StaticStrings.EnvironmentActionKey) {
+        const reported = parseEnvironmentPreset(data);
+        if (reported !== null) {
+          setEnvironmentPresetState(reported);
+          StorageService.saveEnvironmentPreset(reported);
         }
         return;
       }
@@ -555,6 +575,16 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setIsOrthographic(false);
       stageSocket.sendCameraOrthographic({ isOrthographic: false });
     }
+  }, []);
+
+  /**
+   * Dress or strip the stage environment. Optimistic locally, then corrected by the
+   * stage's echo if the build declined - same contract as setDisplayMode.
+   */
+  const setEnvironmentPreset = useCallback((preset: EnvironmentPreset) => {
+    setEnvironmentPresetState(preset);
+    StorageService.saveEnvironmentPreset(preset);
+    stageSocket.sendEnvironmentPreset(preset);
   }, []);
 
   const toggleStereoscopic = useCallback(() => {
@@ -786,6 +816,8 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     triggerFullscreen,
     displayMode,
     setDisplayMode,
+    environmentPreset,
+    setEnvironmentPreset,
     recentAssetIds,
     favouriteAssetIds,
     toggleFavourite,

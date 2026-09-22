@@ -10,6 +10,9 @@ import {
   DisplayMode,
   DisplayModePayload,
   DisplayModeNames,
+  EnvironmentPreset,
+  EnvironmentPresetPayload,
+  EnvironmentPresetNames,
   StaticStrings
 } from '../types/protocol';
 
@@ -318,6 +321,22 @@ export class StageSocketService {
     // typed events still pass `message` through (same route as ReqAsset /
     // FullScreen). Unity's handler is idempotent, so the duplicate is harmless.
     this.emitEvent('message', `DisplayMode#${DisplayModeNames[mode]}`);
+  }
+
+  /**
+   * Switch the stage environment: the black void the stage shipped with, or space.
+   * Both `preset` and `presetName` are sent so either Unity parse branch resolves it.
+   *
+   * No raw `message` fallback here, unlike sendDisplayMode: that fallback exists for
+   * bridges that relay only a fixed set of typed events, and Unity has no
+   * `Environment#` raw branch - sending one would be a channel nothing reads.
+   */
+  public sendEnvironmentPreset(preset: EnvironmentPreset): void {
+    const payload: EnvironmentPresetPayload = {
+      preset,
+      presetName: EnvironmentPresetNames[preset]
+    };
+    this.emitEvent(StaticStrings.EnvironmentActionKey, payload);
   }
 
   /** Ask the bridge for exclusive control of the stage. */
