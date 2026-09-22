@@ -18,3 +18,9 @@
   - Lightweight models ($\le 25\text{ MB}$, $\le 250\text{k}$ triangles) benefit enormously from tactile 3D manipulation.
   - Heavy models on mobile browsers risk tab crashes or severe frame lag; falling back to the D-Pad keeps control reliable regardless of asset complexity.
   - Operators can switch between 3D Touch and D-Pad at any time via a single tap.
+
+## D-003: Auto-Switching between 3D View and D-Pad for 2D Lighting/Magnification Tools
+- **Decision**: When in 3D View, selecting Spotlight or Magnifier automatically transitions the workspace to the D-Pad. When returning to Rotate or Pan, the 3D View is automatically re-engaged.
+- **Rationale**:
+  - Spotlight beam directional positioning and Magnifier lens repositioning are orthogonal 2D directional operations best served by the calibrated D-Pad controls.
+  - Automatically toggling saves the operator multiple manual view switch taps while keeping 3D direct manipulation active during model inspection.

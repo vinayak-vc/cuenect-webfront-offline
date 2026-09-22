@@ -21,9 +21,10 @@
   - Persistent Control Mode selector (Rotate, Pan, Light, Magnifier) across both 3D Live View and D-Pad.
   - View Mode Changer (Projection: 2D, SBS, HOLO, KMAX) accessible across both views.
   - Camera toggle (Ortho / Perspective): visible when Rotate or Pan is selected; automatically hidden when Light or Magnifier is selected for both views.
+  - Auto-switching between views: Selecting Spotlight or Magnifier automatically presents the D-Pad. Selecting Rotate or Pan automatically restores the 3D Live View.
   - Models $\le 25\text{ MB}$ and $\le 250\text{k}$ triangles load `ModelViewer3D` with seamless D-Pad toggle.
 - Verified production build (`npm run build` succeeds).
-- Added `docs/` per `AGENTS.md` §16.
+- Added and updated `docs/` per `AGENTS.md` §16.
 
 ## 2. Modified & New Files
 - `package.json` (MODIFIED - added `three`, `@types/three`)

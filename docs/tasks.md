@@ -13,3 +13,4 @@
 | **W-109** | Non-Passive Wheel & Gesture Listeners | DONE | 2026-09-22 | Attached wheel and touch gesture listeners directly with `{ passive: false }` to resolve `Unable to preventDefault inside passive event listener` and prevent browser scrolling while zooming. |
 | **W-110** | Hide Fullscreen Button | DONE | 2026-09-22 | Removed Fullscreen quick-action buttons from `FullScreenController`. |
 | **W-111** | Persistent Mode, View Mode Changer & Ortho/Persp Toggle | DONE | 2026-09-22 | Made Rotate/Pan/Light/Magnifier modes and Projection view changer accessible in both Live View & D-Pad. Conditioned Camera Ortho/Persp toggle to show on Rotate/Pan and hide on Light/Magnifier across both views. |
+| **W-112** | Auto-switch View on Mode Change | DONE | 2026-09-22 | Automatically switch to D-Pad when Light or Magnifier is selected; automatically restore 3D View when switching back to Rotate or Pan. |

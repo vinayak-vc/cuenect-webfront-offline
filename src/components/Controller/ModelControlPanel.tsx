@@ -49,11 +49,20 @@ export const ModelControlPanel: React.FC = () => {
       (!activeAsset.triangleCount || activeAsset.triangleCount <= 250000)
   );
 
-  const show3DViewer = isEligible && !preferDpad && !!activeAsset;
-
   // Show Camera toggle ONLY when Rotate or Pan is selected; hide for Light or Magnifier
   const isRotateOrPan =
     currentMovableMode === MoveableAssetType.Rotate || currentMovableMode === MoveableAssetType.Pan;
+
+  // 3D View is shown for Rotate and Pan when eligible; Spotlight and Magnifier automatically switch to D-Pad
+  const show3DViewer = isEligible && !preferDpad && !!activeAsset && isRotateOrPan;
+
+  const handleModeChange = (mode: MoveableAssetType) => {
+    setMovableMode(mode);
+    // When returning to Rotate or Pan, automatically switch back to 3D view if eligible
+    if (mode === MoveableAssetType.Rotate || mode === MoveableAssetType.Pan) {
+      setPreferDpad(false);
+    }
+  };
 
   const modes: SegmentedOption<MoveableAssetType>[] = [
     { value: MoveableAssetType.Rotate, label: 'Rotate', icon: <Box size={14} /> },
@@ -98,7 +107,7 @@ export const ModelControlPanel: React.FC = () => {
         <SegmentedControl
           options={modes}
           value={currentMovableMode}
-          onChange={setMovableMode}
+          onChange={handleModeChange}
           compact
           ariaLabel="Model control mode"
         />
@@ -164,8 +173,8 @@ export const ModelControlPanel: React.FC = () => {
           )}
         </div>
 
-        {/* 3D Touch vs D-Pad Toggle */}
-        {isEligible && (
+        {/* 3D Touch vs D-Pad Toggle (applicable in Rotate & Pan modes) */}
+        {isEligible && isRotateOrPan && (
           <button
             type="button"
             onClick={() => setPreferDpad(!preferDpad)}
