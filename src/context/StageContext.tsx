@@ -53,7 +53,7 @@ interface StageContextValue {
   setIsSettingsOpen: (open: boolean) => void;
   
   // Model controls
-  sendModelJoystick: (direction: JoyStickDirection, xPos?: number, yPos?: number, zoom?: number) => void;
+  sendModelJoystick: (direction: JoyStickDirection, xPos?: number, yPos?: number, zoom?: number, action?: string) => void;
   resetModelTransform: () => void;
   setMovableMode: (mode: MoveableAssetType) => void;
   currentMovableMode: MoveableAssetType;
@@ -510,10 +510,10 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, []);
 
   // 3D Model Joystick Controls
-  const sendModelJoystick = useCallback((direction: JoyStickDirection, xPos?: number, yPos?: number, zoom?: number) => {
+  const sendModelJoystick = useCallback((direction: JoyStickDirection, xPos?: number, yPos?: number, zoom?: number, action?: string) => {
     const payload: ModelControl = {
       direction: direction.toString(),
-      action: direction.toString().toLowerCase(),
+      action: action ?? direction.toString().toLowerCase(),
       xPos: xPos ?? 0,
       yPos: yPos ?? 0,
       zoom: zoom ?? 0

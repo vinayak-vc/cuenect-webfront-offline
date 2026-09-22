@@ -67,6 +67,8 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
   const lastTapTimeRef = useRef<number>(0);
   const isDoubleTapPanRef = useRef<boolean>(false);
   const syncThrottleRef = useRef<number>(0);
+  const accumulatedYawDegRef = useRef<number>(0);
+  const accumulatedPitchDegRef = useRef<number>(0);
 
   // Sync state reference to avoid stale closures in event handlers
   const isStageSyncRef = useRef<boolean>(isStageSync);
@@ -366,17 +368,26 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
       // Gesture: Single Finger Drag -> ROTATE
       setActiveGesture('rotate');
       const rotSpeed = 0.008;
+      const deltaYawDeg = (dx * rotSpeed * 180) / Math.PI;
+      const deltaPitchDeg = (dy * rotSpeed * 180) / Math.PI;
+
       modelGroup.rotation.y += dx * rotSpeed;
       modelGroup.rotation.x = Math.max(-Math.PI / 2.2, Math.min(Math.PI / 2.2, modelGroup.rotation.x + dy * rotSpeed));
       requestRender();
 
       if (isStageSyncRef.current) {
+        accumulatedYawDegRef.current += deltaYawDeg;
+        accumulatedPitchDegRef.current += deltaPitchDeg;
+
         const now = Date.now();
-        if (now - syncThrottleRef.current > 60) {
+        if (now - syncThrottleRef.current > 35) {
           syncThrottleRef.current = now;
-          const normX = Math.max(-1, Math.min(1, (dx / cWidth) * 3));
-          const normY = Math.max(-1, Math.min(1, (dy / cHeight) * 3));
-          sendModelJoystick(JoyStickDirection.Move, normX, normY);
+          const sendYaw = accumulatedYawDegRef.current;
+          const sendPitch = accumulatedPitchDegRef.current;
+          accumulatedYawDegRef.current = 0;
+          accumulatedPitchDegRef.current = 0;
+
+          sendModelJoystick(JoyStickDirection.Move, sendYaw, sendPitch, undefined, 'delta');
         }
       }
     }
@@ -392,8 +403,19 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
       isDoubleTapPanRef.current = false;
       requestRender();
 
-      // Stop stage velocity
+      // Flush remaining rotation delta if any and stop stage velocity
       if (isStageSyncRef.current) {
+        if (Math.abs(accumulatedYawDegRef.current) > 0.01 || Math.abs(accumulatedPitchDegRef.current) > 0.01) {
+          sendModelJoystick(
+            JoyStickDirection.Move,
+            accumulatedYawDegRef.current,
+            accumulatedPitchDegRef.current,
+            undefined,
+            'delta'
+          );
+          accumulatedYawDegRef.current = 0;
+          accumulatedPitchDegRef.current = 0;
+        }
         sendModelJoystick(JoyStickDirection.End, 0, 0);
         sendModelJoystick(JoyStickDirection.Move, 0, 0);
       }

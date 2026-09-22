@@ -58,3 +58,15 @@
   - Unmounting the 3D viewer destroyed the WebGL context, geometries, and textures, forcing expensive re-download and re-parsing of the GLB on every view switch.
   - Continuous 60fps rendering of a static 3D scene consumed excessive CPU/battery and triggered browser `requestAnimationFrame` violations (~350ms).
   - Preserving the user's explicit surface preference prevents unwanted snap-back into 3D view when the user intends to remain on the D-Pad.
+
+## D-008: Operator Override ("Load Anyway") for Oversized Models
+- **Decision**: Provide an inline `Load Anyway` button within the compact warning badge for models exceeding 25 MB or 250k triangles. Clicking it unlocks the 3D viewport and automatically sets the surface preference to 3D.
+- **Rationale**:
+  - Operators on capable hardware (e.g., high-end tablets or PCs) should have full discretion to view complex models in 3D despite conservative safety caps.
+  - Resetting `forceLoadAnyway` on model change (`activeAsset.AssetID`) ensures subsequent models are still evaluated against safe defaults.
+
+## D-009: 1:1 Angular Delta Rotation Synchronization
+- **Decision**: In 3D gesture rotation, accumulate exact angular degree deltas (`deltaYawDeg`, `deltaPitchDeg`) and transmit them with `action: 'delta'` over the socket protocol, while leaving D-Pad continuous velocity rotation completely intact.
+- **Rationale**:
+  - The previous implementation sent normalized unit deltas (`normX ≈ 0.03`) into Unity's velocity-based `Update()` integrator, causing Unity to rotate less than 0.1° per swipe while Three.js rotated 45°+.
+  - Sending accumulated angular degrees and handling `action == 'delta'` directly in Unity (`PanController.RotateModelDelta`) achieves instant 1:1 tactile synchronization with zero drift or lag.

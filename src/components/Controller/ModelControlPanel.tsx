@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useStage } from '../../context/StageContext';
 import { MoveableAssetType, DisplayModeShortLabels } from '../../types/protocol';
 import { ProjectionSheet } from '../Stage/ProjectionSheet';
@@ -42,6 +42,12 @@ export const ModelControlPanel: React.FC = () => {
 
   const [isProjectionOpen, setIsProjectionOpen] = useState(false);
   const [userSurfacePreference, setUserSurfacePreference] = useState<'3d' | 'dpad'>('3d');
+  const [forceLoadAnyway, setForceLoadAnyway] = useState(false);
+
+  // Reset force load override whenever active asset changes
+  useEffect(() => {
+    setForceLoadAnyway(false);
+  }, [activeAsset?.AssetID]);
 
   // Check whether the active model is eligible for web 3D rendering
   const isEligible = Boolean(
@@ -51,12 +57,14 @@ export const ModelControlPanel: React.FC = () => {
       (!activeAsset.triangleCount || activeAsset.triangleCount <= 250000)
   );
 
+  const canPreview = (isEligible || forceLoadAnyway) && Boolean(activeAsset);
+
   // Show Camera toggle ONLY when Rotate or Pan is selected; hide for Light or Magnifier
   const isRotateOrPan =
     currentMovableMode === MoveableAssetType.Rotate || currentMovableMode === MoveableAssetType.Pan;
 
-  // 3D View is shown ONLY when model is eligible, mode is Rotate/Pan, and user preferred '3d'
-  const show3DViewer = isEligible && isRotateOrPan && userSurfacePreference === '3d' && !!activeAsset;
+  // 3D View is shown ONLY when model can be previewed, mode is Rotate/Pan, and user preferred '3d'
+  const show3DViewer = canPreview && isRotateOrPan && userSurfacePreference === '3d';
 
   const handleModeChange = (mode: MoveableAssetType) => {
     setMovableMode(mode);
@@ -87,7 +95,7 @@ export const ModelControlPanel: React.FC = () => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%', gap: 14 }}>
-      {/* High-Poly / Oversized Model Notice (Compact single-line) */}
+      {/* High-Poly / Oversized Model Notice (Compact single-line with Load Anyway) */}
       {!isEligible && activeAsset && (
         <div
           style={{
@@ -95,8 +103,9 @@ export const ModelControlPanel: React.FC = () => {
             maxWidth: 420,
             display: 'flex',
             alignItems: 'center',
-            gap: 6,
-            padding: '5px 12px',
+            justifyContent: 'space-between',
+            gap: 8,
+            padding: '5px 10px 5px 12px',
             borderRadius: 'var(--radius-full, 9999px)',
             background: 'rgba(245, 158, 11, 0.12)',
             border: '1px solid rgba(245, 158, 11, 0.3)',
@@ -105,10 +114,41 @@ export const ModelControlPanel: React.FC = () => {
             lineHeight: 1.2
           }}
         >
-          <AlertTriangle size={13} style={{ flexShrink: 0 }} />
-          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            Direct stage control · Model exceeds web preview {activeAsset.fileSizeMB ? `(${activeAsset.fileSizeMB} MB)` : ''}
-          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, overflow: 'hidden' }}>
+            <AlertTriangle size={13} style={{ flexShrink: 0 }} />
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              Direct stage control · Model exceeds web preview {activeAsset.fileSizeMB ? `(${activeAsset.fileSizeMB} MB)` : ''}
+            </span>
+          </div>
+          {!forceLoadAnyway ? (
+            <button
+              type="button"
+              onClick={() => {
+                setForceLoadAnyway(true);
+                setUserSurfacePreference('3d');
+              }}
+              style={{
+                flexShrink: 0,
+                background: 'rgba(245, 158, 11, 0.25)',
+                border: '1px solid rgba(245, 158, 11, 0.5)',
+                color: '#fbbf24',
+                borderRadius: '9999px',
+                padding: '2px 8px',
+                fontSize: '0.68rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                transition: 'all 0.15s ease'
+              }}
+              title="Force load 3D preview in browser anyway"
+            >
+              Load Anyway
+            </button>
+          ) : (
+            <span style={{ flexShrink: 0, fontSize: '0.65rem', opacity: 0.8, fontStyle: 'italic' }}>
+              Preview forced
+            </span>
+          )}
         </div>
       )}
 
@@ -175,7 +215,7 @@ export const ModelControlPanel: React.FC = () => {
       </div>
 
       {/* Level 3: Control Surface Selector (3D View vs D-Pad) */}
-      {isEligible && (
+      {canPreview && (
         <div style={{ width: '100%', maxWidth: 420, display: 'flex', flexDirection: 'column', gap: 6 }}>
           <span className="u-section-label">Control Surface</span>
           <SegmentedControl
@@ -189,8 +229,8 @@ export const ModelControlPanel: React.FC = () => {
       )}
 
       {/* Level 4: Active Control Surface */}
-      {/* 3D Viewport (Kept mounted in DOM when eligible so model is never destroyed or reloaded) */}
-      {isEligible && activeAsset && (
+      {/* 3D Viewport (Kept mounted in DOM when previewable so model is never destroyed or reloaded) */}
+      {canPreview && activeAsset && (
         <div
           style={{
             width: '100%',

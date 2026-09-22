@@ -27,22 +27,26 @@
   - Pauses rendering when `isVisible` is false.
 - Updated `src/components/Controller/FullScreenController.tsx`:
   - Hid redundant mobile bottom buttons (`Reset` and `More`) as requested by the user.
-- Verified production build (`npm run build` succeeds cleanly).
-- Added and updated `docs/` per `AGENTS.md` §16.
+- Updated `src/components/Controller/ModelControlPanel.tsx`:
+  - Added "Load Anyway" button to compact single-line warning badge, enabling operator override to load heavy models (>25MB / >250k tris) into 3D viewer.
+  - Reset override automatically on active model change.
+- Updated `src/components/Controller/ModelViewer3D.tsx` & `src/context/StageContext.tsx`:
+  - Implemented 1:1 tactile angular delta rotation replication: gestures calculate exact yaw and pitch degree deltas, accumulated across throttle intervals, and transmitted via `sendModelJoystick` with `action: 'delta'`.
+  - Flushes any remaining delta upon gesture release before stopping velocity.
+- Verified production build (`npm run build` succeeds cleanly with 0 errors).
+- Maintained documentation in `docs/` per `AGENTS.md` §16.
 
 ## 2. Modified & New Files
-- `package.json` (MODIFIED - added `three`, `@types/three`)
-- `package-lock.json` (MODIFIED)
 - `src/types/protocol.ts` (MODIFIED)
 - `src/services/socketService.ts` (MODIFIED)
-- `src/components/Controller/ModelViewer3D.tsx` (NEW)
+- `src/context/StageContext.tsx` (MODIFIED)
+- `src/components/Controller/ModelViewer3D.tsx` (NEW / MODIFIED)
 - `src/components/Controller/ModelControlPanel.tsx` (MODIFIED)
-- `docs/project-overview.md` (NEW)
-- `docs/architecture.md` (NEW)
-- `docs/roadmap.md` (NEW)
-- `docs/tasks.md` (NEW)
-- `docs/decisions.md` (NEW)
-- `docs/ai_handoff.md` (NEW)
+- `src/components/Controller/DPad.tsx` (MODIFIED)
+- `src/components/Controller/FullScreenController.tsx` (MODIFIED)
+- `docs/tasks.md` (MODIFIED)
+- `docs/decisions.md` (MODIFIED)
+- `docs/ai_handoff.md` (MODIFIED)
 
 ## 3. Next Recommended Task
-- Deploy updated webfront or run live end-to-end rehearsal with the Unity Hologram Stage.
+- Test with operator on live device with Unity stage.
