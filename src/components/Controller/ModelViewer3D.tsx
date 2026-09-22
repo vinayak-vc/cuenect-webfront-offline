@@ -192,8 +192,34 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, onSwitchToD
     });
     resizeObserver.observe(container);
 
+    // Non-passive wheel handler to prevent page scrolling and zoom the 3D model
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const camera = cameraRef.current;
+      if (!camera) return;
+
+      const zoomStep = e.deltaY > 0 ? 1.08 : 0.92;
+      const newZ = camera.position.z * zoomStep;
+      camera.position.z = Math.max(defaultDistRef.current * 0.2, Math.min(defaultDistRef.current * 4, newZ));
+
+      if (isStageSyncRef.current) {
+        const zoomVal = e.deltaY > 0 ? -1 : 1;
+        sendModelJoystick(JoyStickDirection.Scale, 0, 0, zoomVal);
+      }
+    };
+
+    container.addEventListener('wheel', onWheel, { passive: false });
+
+    // Prevent iOS Safari page-level pinch gestures
+    const preventGesture = (e: Event) => e.preventDefault();
+    container.addEventListener('gesturestart', preventGesture, { passive: false });
+    container.addEventListener('gesturechange', preventGesture, { passive: false });
+
     // Cleanup
     return () => {
+      container.removeEventListener('wheel', onWheel);
+      container.removeEventListener('gesturestart', preventGesture);
+      container.removeEventListener('gesturechange', preventGesture);
       resizeObserver.disconnect();
       if (animFrameRef.current !== null) {
         cancelAnimationFrame(animFrameRef.current);
@@ -204,7 +230,7 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, onSwitchToD
       renderer.dispose();
       scene.clear();
     };
-  }, [asset.AssetID, asset.ModelPath, asset.AssetName]);
+  }, [asset.AssetID, asset.ModelPath, asset.AssetName, sendModelJoystick]);
 
   // ---- Touch & Mouse Gestures Handling ---------------------------------------
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -324,22 +350,6 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, onSwitchToD
     }
   };
 
-  // Mouse wheel zoom
-  const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    const camera = cameraRef.current;
-    if (!camera) return;
-
-    const zoomStep = e.deltaY > 0 ? 1.08 : 0.92;
-    const newZ = camera.position.z * zoomStep;
-    camera.position.z = Math.max(defaultDistRef.current * 0.2, Math.min(defaultDistRef.current * 4, newZ));
-
-    if (isStageSyncRef.current) {
-      const zoomVal = e.deltaY > 0 ? -1 : 1;
-      sendModelJoystick(JoyStickDirection.Scale, 0, 0, zoomVal);
-    }
-  };
-
   return (
     <div
       style={{
@@ -364,7 +374,6 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, onSwitchToD
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
-        onWheel={handleWheel}
         onContextMenu={(e) => e.preventDefault()}
         style={{
           width: '100%',

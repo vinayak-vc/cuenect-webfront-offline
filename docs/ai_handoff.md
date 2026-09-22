@@ -13,6 +13,7 @@
   - View switcher to classic D-Pad.
   - Frame reset button.
   - Ngrok browser warning bypass header and parameter to ensure cross-origin model streaming succeeds over cloud tunnels.
+  - Non-passive wheel and gesture listener binding to eliminate passive event listener console warnings and prevent whole-page scrolling during model zooming.
 - Updated `src/components/Controller/ModelControlPanel.tsx` with size and poly gating:
   - Models $\le 25\text{ MB}$ and $\le 250\text{k}$ triangles load `ModelViewer3D`.
   - Models exceeding the budget display a direct-stage control notice and display `DPad`.
