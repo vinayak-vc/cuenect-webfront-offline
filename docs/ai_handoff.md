@@ -12,6 +12,7 @@
   - Stage synchronization with optional local preview toggle (`Sync Stage: ON/OFF`).
   - View switcher to classic D-Pad.
   - Frame reset button.
+  - Ngrok browser warning bypass header and parameter to ensure cross-origin model streaming succeeds over cloud tunnels.
 - Updated `src/components/Controller/ModelControlPanel.tsx` with size and poly gating:
   - Models $\le 25\text{ MB}$ and $\le 250\text{k}$ triangles load `ModelViewer3D`.
   - Models exceeding the budget display a direct-stage control notice and display `DPad`.

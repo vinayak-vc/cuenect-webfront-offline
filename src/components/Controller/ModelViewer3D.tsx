@@ -123,9 +123,12 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, onSwitchToD
 
     const baseUrl = stageSocket.getHttpBaseUrl();
     const modelParam = asset.ModelPath || asset.AssetName;
-    const modelUrl = `${baseUrl}/api/model?file=${encodeURIComponent(modelParam)}`;
+    const modelUrl = `${baseUrl}/api/model?file=${encodeURIComponent(modelParam)}&ngrok-skip-browser-warning=true`;
 
     const loader = new GLTFLoader();
+    loader.setRequestHeader({
+      'ngrok-skip-browser-warning': 'true'
+    });
     loader.load(
       modelUrl,
       (gltf) => {

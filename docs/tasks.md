@@ -9,3 +9,4 @@
 | **W-105** | Adaptive `ModelControlPanel` | DONE | 2026-09-22 | Integrated 25MB and 250k triangle threshold gating. Falls back to classic D-Pad with informative banner when exceeded. |
 | **W-106** | Production Build Verification | DONE | 2026-09-22 | Verified `npm run build` succeeds cleanly. |
 | **W-107** | Documentation per `AGENTS.md` | DONE | 2026-09-22 | Created `project-overview.md`, `architecture.md`, `roadmap.md`, `tasks.md`, `decisions.md`, `ai_handoff.md`. |
+| **W-108** | Ngrok Warning Bypass on Model Fetch | DONE | 2026-09-22 | Configured `GLTFLoader` with `ngrok-skip-browser-warning: true` header and URL parameter to bypass ngrok ERR_NGROK_6024 CORS interstitial. |
