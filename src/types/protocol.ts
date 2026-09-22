@@ -15,6 +15,14 @@ export interface AssetInformation {
   isloaded?: boolean;
   videoDuration?: number;
   Category: DataType;
+  fileSizeBytes?: number;
+  fileSizeMB?: number;
+  triangleCount?: number;
+  vertexCount?: number;
+  meshCount?: number;
+  dimensions?: { x: number; y: number; z: number } | null;
+  isWebPreviewable?: boolean;
+  rejectionReason?: string | null;
 }
 
 export interface AssetInformationS {

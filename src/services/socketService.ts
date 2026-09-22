@@ -38,6 +38,23 @@ export class StageSocketService {
     return this.url;
   }
 
+  public getHttpBaseUrl(): string {
+    if (!this.url) {
+      if (typeof window !== 'undefined') {
+        const params = new URLSearchParams(window.location.search);
+        const host = params.get('host') || '127.0.0.1';
+        const port = params.get('port') || '9000';
+        const server = params.get('server');
+        if (server) {
+          return server.replace(/^wss?:/i, 'https:').replace(/^https?:/i, 'https:');
+        }
+        return `http://${host}:${port}`;
+      }
+      return 'http://127.0.0.1:9000';
+    }
+    return this.url.replace(/^wss?:/i, 'http:').replace(/^https?:/i, 'https:');
+  }
+
   public getUsers(): User[] {
     return this.users;
   }
