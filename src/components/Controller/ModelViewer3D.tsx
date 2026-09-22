@@ -6,12 +6,8 @@ import { useStage } from '../../context/StageContext';
 import { stageSocket } from '../../services/socketService';
 import {
   RotateCcw,
-  Grid,
-  Zap,
-  ZapOff,
   AlertCircle,
-  Loader2,
-  Box
+  Loader2
 } from 'lucide-react';
 
 interface ModelViewer3DProps {
@@ -363,247 +359,193 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, onSwitchToD
   };
 
   return (
-    <div
-      style={{
-        position: 'relative',
-        width: '100%',
-        maxWidth: 420,
-        height: 340,
-        borderRadius: 'var(--radius-md, 12px)',
-        background: 'radial-gradient(circle at 50% 50%, rgba(13, 27, 42, 0.9) 0%, rgba(7, 10, 19, 0.98) 100%)',
-        border: '1px solid var(--border-glass, rgba(100, 197, 190, 0.25))',
-        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5), inset 0 0 20px rgba(100, 197, 190, 0.05)',
-        overflow: 'hidden',
-        touchAction: 'none',
-        display: 'flex',
-        flexDirection: 'column'
-      }}
-    >
+    <div style={{ display: 'flex', flexDirection: 'column', width: '100%', gap: 8, alignItems: 'center' }}>
       {/* 3D Canvas Viewport */}
       <div
-        ref={containerRef}
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        onPointerCancel={handlePointerUp}
-        onContextMenu={(e) => e.preventDefault()}
         style={{
+          position: 'relative',
           width: '100%',
-          height: '100%',
-          cursor: activeGesture === 'pan' ? 'grabbing' : activeGesture === 'rotate' ? 'crosshair' : 'grab'
+          maxWidth: 420,
+          height: 320,
+          borderRadius: 'var(--radius-md, 12px)',
+          background: 'radial-gradient(circle at 50% 50%, rgba(13, 27, 42, 0.9) 0%, rgba(7, 10, 19, 0.98) 100%)',
+          border: '1px solid var(--border-glass, rgba(100, 197, 190, 0.25))',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5), inset 0 0 20px rgba(100, 197, 190, 0.05)',
+          overflow: 'hidden',
+          touchAction: 'none'
         }}
-      />
+      >
+        <div
+          ref={containerRef}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerCancel={handlePointerUp}
+          onContextMenu={(e) => e.preventDefault()}
+          style={{
+            width: '100%',
+            height: '100%',
+            cursor: activeGesture === 'pan' ? 'grabbing' : activeGesture === 'rotate' ? 'crosshair' : 'grab'
+          }}
+        />
 
-      {/* Top Header Overlay */}
+        {/* Transient interaction hint (only shown during active gestures) */}
+        {activeGesture && (
+          <div
+            style={{
+              position: 'absolute',
+              bottom: 12,
+              left: '50%',
+              transform: 'translateX(-50%)',
+              padding: '4px 14px',
+              borderRadius: 20,
+              background: 'rgba(7, 10, 19, 0.82)',
+              border: '1px solid rgba(255, 255, 255, 0.15)',
+              backdropFilter: 'blur(6px)',
+              fontSize: '0.72rem',
+              color: 'var(--text-primary, #f8fafc)',
+              pointerEvents: 'none',
+              zIndex: 10
+            }}
+          >
+            {activeGesture === 'rotate' && 'Rotating Stage & Model...'}
+            {activeGesture === 'pan' && 'Panning Model...'}
+            {activeGesture === 'zoom' && 'Scaling Model...'}
+          </div>
+        )}
+
+        {/* Loading Overlay */}
+        {isLoading && (
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: 'rgba(7, 10, 19, 0.85)',
+              backdropFilter: 'blur(6px)',
+              gap: 12,
+              zIndex: 20
+            }}
+          >
+            <Loader2 size={32} className="spin" style={{ color: 'var(--color-primary-bright, #00e5ff)' }} />
+            <span style={{ fontSize: '0.85rem', color: 'var(--text-primary, #f8fafc)', fontWeight: 500 }}>
+              Streaming 3D Model {loadProgress > 0 ? `(${loadProgress}%)` : ''}...
+            </span>
+          </div>
+        )}
+
+        {/* Error Overlay */}
+        {loadError && (
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: 'rgba(7, 10, 19, 0.92)',
+              padding: 24,
+              textAlign: 'center',
+              gap: 12,
+              zIndex: 20
+            }}
+          >
+            <AlertCircle size={32} style={{ color: 'var(--color-danger, #ef4444)' }} />
+            <span style={{ fontSize: '0.85rem', color: 'var(--text-primary, #f8fafc)' }}>{loadError}</span>
+            {onSwitchToDpad && (
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={onSwitchToDpad}
+                style={{ padding: '6px 14px', fontSize: '0.8rem', marginTop: 6 }}
+              >
+                Use Classic D-Pad
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Viewport Control Strip (Outside the model area) */}
       <div
         style={{
-          position: 'absolute',
-          top: 10,
-          left: 10,
-          right: 10,
+          width: '100%',
+          maxWidth: 420,
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          pointerEvents: 'none',
-          zIndex: 10
+          padding: '0 2px'
         }}
       >
-        {/* Model Metrics Chip */}
-        <div
+        {/* Stage Sync Toggle */}
+        <button
+          type="button"
+          onClick={() => setIsStageSync(!isStageSync)}
+          title={isStageSync ? 'Broadcasting live to Hologram Stage' : 'Local preview only'}
           style={{
             display: 'flex',
             alignItems: 'center',
             gap: 6,
-            padding: '4px 10px',
+            padding: '5px 12px',
             borderRadius: 20,
-            background: 'rgba(7, 10, 19, 0.75)',
-            border: '1px solid rgba(255, 255, 255, 0.1)',
-            backdropFilter: 'blur(8px)',
-            fontSize: '0.75rem',
-            color: 'var(--text-secondary, #94a3b8)',
-            pointerEvents: 'auto'
+            fontSize: '0.74rem',
+            fontWeight: 600,
+            background: isStageSync ? 'rgba(34, 197, 94, 0.15)' : 'rgba(100, 116, 139, 0.15)',
+            color: isStageSync ? 'var(--color-success, #22c55e)' : 'var(--text-muted, #64748b)',
+            border: `1px solid ${isStageSync ? 'rgba(34, 197, 94, 0.35)' : 'rgba(255, 255, 255, 0.08)'}`,
+            cursor: 'pointer',
+            transition: 'var(--transition)'
           }}
         >
-          <Box size={13} style={{ color: 'var(--color-primary, #64c5be)' }} />
-          <span>
-            {asset.triangleCount ? `${(asset.triangleCount / 1000).toFixed(1)}k tris` : '3D Model'}
-            {asset.fileSizeMB ? ` • ${asset.fileSizeMB} MB` : ''}
-          </span>
-        </div>
-
-        {/* Action Controls */}
-        <div style={{ display: 'flex', gap: 8, pointerEvents: 'auto' }}>
-          {/* Stage Sync Toggle */}
-          <button
-            type="button"
-            onClick={() => setIsStageSync(!isStageSync)}
-            title={isStageSync ? 'Syncing live with Hologram Stage' : 'Local preview only (not sent to Stage)'}
+          <span
             style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 5,
-              padding: '4px 10px',
-              borderRadius: 20,
-              fontSize: '0.75rem',
-              fontWeight: 600,
-              background: isStageSync ? 'rgba(34, 197, 94, 0.2)' : 'rgba(100, 116, 139, 0.2)',
-              color: isStageSync ? 'var(--color-success, #22c55e)' : 'var(--text-muted, #64748b)',
-              border: `1px solid ${isStageSync ? 'rgba(34, 197, 94, 0.4)' : 'rgba(255, 255, 255, 0.1)'}`,
-              cursor: 'pointer',
-              transition: 'var(--transition)'
+              width: 7,
+              height: 7,
+              borderRadius: '50%',
+              backgroundColor: isStageSync ? 'var(--color-success, #22c55e)' : 'var(--text-muted, #64748b)'
             }}
-          >
-            {isStageSync ? <Zap size={13} /> : <ZapOff size={13} />}
-            <span>{isStageSync ? 'Sync ON' : 'Sync OFF'}</span>
-          </button>
+          />
+          <span>{isStageSync ? 'Sync Stage ● ON' : 'Sync Stage ○ OFF'}</span>
+        </button>
 
-          {/* Switch to Classic D-Pad */}
-          {onSwitchToDpad && (
-            <button
-              type="button"
-              onClick={onSwitchToDpad}
-              title="Switch to Classic D-Pad controller"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 4,
-                padding: '4px 8px',
-                borderRadius: 20,
-                fontSize: '0.75rem',
-                background: 'rgba(7, 10, 19, 0.75)',
-                color: 'var(--text-secondary, #94a3b8)',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
-                cursor: 'pointer'
-              }}
-            >
-              <Grid size={13} />
-              <span>D-Pad</span>
-            </button>
-          )}
+        {/* Subtle Metadata Readout */}
+        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted, #64748b)' }}>
+          {asset.triangleCount ? `${(asset.triangleCount / 1000).toFixed(1)}k tris` : ''}
+          {asset.triangleCount && asset.fileSizeMB ? ' · ' : ''}
+          {asset.fileSizeMB ? `${asset.fileSizeMB} MB` : ''}
         </div>
-      </div>
 
-      {/* Loading Overlay */}
-      {isLoading && (
-        <div
-          style={{
-            position: 'absolute',
-            inset: 0,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            background: 'rgba(7, 10, 19, 0.85)',
-            backdropFilter: 'blur(6px)',
-            gap: 12,
-            zIndex: 20
-          }}
-        >
-          <Loader2 size={32} className="spin" style={{ color: 'var(--color-primary-bright, #00e5ff)' }} />
-          <span style={{ fontSize: '0.85rem', color: 'var(--text-primary, #f8fafc)', fontWeight: 500 }}>
-            Streaming 3D Model {loadProgress > 0 ? `(${loadProgress}%)` : ''}...
-          </span>
-        </div>
-      )}
-
-      {/* Error Overlay */}
-      {loadError && (
-        <div
-          style={{
-            position: 'absolute',
-            inset: 0,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            background: 'rgba(7, 10, 19, 0.92)',
-            padding: 24,
-            textAlign: 'center',
-            gap: 12,
-            zIndex: 20
-          }}
-        >
-          <AlertCircle size={32} style={{ color: 'var(--color-danger, #ef4444)' }} />
-          <span style={{ fontSize: '0.85rem', color: 'var(--text-primary, #f8fafc)' }}>{loadError}</span>
-          {onSwitchToDpad && (
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={onSwitchToDpad}
-              style={{ padding: '6px 14px', fontSize: '0.8rem', marginTop: 6 }}
-            >
-              Use Classic D-Pad
-            </button>
-          )}
-        </div>
-      )}
-
-      {/* Bottom Floating Hint & Reset */}
-      <div
-        style={{
-          position: 'absolute',
-          bottom: 10,
-          left: 12,
-          right: 12,
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          pointerEvents: 'none',
-          zIndex: 10
-        }}
-      >
-        <span
-          style={{
-            fontSize: '0.72rem',
-            color: 'var(--text-muted, #64748b)',
-            background: 'rgba(7, 10, 19, 0.65)',
-            padding: '2px 8px',
-            borderRadius: 6,
-            backdropFilter: 'blur(4px)'
-          }}
-        >
-          {activeGesture === 'rotate' && 'Rotating Stage & Model...'}
-          {activeGesture === 'pan' && (
-            currentMovableMode === MoveableAssetType.Spotlight
-              ? 'Moving Light on Stage...'
-              : currentMovableMode === MoveableAssetType.Magnifier
-              ? 'Moving Magnifier on Stage...'
-              : 'Panning Model...'
-          )}
-          {activeGesture === 'zoom' && 'Scaling Model...'}
-          {!activeGesture && (
-            currentMovableMode === MoveableAssetType.Spotlight
-              ? 'Drag to position Light on Stage'
-              : currentMovableMode === MoveableAssetType.Magnifier
-              ? 'Drag to move Magnifier lens on Stage'
-              : currentMovableMode === MoveableAssetType.Pan
-              ? 'Drag to Pan • Pinch to Zoom'
-              : '1-finger rotate • 2-finger pan • pinch zoom'
-          )}
-        </span>
-
+        {/* Reset View Button */}
         <button
           type="button"
           onClick={handleReset}
-          title="Reset 3D Model rotation & framing"
+          title="Reset 3D camera pose and stage model"
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: 4,
-            padding: '4px 10px',
+            gap: 5,
+            padding: '5px 12px',
             borderRadius: 20,
-            fontSize: '0.75rem',
-            background: 'rgba(7, 10, 19, 0.75)',
-            color: 'var(--text-primary, #f8fafc)',
-            border: '1px solid rgba(255, 255, 255, 0.15)',
-            cursor: 'pointer',
-            pointerEvents: 'auto',
-            backdropFilter: 'blur(8px)'
+            fontSize: '0.74rem',
+            fontWeight: 500,
+            background: 'var(--surface-input, rgba(255, 255, 255, 0.05))',
+            color: 'var(--text-secondary, #94a3b8)',
+            border: '1px solid var(--line-subtle, rgba(255, 255, 255, 0.1))',
+            cursor: 'pointer'
           }}
         >
           <RotateCcw size={12} />
-          <span>Reset</span>
+          <span>Reset View</span>
         </button>
+      </div>
+
+      {/* Subtle Hint Underneath */}
+      <div style={{ textAlign: 'center', fontSize: '0.7rem', color: 'var(--text-muted, #64748b)' }}>
+        1-finger rotate · 2-finger pan · pinch zoom
       </div>
     </div>
   );

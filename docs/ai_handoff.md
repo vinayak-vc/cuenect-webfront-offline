@@ -18,15 +18,18 @@
 - Updated `src/components/Controller/FullScreenController.tsx`:
   - Removed/hid the Fullscreen quick button from primary actions and desktop status panel.
 - Updated `src/components/Controller/ModelControlPanel.tsx`:
-  - Persistent Control Mode selector (Rotate, Pan, Light, Magnifier) across both 3D Live View and D-Pad.
-  - View Mode Changer (Projection: 2D, SBS, HOLO, KMAX) accessible across both views.
-  - Camera toggle (Ortho / Perspective): visible when Rotate or Pan is selected; automatically hidden when Light or Magnifier is selected for both views.
+  - Restructured layout into a strict 3-tier UX hierarchy:
+    - Level 1: Primary Control Mode (`Rotate | Pan | Light | Magnifier`).
+    - Level 2: Secondary Stage Configuration (`Projection: HOLO ▾`, `Camera: Persp ▾`).
+    - Level 3: Control Surface Mode (`3D View | D-Pad` segmented control).
   - Auto-switching between views: Selecting Spotlight or Magnifier automatically presents the D-Pad. Selecting Rotate or Pan automatically restores the 3D Live View.
   - Replaced the D-Pad center projection button with a dedicated **Reset** button (`resetModelTransform()`).
-  - Models $\le 25\text{ MB}$ and $\le 250\text{k}$ triangles load `ModelViewer3D` with seamless D-Pad toggle.
-- Updated `src/services/socketService.ts`:
-  - Resolved `ERR_SSL_PROTOCOL_ERROR` by preserving `http://` on local IP / localhost connections and using `https://` only on public tunnels (ngrok).
-- Verified production build (`npm run build` succeeds).
+- Updated `src/components/Controller/ModelViewer3D.tsx`:
+  - Removed all floating overlay buttons from inside the 3D canvas viewport, leaving the canvas dedicated solely to interactive touch/mouse manipulation.
+  - Placed `Sync Stage` toggle, metadata readout (`tris · MB`), and `Reset View` button in a clean external toolbar strip directly underneath the viewport.
+- Updated `src/components/Controller/FullScreenController.tsx`:
+  - Changed status strip text to `Stage Ready · HOLO · Persp`.
+- Verified production build (`npm run build` succeeds cleanly).
 - Added and updated `docs/` per `AGENTS.md` §16.
 
 ## 2. Modified & New Files

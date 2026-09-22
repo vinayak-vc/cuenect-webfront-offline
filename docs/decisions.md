@@ -36,3 +36,14 @@
 - **Rationale**:
   - Node.js bridge servers run plain HTTP on local networks. Forcing `https://` on local IP addresses causes SSL handshake failure (`ERR_SSL_PROTOCOL_ERROR`).
   - Explicit scheme inspection ensures both local offline operations and remote ngrok sessions work seamlessly.
+
+## D-006: 3-Level UX Hierarchy and Clean Viewport Separation
+- **Decision**: Restructure the controller panel into three distinct visual tiers:
+  1. Level 1: Primary Control Mode (`Rotate | Pan | Light | Magnifier`)
+  2. Level 2: Secondary Configuration (`Projection: HOLO ▾`, `Camera: Persp ▾`)
+  3. Level 3: Control Surface Mode (`3D View | D-Pad` segmented control)
+  And strip all buttons from inside the 3D viewport, moving `Sync Stage` and `Reset View` to a clean external toolbar strip.
+- **Rationale**:
+  - Eliminates visual competition between configuration controls and primary manipulation actions.
+  - Making `3D View | D-Pad` a segmented control communicates that they are two complementary surfaces for the same underlying stage model.
+  - Keeping the 3D viewport free of floating buttons guarantees that the entire canvas is interactive without accidental button presses during drag or pinch gestures.

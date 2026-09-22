@@ -16,3 +16,4 @@
 | **W-112** | Auto-switch View on Mode Change | DONE | 2026-09-22 | Automatically switch to D-Pad when Light or Magnifier is selected; automatically restore 3D View when switching back to Rotate or Pan. |
 | **W-113** | Replace D-Pad View Mode with Reset Button | DONE | 2026-09-22 | Replaced projection mode changer in D-Pad center with Reset button triggering `resetModelTransform()`. |
 | **W-114** | Resolve Local IP SSL Error | DONE | 2026-09-22 | Fixed `getHttpBaseUrl()` in `StageSocketService` to respect plain HTTP on local IP / localhost connections, eliminating `ERR_SSL_PROTOCOL_ERROR`. |
+| **W-115** | 3-Level UX Hierarchy Redesign | DONE | 2026-09-22 | Streamlined controller hierarchy into 3 distinct levels: Level 1 Control Mode, Level 2 Configuration (Projection/Camera pills), Level 3 Control Surface (3D View \| D-Pad), and uncluttered 3D viewport with external toolbar strip. |

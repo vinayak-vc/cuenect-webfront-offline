@@ -66,11 +66,27 @@ export const ModelControlPanel: React.FC = () => {
     }
   };
 
+  const handleSurfaceChange = (surface: '3d' | 'dpad') => {
+    if (surface === '3d') {
+      if (!isRotateOrPan) {
+        setMovableMode(MoveableAssetType.Rotate);
+      }
+      setPreferDpad(false);
+    } else {
+      setPreferDpad(true);
+    }
+  };
+
   const modes: SegmentedOption<MoveableAssetType>[] = [
     { value: MoveableAssetType.Rotate, label: 'Rotate', icon: <Box size={14} /> },
     { value: MoveableAssetType.Pan, label: 'Pan', icon: <Move size={14} /> },
     { value: MoveableAssetType.Spotlight, label: 'Light', icon: <SunMedium size={14} /> },
     { value: MoveableAssetType.Magnifier, label: 'Magnifier', icon: <Search size={14} /> }
+  ];
+
+  const surfaceOptions: SegmentedOption<'3d' | 'dpad'>[] = [
+    { value: '3d', label: '3D View', icon: <Eye size={14} /> },
+    { value: 'dpad', label: 'D-Pad', icon: <Grid size={14} /> }
   ];
 
   return (
@@ -103,101 +119,83 @@ export const ModelControlPanel: React.FC = () => {
         </div>
       )}
 
-      {/* 1. Control Mode Selector: Rotate, Pan, Light, Magnifier (Always visible in both views) */}
+      {/* Level 1: Primary Control Mode (Rotate, Pan, Light, Magnifier) */}
       <div style={{ width: '100%', maxWidth: 420, display: 'flex', flexDirection: 'column', gap: 6 }}>
         <span className="u-section-label">Control Mode</span>
         <SegmentedControl
           options={modes}
           value={currentMovableMode}
           onChange={handleModeChange}
-          compact
           ariaLabel="Model control mode"
         />
       </div>
 
-      {/* 2. Secondary Action Row: View Mode Changer, Camera Mode (conditional), and 3D/D-Pad Toggle */}
-      <div
-        style={{
-          width: '100%',
-          maxWidth: 420,
-          display: 'flex',
-          flexWrap: 'wrap',
-          gap: 8,
-          alignItems: 'center',
-          justifyContent: 'space-between'
-        }}
-      >
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-          {/* View Mode (Projection) Changer */}
+      {/* Level 2: Secondary Stage Configuration (Projection & Camera) */}
+      <div style={{ width: '100%', maxWidth: 420, display: 'flex', gap: 8, alignItems: 'center' }}>
+        <button
+          type="button"
+          className="btn btn-secondary"
+          onClick={() => setIsProjectionOpen(true)}
+          title="Change Stage Projection Mode (2D / SBS / HOLO / KMAX)"
+          style={{
+            flex: 1,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 6,
+            padding: '7px 12px',
+            fontSize: '0.78rem',
+            borderRadius: 'var(--radius-full, 9999px)'
+          }}
+        >
+          <Layers size={13} />
+          <span>Projection: {DisplayModeShortLabels[displayMode]} ▾</span>
+        </button>
+
+        {isRotateOrPan && (
           <button
             type="button"
             className="btn btn-secondary"
-            onClick={() => setIsProjectionOpen(true)}
-            title="Change Stage Projection Mode (2D / SBS / HOLO / KMAX)"
+            onClick={toggleOrthographic}
+            disabled={stereoSettings.isStereo}
+            title={
+              stereoSettings.isStereo
+                ? 'Camera is locked to Perspective in SBS'
+                : `Switch to ${isOrthographic ? 'Perspective' : 'Orthographic'} camera`
+            }
             style={{
+              flex: 1,
               display: 'flex',
               alignItems: 'center',
+              justifyContent: 'center',
               gap: 6,
-              padding: '6px 12px',
+              padding: '7px 12px',
               fontSize: '0.78rem',
-              borderRadius: 20
+              borderRadius: 'var(--radius-full, 9999px)',
+              opacity: stereoSettings.isStereo ? 0.6 : 1
             }}
           >
-            <Layers size={13} />
-            <span>Projection: {DisplayModeShortLabels[displayMode]}</span>
-          </button>
-
-          {/* Camera Ortho / Perspective: Visible for Rotate & Pan, Hidden for Light & Magnifier */}
-          {isRotateOrPan && (
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={toggleOrthographic}
-              disabled={stereoSettings.isStereo}
-              title={
-                stereoSettings.isStereo
-                  ? 'Camera is locked to Perspective in SBS'
-                  : `Switch to ${isOrthographic ? 'Perspective' : 'Orthographic'} camera`
-              }
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-                padding: '6px 12px',
-                fontSize: '0.78rem',
-                borderRadius: 20,
-                opacity: stereoSettings.isStereo ? 0.6 : 1
-              }}
-            >
-              <Camera size={13} />
-              <span>Camera: {isOrthographic ? 'Ortho' : 'Persp'}</span>
-            </button>
-          )}
-        </div>
-
-        {/* 3D Touch vs D-Pad Toggle (applicable in Rotate & Pan modes) */}
-        {isEligible && isRotateOrPan && (
-          <button
-            type="button"
-            onClick={() => setPreferDpad(!preferDpad)}
-            className="btn btn-secondary"
-            title={preferDpad ? 'Switch to 3D Touch View' : 'Switch to Classic D-Pad'}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 5,
-              padding: '6px 12px',
-              fontSize: '0.78rem',
-              borderRadius: 20
-            }}
-          >
-            {preferDpad ? <Eye size={13} /> : <Grid size={13} />}
-            <span>{preferDpad ? '3D View' : 'D-Pad'}</span>
+            <Camera size={13} />
+            <span>Camera: {isOrthographic ? 'Ortho' : 'Persp'} ▾</span>
           </button>
         )}
       </div>
 
-      {/* 3. Main Interactive Viewport OR D-Pad */}
+      {/* Level 3: Control Surface Selector (3D View vs D-Pad) */}
+      {isEligible && (
+        <div style={{ width: '100%', maxWidth: 420, display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <span className="u-section-label">Control Surface</span>
+          <SegmentedControl
+            options={surfaceOptions}
+            value={show3DViewer ? '3d' : 'dpad'}
+            onChange={handleSurfaceChange}
+            compact
+            ariaLabel="Control surface mode"
+          />
+        </div>
+      )}
+
+      {/* Level 4: Active Control Surface */}
       {show3DViewer ? (
         <div style={{ width: '100%', maxWidth: 420, display: 'flex', flexDirection: 'column', gap: 8 }}>
           <ModelViewer3D asset={activeAsset} onSwitchToDpad={() => setPreferDpad(true)} />

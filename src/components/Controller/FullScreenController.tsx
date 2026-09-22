@@ -127,7 +127,7 @@ export const FullScreenController: React.FC = () => {
   const statusStrip = (
     <button type="button" className="status-strip" onClick={() => setIsStatusOpen(true)}>
       <span className={`status-strip-dot ${connectionState === 'connected' ? 'ok' : 'bad'}`} />
-      <span className="status-strip-value">{connectionState === 'connected' ? 'Ready' : 'Offline'}</span>
+      <span className="status-strip-value">{connectionState === 'connected' ? 'Stage Ready' : 'Offline'}</span>
       <span className="status-strip-sep">·</span>
       <span className="status-strip-value">{SHORT_MODE[displayMode] ?? '2D'}</span>
       <span className="status-strip-sep">·</span>
