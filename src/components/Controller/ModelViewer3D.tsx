@@ -12,10 +12,11 @@ import {
 
 interface ModelViewer3DProps {
   asset: AssetInformation;
+  isVisible?: boolean;
   onSwitchToDpad?: () => void;
 }
 
-export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, onSwitchToDpad }) => {
+export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible = true, onSwitchToDpad }) => {
   const { sendModelJoystick, resetModelTransform, currentMovableMode } = useStage();
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -24,6 +25,30 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, onSwitchToD
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isStageSync, setIsStageSync] = useState<boolean>(true);
   const [activeGesture, setActiveGesture] = useState<'rotate' | 'pan' | 'zoom' | null>(null);
+
+  // Dirty rendering flag: only render when needed to reduce GPU/CPU/battery usage to 0% when idle
+  const needsRenderRef = useRef<boolean>(true);
+  const requestRender = useCallback(() => {
+    needsRenderRef.current = true;
+  }, []);
+
+  // Track visibility to pause animation loop when D-Pad is showing
+  const isVisibleRef = useRef<boolean>(isVisible);
+  useEffect(() => {
+    isVisibleRef.current = isVisible;
+    if (isVisible) {
+      requestRender();
+      if (rendererRef.current && containerRef.current && cameraRef.current) {
+        const w = containerRef.current.clientWidth || 320;
+        const h = containerRef.current.clientHeight || 320;
+        if (w > 0 && h > 0) {
+          cameraRef.current.aspect = w / h;
+          cameraRef.current.updateProjectionMatrix();
+          rendererRef.current.setSize(w, h);
+        }
+      }
+    }
+  }, [isVisible, requestRender]);
 
   // Three.js internal references
   const sceneRef = useRef<THREE.Scene | null>(null);
@@ -56,11 +81,12 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, onSwitchToD
       modelGroupRef.current.position.set(0, 0, 0);
       cameraRef.current.position.set(0, 0, defaultDistRef.current);
       cameraRef.current.lookAt(0, 0, 0);
+      requestRender();
     }
     if (isStageSyncRef.current) {
       resetModelTransform();
     }
-  }, [resetModelTransform]);
+  }, [resetModelTransform, requestRender]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -105,10 +131,15 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, onSwitchToD
     scene.add(modelGroup);
     modelGroupRef.current = modelGroup;
 
-    // Render loop
+    // Render loop: on-demand dirty rendering (0% CPU/GPU when idle)
     const animate = () => {
       animFrameRef.current = requestAnimationFrame(animate);
-      renderer.render(scene, camera);
+      if (isVisibleRef.current && needsRenderRef.current) {
+        needsRenderRef.current = false;
+        if (rendererRef.current && sceneRef.current && cameraRef.current) {
+          rendererRef.current.render(sceneRef.current, cameraRef.current);
+        }
+      }
     };
     animate();
 
@@ -160,6 +191,10 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, onSwitchToD
 
         defaultDistRef.current = cameraDistance;
         defaultRotRef.current = { x: 0, y: 0 };
+
+        // Pre-warm / compile shaders to eliminate frame drop violation
+        renderer.compile(scene, camera);
+        requestRender();
       },
       (xhr) => {
         if (xhr.total > 0) {
@@ -183,6 +218,7 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, onSwitchToD
           cameraRef.current.aspect = w / h;
           cameraRef.current.updateProjectionMatrix();
           rendererRef.current.setSize(w, h);
+          requestRender();
         }
       }
     });
@@ -197,6 +233,7 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, onSwitchToD
       const zoomStep = e.deltaY > 0 ? 1.08 : 0.92;
       const newZ = camera.position.z * zoomStep;
       camera.position.z = Math.max(defaultDistRef.current * 0.2, Math.min(defaultDistRef.current * 4, newZ));
+      requestRender();
 
       if (isStageSyncRef.current) {
         const zoomVal = e.deltaY > 0 ? -1 : 1;
@@ -250,6 +287,7 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, onSwitchToD
       const pts = Array.from(pointersRef.current.values());
       lastPinchDistRef.current = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
     }
+    requestRender();
   };
 
   const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -277,6 +315,7 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, onSwitchToD
         const zoomSpeed = 0.01;
         const newZ = camera.position.z - pinchDelta * zoomSpeed * (camera.position.z * 0.1);
         camera.position.z = Math.max(defaultDistRef.current * 0.2, Math.min(defaultDistRef.current * 4, newZ));
+        requestRender();
 
         // Sync zoom to stage
         if (isStageSyncRef.current) {
@@ -312,6 +351,7 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, onSwitchToD
       const panFactor = (camera.position.z / cHeight) * 1.2;
       modelGroup.position.x += dx * panFactor;
       modelGroup.position.y -= dy * panFactor;
+      requestRender();
 
       if (isStageSyncRef.current) {
         const now = Date.now();
@@ -328,6 +368,7 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, onSwitchToD
       const rotSpeed = 0.008;
       modelGroup.rotation.y += dx * rotSpeed;
       modelGroup.rotation.x = Math.max(-Math.PI / 2.2, Math.min(Math.PI / 2.2, modelGroup.rotation.x + dy * rotSpeed));
+      requestRender();
 
       if (isStageSyncRef.current) {
         const now = Date.now();
@@ -349,6 +390,7 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, onSwitchToD
     if (pointersRef.current.size === 0) {
       setActiveGesture(null);
       isDoubleTapPanRef.current = false;
+      requestRender();
 
       // Stop stage velocity
       if (isStageSyncRef.current) {

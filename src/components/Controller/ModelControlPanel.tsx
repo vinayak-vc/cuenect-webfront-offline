@@ -41,7 +41,7 @@ export const ModelControlPanel: React.FC = () => {
   } = useStage();
 
   const [isProjectionOpen, setIsProjectionOpen] = useState(false);
-  const [preferDpad, setPreferDpad] = useState(false);
+  const [userSurfacePreference, setUserSurfacePreference] = useState<'3d' | 'dpad'>('3d');
 
   // Check whether the active model is eligible for web 3D rendering
   const isEligible = Boolean(
@@ -55,25 +55,21 @@ export const ModelControlPanel: React.FC = () => {
   const isRotateOrPan =
     currentMovableMode === MoveableAssetType.Rotate || currentMovableMode === MoveableAssetType.Pan;
 
-  // 3D View is shown for Rotate and Pan when eligible; Spotlight and Magnifier automatically switch to D-Pad
-  const show3DViewer = isEligible && !preferDpad && !!activeAsset && isRotateOrPan;
+  // 3D View is shown ONLY when model is eligible, mode is Rotate/Pan, and user preferred '3d'
+  const show3DViewer = isEligible && isRotateOrPan && userSurfacePreference === '3d' && !!activeAsset;
 
   const handleModeChange = (mode: MoveableAssetType) => {
     setMovableMode(mode);
-    // When returning to Rotate or Pan, automatically switch back to 3D view if eligible
-    if (mode === MoveableAssetType.Rotate || mode === MoveableAssetType.Pan) {
-      setPreferDpad(false);
-    }
+    // Preserves userSurfacePreference: if user chose 'dpad', they remain in 'dpad' when switching between Rotate and Pan.
+    // If they preferred '3d', switching back from Light/Magnifier to Rotate/Pan naturally restores '3d'.
   };
 
   const handleSurfaceChange = (surface: '3d' | 'dpad') => {
+    setUserSurfacePreference(surface);
     if (surface === '3d') {
       if (!isRotateOrPan) {
         setMovableMode(MoveableAssetType.Rotate);
       }
-      setPreferDpad(false);
-    } else {
-      setPreferDpad(true);
     }
   };
 
@@ -91,7 +87,7 @@ export const ModelControlPanel: React.FC = () => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%', gap: 14 }}>
-      {/* High-Poly / Oversized Model Notice */}
+      {/* High-Poly / Oversized Model Notice (Compact single-line) */}
       {!isEligible && activeAsset && (
         <div
           style={{
@@ -99,23 +95,20 @@ export const ModelControlPanel: React.FC = () => {
             maxWidth: 420,
             display: 'flex',
             alignItems: 'center',
-            gap: 10,
-            padding: '10px 14px',
-            borderRadius: 'var(--radius-sm, 8px)',
+            gap: 6,
+            padding: '5px 12px',
+            borderRadius: 'var(--radius-full, 9999px)',
             background: 'rgba(245, 158, 11, 0.12)',
             border: '1px solid rgba(245, 158, 11, 0.3)',
             color: 'var(--color-warning, #f59e0b)',
-            fontSize: '0.8rem',
-            lineHeight: 1.4
+            fontSize: '0.72rem',
+            lineHeight: 1.2
           }}
         >
-          <AlertTriangle size={18} style={{ flexShrink: 0 }} />
-          <div>
-            <strong>Direct Stage Control:</strong> Model exceeds web preview threshold{' '}
-            {activeAsset.fileSizeMB ? `(${activeAsset.fileSizeMB} MB` : ''}
-            {activeAsset.triangleCount ? ` • ${(activeAsset.triangleCount / 1000).toFixed(0)}k tris)` : ')'}.
-            Touch D-Pad is active for direct Hologram Stage manipulation.
-          </div>
+          <AlertTriangle size={13} style={{ flexShrink: 0 }} />
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            Direct stage control · Model exceeds web preview {activeAsset.fileSizeMB ? `(${activeAsset.fileSizeMB} MB)` : ''}
+          </span>
         </div>
       )}
 
@@ -196,24 +189,46 @@ export const ModelControlPanel: React.FC = () => {
       )}
 
       {/* Level 4: Active Control Surface */}
-      {show3DViewer ? (
-        <div style={{ width: '100%', maxWidth: 420, display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <ModelViewer3D asset={activeAsset} onSwitchToDpad={() => setPreferDpad(true)} />
-        </div>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%', gap: 12 }}>
-          <DPad
-            centerLabel={
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-                <RotateCcw size={18} />
-                <span style={{ fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.04em' }}>RESET</span>
-              </div>
-            }
-            onCenterPress={resetModelTransform}
-            centerTitle="Reset model rotation and position on Hologram Stage"
+      {/* 3D Viewport (Kept mounted in DOM when eligible so model is never destroyed or reloaded) */}
+      {isEligible && activeAsset && (
+        <div
+          style={{
+            width: '100%',
+            maxWidth: 420,
+            display: show3DViewer ? 'flex' : 'none',
+            flexDirection: 'column',
+            gap: 8
+          }}
+        >
+          <ModelViewer3D
+            asset={activeAsset}
+            isVisible={show3DViewer}
+            onSwitchToDpad={() => setUserSurfacePreference('dpad')}
           />
         </div>
       )}
+
+      {/* Classic D-Pad */}
+      <div
+        style={{
+          display: !show3DViewer ? 'flex' : 'none',
+          flexDirection: 'column',
+          alignItems: 'center',
+          width: '100%',
+          gap: 12
+        }}
+      >
+        <DPad
+          centerLabel={
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+              <RotateCcw size={18} />
+              <span style={{ fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.04em' }}>RESET</span>
+            </div>
+          }
+          onCenterPress={resetModelTransform}
+          centerTitle="Reset model rotation and position on Hologram Stage"
+        />
+      </div>
 
       <ProjectionSheet isOpen={isProjectionOpen} onClose={() => setIsProjectionOpen(false)} />
     </div>

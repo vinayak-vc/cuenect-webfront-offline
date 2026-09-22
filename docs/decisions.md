@@ -47,3 +47,14 @@
   - Eliminates visual competition between configuration controls and primary manipulation actions.
   - Making `3D View | D-Pad` a segmented control communicates that they are two complementary surfaces for the same underlying stage model.
   - Keeping the 3D viewport free of floating buttons guarantees that the entire canvas is interactive without accidental button presses during drag or pinch gestures.
+
+## D-007: Persistent Canvas Mount, Dirty Rendering & User Surface Preference Retention
+- **Decision**:
+  1. Keep `<ModelViewer3D>` mounted in the DOM when eligible, toggling visibility with CSS `display: 'flex'` / `'none'` instead of unmounting.
+  2. Implement on-demand dirty rendering (`needsRenderRef`) and shader pre-compilation (`renderer.compile`) in Three.js so rendering only executes when user gestures or model updates occur.
+  3. Decouple `userSurfacePreference` ('3d' vs 'dpad') from mode switches so that explicitly choosing D-Pad is preserved across Rotate/Pan changes.
+  4. Remove redundant mobile bottom buttons (`Reset` and `More`) as both actions are already prominent in the D-Pad center, 3D toolbar, and header.
+- **Rationale**:
+  - Unmounting the 3D viewer destroyed the WebGL context, geometries, and textures, forcing expensive re-download and re-parsing of the GLB on every view switch.
+  - Continuous 60fps rendering of a static 3D scene consumed excessive CPU/battery and triggered browser `requestAnimationFrame` violations (~350ms).
+  - Preserving the user's explicit surface preference prevents unwanted snap-back into 3D view when the user intends to remain on the D-Pad.

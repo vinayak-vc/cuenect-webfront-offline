@@ -181,20 +181,6 @@ export const FullScreenController: React.FC = () => {
     </>
   );
 
-  // ---- Primary + secondary actions ---------------------------------------
-  const primaryActions = (
-    <div className="controller-actions">
-      <button type="button" className="quick-btn" onClick={resetModelTransform} disabled={!hasControl}>
-        <RotateCcw size={14} />
-        Reset
-      </button>
-      <button type="button" className="quick-btn" onClick={() => setIsMoreOpen(true)}>
-        <MoreHorizontal size={14} />
-        More
-      </button>
-    </div>
-  );
-
   const controls = (
     <>
       {category === DataType.Model && <ModelControlPanel />}
@@ -302,7 +288,6 @@ export const FullScreenController: React.FC = () => {
           <>
             {assetLine}
             {controls}
-            {primaryActions}
             {statusStrip}
           </>
         )}

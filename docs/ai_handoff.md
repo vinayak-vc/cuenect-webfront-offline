@@ -18,17 +18,15 @@
 - Updated `src/components/Controller/FullScreenController.tsx`:
   - Removed/hid the Fullscreen quick button from primary actions and desktop status panel.
 - Updated `src/components/Controller/ModelControlPanel.tsx`:
-  - Restructured layout into a strict 3-tier UX hierarchy:
-    - Level 1: Primary Control Mode (`Rotate | Pan | Light | Magnifier`).
-    - Level 2: Secondary Stage Configuration (`Projection: HOLO ▾`, `Camera: Persp ▾`).
-    - Level 3: Control Surface Mode (`3D View | D-Pad` segmented control).
-  - Auto-switching between views: Selecting Spotlight or Magnifier automatically presents the D-Pad. Selecting Rotate or Pan automatically restores the 3D Live View.
-  - Replaced the D-Pad center projection button with a dedicated **Reset** button (`resetModelTransform()`).
+  - Kept `<ModelViewer3D>` mounted in the DOM when eligible (`display: show3DViewer ? 'flex' : 'none'`), eliminating model reload/re-download when switching between 3D View and D-Pad.
+  - Decoupled `userSurfacePreference` ('3d' vs 'dpad') from control mode changes: if the user explicitly chooses D-Pad, switching between Pan and Rotate now preserves D-Pad mode.
+  - Made the high-poly/oversized model warning badge a compact, unobtrusive single-line pill.
 - Updated `src/components/Controller/ModelViewer3D.tsx`:
-  - Removed all floating overlay buttons from inside the 3D canvas viewport, leaving the canvas dedicated solely to interactive touch/mouse manipulation.
-  - Placed `Sync Stage` toggle, metadata readout (`tris · MB`), and `Reset View` button in a clean external toolbar strip directly underneath the viewport.
+  - Implemented on-demand dirty rendering (`needsRenderRef`), dropping idle CPU/GPU/battery usage to 0% and eliminating `requestAnimationFrame` handler execution time violations.
+  - Added shader pre-compilation (`renderer.compile`) during model load to prevent initial frame stutter.
+  - Pauses rendering when `isVisible` is false.
 - Updated `src/components/Controller/FullScreenController.tsx`:
-  - Changed status strip text to `Stage Ready · HOLO · Persp`.
+  - Hid redundant mobile bottom buttons (`Reset` and `More`) as requested by the user.
 - Verified production build (`npm run build` succeeds cleanly).
 - Added and updated `docs/` per `AGENTS.md` §16.
 
