@@ -1,4 +1,5 @@
 import { io, Socket } from 'socket.io-client';
+import { StorageService } from './storage';
 import {
   ConnectionState,
   User,
@@ -39,20 +40,57 @@ export class StageSocketService {
   }
 
   public getHttpBaseUrl(): string {
-    if (!this.url) {
-      if (typeof window !== 'undefined') {
-        const params = new URLSearchParams(window.location.search);
-        const host = params.get('host') || '127.0.0.1';
-        const port = params.get('port') || '9000';
-        const server = params.get('server');
-        if (server) {
-          return server.replace(/^wss?:/i, 'https:').replace(/^https?:/i, 'https:');
+    let raw = this.url;
+    if (!raw && typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const server = params.get('server') || params.get('url');
+      if (server) {
+        raw = server;
+      } else {
+        const host = params.get('host') || params.get('ip');
+        const port = params.get('port');
+        if (host) {
+          raw = port ? `${host}:${port}` : host;
+        } else {
+          const saved = StorageService.getConnectionConfig();
+          if (saved.serverIp) {
+            raw = saved.usePort ? `${saved.serverIp}:${saved.port}` : saved.serverIp;
+          }
         }
-        return `http://${host}:${port}`;
       }
+    }
+
+    if (!raw) {
       return 'http://127.0.0.1:9000';
     }
-    return this.url.replace(/^wss?:/i, 'http:').replace(/^https?:/i, 'https:');
+
+    const trimmed = raw.trim();
+
+    // Preserve explicit scheme if provided
+    if (/^https:\/\//i.test(trimmed)) {
+      return trimmed.replace(/\/+$/, '');
+    }
+    if (/^wss:\/\//i.test(trimmed)) {
+      return trimmed.replace(/^wss:\/\//i, 'https://').replace(/\/+$/, '');
+    }
+    if (/^http:\/\//i.test(trimmed)) {
+      return trimmed.replace(/\/+$/, '');
+    }
+    if (/^ws:\/\//i.test(trimmed)) {
+      return trimmed.replace(/^ws:\/\//i, 'http://').replace(/\/+$/, '');
+    }
+
+    // No scheme provided: distinguish between local IP/localhost (HTTP) and public tunnels (HTTPS)
+    let bareHost = trimmed.replace(/\/+.*$/, '');
+    if (bareHost.includes(':')) {
+      bareHost = bareHost.split(':')[0];
+    }
+
+    const isRawIp = /^(\d{1,3}\.){3}\d{1,3}$/.test(bareHost) || bareHost === 'localhost' || bareHost === '127.0.0.1';
+    const isPublicTunnel = !isRawIp || bareHost.includes('ngrok') || bareHost.includes('.app');
+
+    const scheme = isPublicTunnel ? 'https' : 'http';
+    return `${scheme}://${trimmed.replace(/\/+$/, '')}`;
   }
 
   public getUsers(): User[] {

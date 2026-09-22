@@ -22,7 +22,10 @@
   - View Mode Changer (Projection: 2D, SBS, HOLO, KMAX) accessible across both views.
   - Camera toggle (Ortho / Perspective): visible when Rotate or Pan is selected; automatically hidden when Light or Magnifier is selected for both views.
   - Auto-switching between views: Selecting Spotlight or Magnifier automatically presents the D-Pad. Selecting Rotate or Pan automatically restores the 3D Live View.
+  - Replaced the D-Pad center projection button with a dedicated **Reset** button (`resetModelTransform()`).
   - Models $\le 25\text{ MB}$ and $\le 250\text{k}$ triangles load `ModelViewer3D` with seamless D-Pad toggle.
+- Updated `src/services/socketService.ts`:
+  - Resolved `ERR_SSL_PROTOCOL_ERROR` by preserving `http://` on local IP / localhost connections and using `https://` only on public tunnels (ngrok).
 - Verified production build (`npm run build` succeeds).
 - Added and updated `docs/` per `AGENTS.md` §16.
 

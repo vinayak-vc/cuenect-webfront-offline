@@ -14,7 +14,8 @@ import {
   Eye,
   Grid,
   Camera,
-  Layers
+  Layers,
+  RotateCcw
 } from 'lucide-react';
 
 /**
@@ -35,7 +36,8 @@ export const ModelControlPanel: React.FC = () => {
     activeAsset,
     isOrthographic,
     toggleOrthographic,
-    stereoSettings
+    stereoSettings,
+    resetModelTransform
   } = useStage();
 
   const [isProjectionOpen, setIsProjectionOpen] = useState(false);
@@ -203,9 +205,14 @@ export const ModelControlPanel: React.FC = () => {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%', gap: 12 }}>
           <DPad
-            centerLabel={<span className="dpad-center-mode">{DisplayModeShortLabels[displayMode]}</span>}
-            onCenterPress={() => setIsProjectionOpen(true)}
-            centerTitle="Change stage projection mode"
+            centerLabel={
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                <RotateCcw size={18} />
+                <span style={{ fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.04em' }}>RESET</span>
+              </div>
+            }
+            onCenterPress={resetModelTransform}
+            centerTitle="Reset model rotation and position on Hologram Stage"
           />
         </div>
       )}

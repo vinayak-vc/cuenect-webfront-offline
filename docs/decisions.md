@@ -22,5 +22,17 @@
 ## D-003: Auto-Switching between 3D View and D-Pad for 2D Lighting/Magnification Tools
 - **Decision**: When in 3D View, selecting Spotlight or Magnifier automatically transitions the workspace to the D-Pad. When returning to Rotate or Pan, the 3D View is automatically re-engaged.
 - **Rationale**:
-  - Spotlight beam directional positioning and Magnifier lens repositioning are orthogonal 2D directional operations best served by the calibrated D-Pad controls.
+- Spotlight beam directional positioning and Magnifier lens repositioning are orthogonal 2D directional operations best served by the calibrated D-Pad controls.
   - Automatically toggling saves the operator multiple manual view switch taps while keeping 3D direct manipulation active during model inspection.
+
+## D-004: Dedicated Reset Control in D-Pad Center
+- **Decision**: Dedicate the D-Pad center round button to `Reset` (triggering `resetModelTransform()`), while keeping the `Projection` changer in the persistent action row above.
+- **Rationale**:
+  - The projection mode changer is already accessible at all times in the secondary row alongside the Camera toggle.
+  - Positioning `Reset` at the center of the directional cross provides immediate, ergonomic access to restore the stage model orientation without reaching for separate menus.
+
+## D-005: Local HTTP vs Public Tunnel HTTPS Protocol Resolution
+- **Decision**: Preserve `http://` for local IPs (`192.168.x.x`, `10.x.x.x`, `localhost`) and use `https://` only for secure domains/tunnels (`ngrok`, `.app`).
+- **Rationale**:
+  - Node.js bridge servers run plain HTTP on local networks. Forcing `https://` on local IP addresses causes SSL handshake failure (`ERR_SSL_PROTOCOL_ERROR`).
+  - Explicit scheme inspection ensures both local offline operations and remote ngrok sessions work seamlessly.

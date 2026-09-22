@@ -14,3 +14,5 @@
 | **W-110** | Hide Fullscreen Button | DONE | 2026-09-22 | Removed Fullscreen quick-action buttons from `FullScreenController`. |
 | **W-111** | Persistent Mode, View Mode Changer & Ortho/Persp Toggle | DONE | 2026-09-22 | Made Rotate/Pan/Light/Magnifier modes and Projection view changer accessible in both Live View & D-Pad. Conditioned Camera Ortho/Persp toggle to show on Rotate/Pan and hide on Light/Magnifier across both views. |
 | **W-112** | Auto-switch View on Mode Change | DONE | 2026-09-22 | Automatically switch to D-Pad when Light or Magnifier is selected; automatically restore 3D View when switching back to Rotate or Pan. |
+| **W-113** | Replace D-Pad View Mode with Reset Button | DONE | 2026-09-22 | Replaced projection mode changer in D-Pad center with Reset button triggering `resetModelTransform()`. |
+| **W-114** | Resolve Local IP SSL Error | DONE | 2026-09-22 | Fixed `getHttpBaseUrl()` in `StageSocketService` to respect plain HTTP on local IP / localhost connections, eliminating `ERR_SSL_PROTOCOL_ERROR`. |
