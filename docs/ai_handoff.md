@@ -32,7 +32,10 @@
   - Reset override automatically on active model change.
 - Updated `src/components/Controller/ModelViewer3D.tsx` & `src/context/StageContext.tsx`:
   - Implemented 1:1 tactile angular delta rotation replication: gestures calculate exact yaw and pitch degree deltas, accumulated across throttle intervals, and transmitted via `sendModelJoystick` with `action: 'delta'`.
-  - Flushes any remaining delta upon gesture release before stopping velocity.
+- Updated `src/components/Controller/ModelControlPanel.tsx` & `src/services/socketService.ts`:
+  - Added `stageSocket.isTunnelConnection()` to detect ngrok cloud tunnel.
+  - Disabled automatic 3D model streaming when on ngrok to prevent burning through monthly bandwidth quotas. Kept classic D-Pad active with a dedicated tunnel badge and "Load Anyway" override button.
+  - Enabled full 3D model auto-load when connected locally (LAN IP / localhost).
 - Verified production build (`npm run build` succeeds cleanly with 0 errors).
 - Maintained documentation in `docs/` per `AGENTS.md` §16.
 

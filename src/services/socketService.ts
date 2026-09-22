@@ -39,6 +39,11 @@ export class StageSocketService {
     return this.url;
   }
 
+  public isTunnelConnection(): boolean {
+    const baseUrl = this.getHttpBaseUrl();
+    return baseUrl.includes('ngrok') || baseUrl.includes('.app');
+  }
+
   public getHttpBaseUrl(): string {
     let raw = this.url;
     if (!raw && typeof window !== 'undefined') {

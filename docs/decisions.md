@@ -70,3 +70,12 @@
 - **Rationale**:
   - The previous implementation sent normalized unit deltas (`normX ≈ 0.03`) into Unity's velocity-based `Update()` integrator, causing Unity to rotate less than 0.1° per swipe while Three.js rotated 45°+.
   - Sending accumulated angular degrees and handling `action == 'delta'` directly in Unity (`PanController.RotateModelDelta`) achieves instant 1:1 tactile synchronization with zero drift or lag.
+
+## D-010: Cloud Tunnel (ngrok) Bandwidth Guard & Local-Only Auto-Preview
+- **Decision**:
+  - When the controller is connected via a cloud tunnel (`stageSocket.isTunnelConnection()` returning true for ngrok / `.app`), 3D models do NOT auto-download. The UI remains on the classic D-Pad to preserve ngrok's 1 GB monthly data transfer limit.
+  - A subtle badge indicates `Cloud tunnel (ngrok) · 3D download paused to save data` with an explicit `[Load Anyway]` button if the operator desires a remote preview.
+  - When connected locally (LAN IP / localhost), 3D model auto-load is fully enabled.
+- **Rationale**:
+  - A single 20 MB model download consumes 2% of the total monthly ngrok free quota. Switching models repeatedly would exhaust the quota within hours.
+  - D-Pad control uses only ~150-byte control messages, enabling endless operation over ngrok without bandwidth exhaustion.

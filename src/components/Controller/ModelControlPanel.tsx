@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useStage } from '../../context/StageContext';
 import { MoveableAssetType, DisplayModeShortLabels } from '../../types/protocol';
+import { stageSocket } from '../../services/socketService';
 import { ProjectionSheet } from '../Stage/ProjectionSheet';
 import { DPad } from './DPad';
 import { ModelViewer3D } from './ModelViewer3D';
@@ -11,6 +12,7 @@ import {
   SunMedium,
   Search,
   AlertTriangle,
+  Globe,
   Eye,
   Grid,
   Camera,
@@ -49,14 +51,18 @@ export const ModelControlPanel: React.FC = () => {
     setForceLoadAnyway(false);
   }, [activeAsset?.AssetID]);
 
+  const isTunnel = stageSocket.isTunnelConnection();
+
   // Check whether the active model is eligible for web 3D rendering
-  const isEligible = Boolean(
+  // If connected via cloud tunnel (ngrok), auto-load is disabled to protect tunnel bandwidth limit
+  const isWithinThreshold = Boolean(
     activeAsset &&
       activeAsset.isWebPreviewable !== false &&
       (!activeAsset.fileSizeBytes || activeAsset.fileSizeBytes <= 25 * 1024 * 1024) &&
       (!activeAsset.triangleCount || activeAsset.triangleCount <= 250000)
   );
 
+  const isEligible = isWithinThreshold && !isTunnel;
   const canPreview = (isEligible || forceLoadAnyway) && Boolean(activeAsset);
 
   // Show Camera toggle ONLY when Rotate or Pan is selected; hide for Light or Magnifier
@@ -107,17 +113,23 @@ export const ModelControlPanel: React.FC = () => {
             gap: 8,
             padding: '5px 10px 5px 12px',
             borderRadius: 'var(--radius-full, 9999px)',
-            background: 'rgba(245, 158, 11, 0.12)',
-            border: '1px solid rgba(245, 158, 11, 0.3)',
-            color: 'var(--color-warning, #f59e0b)',
+            background: isTunnel ? 'rgba(59, 130, 246, 0.12)' : 'rgba(245, 158, 11, 0.12)',
+            border: isTunnel ? '1px solid rgba(59, 130, 246, 0.35)' : '1px solid rgba(245, 158, 11, 0.3)',
+            color: isTunnel ? '#60a5fa' : 'var(--color-warning, #f59e0b)',
             fontSize: '0.72rem',
             lineHeight: 1.2
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, overflow: 'hidden' }}>
-            <AlertTriangle size={13} style={{ flexShrink: 0 }} />
+            {isTunnel ? (
+              <Globe size={13} style={{ flexShrink: 0 }} />
+            ) : (
+              <AlertTriangle size={13} style={{ flexShrink: 0 }} />
+            )}
             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              Direct stage control · Model exceeds web preview {activeAsset.fileSizeMB ? `(${activeAsset.fileSizeMB} MB)` : ''}
+              {isTunnel
+                ? 'Cloud tunnel (ngrok) · 3D download paused to save data'
+                : `Direct stage control · Model exceeds web preview ${activeAsset.fileSizeMB ? `(${activeAsset.fileSizeMB} MB)` : ''}`}
             </span>
           </div>
           {!forceLoadAnyway ? (
@@ -129,9 +141,9 @@ export const ModelControlPanel: React.FC = () => {
               }}
               style={{
                 flexShrink: 0,
-                background: 'rgba(245, 158, 11, 0.25)',
-                border: '1px solid rgba(245, 158, 11, 0.5)',
-                color: '#fbbf24',
+                background: isTunnel ? 'rgba(59, 130, 246, 0.25)' : 'rgba(245, 158, 11, 0.25)',
+                border: isTunnel ? '1px solid rgba(59, 130, 246, 0.5)' : '1px solid rgba(245, 158, 11, 0.5)',
+                color: isTunnel ? '#93c5fd' : '#fbbf24',
                 borderRadius: '9999px',
                 padding: '2px 8px',
                 fontSize: '0.68rem',
@@ -140,13 +152,13 @@ export const ModelControlPanel: React.FC = () => {
                 whiteSpace: 'nowrap',
                 transition: 'all 0.15s ease'
               }}
-              title="Force load 3D preview in browser anyway"
+              title={isTunnel ? 'Load 3D preview over cloud tunnel anyway' : 'Force load 3D preview in browser anyway'}
             >
               Load Anyway
             </button>
           ) : (
             <span style={{ flexShrink: 0, fontSize: '0.65rem', opacity: 0.8, fontStyle: 'italic' }}>
-              Preview forced
+              {isTunnel ? 'Tunnel preview active' : 'Preview forced'}
             </span>
           )}
         </div>
