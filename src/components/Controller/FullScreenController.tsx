@@ -188,10 +188,6 @@ export const FullScreenController: React.FC = () => {
         <RotateCcw size={14} />
         Reset
       </button>
-      <button type="button" className="quick-btn" onClick={triggerFullscreen}>
-        <Maximize size={14} />
-        Fullscreen
-      </button>
       <button type="button" className="quick-btn" onClick={() => setIsMoreOpen(true)}>
         <MoreHorizontal size={14} />
         More
@@ -225,10 +221,6 @@ export const FullScreenController: React.FC = () => {
         <button type="button" className="quick-btn" onClick={resetModelTransform} disabled={!hasControl}>
           <RotateCcw size={14} />
           Reset
-        </button>
-        <button type="button" className="quick-btn" onClick={triggerFullscreen}>
-          <Maximize size={14} />
-          Fullscreen
         </button>
         <button type="button" className="quick-btn" onClick={() => setIsSettingsOpen(true)}>
           <Sliders size={14} />

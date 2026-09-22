@@ -14,9 +14,14 @@
   - Frame reset button.
   - Ngrok browser warning bypass header and parameter to ensure cross-origin model streaming succeeds over cloud tunnels.
   - Non-passive wheel and gesture listener binding to eliminate passive event listener console warnings and prevent whole-page scrolling during model zooming.
-- Updated `src/components/Controller/ModelControlPanel.tsx` with size and poly gating:
-  - Models $\le 25\text{ MB}$ and $\le 250\text{k}$ triangles load `ModelViewer3D`.
-  - Models exceeding the budget display a direct-stage control notice and display `DPad`.
+  - Multi-mode drag handling in 3D viewport (routes dragging to pan, spotlight, or magnifier depending on active mode).
+- Updated `src/components/Controller/FullScreenController.tsx`:
+  - Removed/hid the Fullscreen quick button from primary actions and desktop status panel.
+- Updated `src/components/Controller/ModelControlPanel.tsx`:
+  - Persistent Control Mode selector (Rotate, Pan, Light, Magnifier) across both 3D Live View and D-Pad.
+  - View Mode Changer (Projection: 2D, SBS, HOLO, KMAX) accessible across both views.
+  - Camera toggle (Ortho / Perspective): visible when Rotate or Pan is selected; automatically hidden when Light or Magnifier is selected for both views.
+  - Models $\le 25\text{ MB}$ and $\le 250\text{k}$ triangles load `ModelViewer3D` with seamless D-Pad toggle.
 - Verified production build (`npm run build` succeeds).
 - Added `docs/` per `AGENTS.md` §16.
 

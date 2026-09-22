@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { AssetInformation, JoyStickDirection } from '../../types/protocol';
+import { AssetInformation, JoyStickDirection, MoveableAssetType } from '../../types/protocol';
 import { useStage } from '../../context/StageContext';
 import { stageSocket } from '../../services/socketService';
 import {
@@ -20,7 +20,7 @@ interface ModelViewer3DProps {
 }
 
 export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, onSwitchToDpad }) => {
-  const { sendModelJoystick, resetModelTransform } = useStage();
+  const { sendModelJoystick, resetModelTransform, currentMovableMode } = useStage();
 
   const containerRef = useRef<HTMLDivElement>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -296,10 +296,22 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, onSwitchToD
       return;
     }
 
-    // Gesture: Right Click Drag OR Two-Finger centroid OR Double Tap Drag -> PAN
-    const isPan = e.buttons === 2 || isDoubleTapPanRef.current;
+    // Gesture: Pan mode, Right Click Drag, Two-Finger centroid, or Double Tap Drag -> PAN
+    const isPanMode = currentMovableMode === MoveableAssetType.Pan || e.buttons === 2 || isDoubleTapPanRef.current;
+    const isLightOrMagnifier = currentMovableMode === MoveableAssetType.Spotlight || currentMovableMode === MoveableAssetType.Magnifier;
 
-    if (isPan) {
+    if (isLightOrMagnifier) {
+      setActiveGesture('pan');
+      if (isStageSyncRef.current) {
+        const now = Date.now();
+        if (now - syncThrottleRef.current > 60) {
+          syncThrottleRef.current = now;
+          const normX = Math.max(-1, Math.min(1, (dx / cWidth) * 3));
+          const normY = Math.max(-1, Math.min(1, (dy / cHeight) * 3));
+          sendModelJoystick(JoyStickDirection.Move, normX, normY);
+        }
+      }
+    } else if (isPanMode) {
       setActiveGesture('pan');
       const panFactor = (camera.position.z / cHeight) * 1.2;
       modelGroup.position.x += dx * panFactor;
@@ -550,10 +562,24 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, onSwitchToD
             backdropFilter: 'blur(4px)'
           }}
         >
-          {activeGesture === 'rotate' && 'Rotating Stage...'}
-          {activeGesture === 'pan' && 'Panning Model...'}
+          {activeGesture === 'rotate' && 'Rotating Stage & Model...'}
+          {activeGesture === 'pan' && (
+            currentMovableMode === MoveableAssetType.Spotlight
+              ? 'Moving Light on Stage...'
+              : currentMovableMode === MoveableAssetType.Magnifier
+              ? 'Moving Magnifier on Stage...'
+              : 'Panning Model...'
+          )}
           {activeGesture === 'zoom' && 'Scaling Model...'}
-          {!activeGesture && '1-finger rotate • 2-finger pan • pinch zoom'}
+          {!activeGesture && (
+            currentMovableMode === MoveableAssetType.Spotlight
+              ? 'Drag to position Light on Stage'
+              : currentMovableMode === MoveableAssetType.Magnifier
+              ? 'Drag to move Magnifier lens on Stage'
+              : currentMovableMode === MoveableAssetType.Pan
+              ? 'Drag to Pan • Pinch to Zoom'
+              : '1-finger rotate • 2-finger pan • pinch zoom'
+          )}
         </span>
 
         <button

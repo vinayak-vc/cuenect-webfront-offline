@@ -11,3 +11,5 @@
 | **W-107** | Documentation per `AGENTS.md` | DONE | 2026-09-22 | Created `project-overview.md`, `architecture.md`, `roadmap.md`, `tasks.md`, `decisions.md`, `ai_handoff.md`. |
 | **W-108** | Ngrok Warning Bypass on Model Fetch | DONE | 2026-09-22 | Configured `GLTFLoader` with `ngrok-skip-browser-warning: true` header and URL parameter to bypass ngrok ERR_NGROK_6024 CORS interstitial. |
 | **W-109** | Non-Passive Wheel & Gesture Listeners | DONE | 2026-09-22 | Attached wheel and touch gesture listeners directly with `{ passive: false }` to resolve `Unable to preventDefault inside passive event listener` and prevent browser scrolling while zooming. |
+| **W-110** | Hide Fullscreen Button | DONE | 2026-09-22 | Removed Fullscreen quick-action buttons from `FullScreenController`. |
+| **W-111** | Persistent Mode, View Mode Changer & Ortho/Persp Toggle | DONE | 2026-09-22 | Made Rotate/Pan/Light/Magnifier modes and Projection view changer accessible in both Live View & D-Pad. Conditioned Camera Ortho/Persp toggle to show on Rotate/Pan and hide on Light/Magnifier across both views. |
