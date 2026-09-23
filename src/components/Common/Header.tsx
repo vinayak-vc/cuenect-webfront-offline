@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useStage } from '../../context/StageContext';
-import { RefreshCw, ListPlus, Sliders, Layers, Camera, Maximize, Download } from 'lucide-react';
+import { RefreshCw, ListPlus, Sliders, Layers, Camera, Maximize, Download, Search, X } from 'lucide-react';
 import { usePWAInstall } from '../../services/pwaService';
 import { ConnectionStatus } from './ConnectionStatus';
 import { ProjectionSelector } from './ProjectionSelector';
@@ -40,7 +40,15 @@ export const Header: React.FC<HeaderProps> = ({
   } = useStage();
 
   const [logoError, setLogoError] = useState<boolean>(false);
+  const [isSearchOpen, setIsSearchOpen] = useState<boolean>(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const { canInstall, triggerInstall } = usePWAInstall();
+
+  useEffect(() => {
+    if (isSearchOpen && searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
+  }, [isSearchOpen]);
 
   return (
     <header className="app-header">
@@ -65,12 +73,62 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
       </div>
 
-      {/* Desktop asset discovery. Mobile gets its own field in the catalog. */}
-      <div className="header-search">
-        <SearchField value={query} onChange={onQueryChange} />
+      {/* Animated Expandable Search Bar */}
+      <div className={`header-expandable-search ${isSearchOpen ? 'open' : ''}`}>
+        <div className="expandable-search-inner">
+          <Search size={16} className="search-icon" />
+          <input
+            ref={searchInputRef}
+            type="search"
+            value={query}
+            onChange={(e) => onQueryChange(e.target.value)}
+            placeholder="Search 3D models..."
+            className="expandable-search-input"
+          />
+          {query && (
+            <button
+              type="button"
+              className="search-clear-btn"
+              onClick={() => onQueryChange('')}
+              title="Clear search"
+            >
+              <X size={14} />
+            </button>
+          )}
+          <button
+            type="button"
+            className="search-close-btn"
+            onClick={() => {
+              setIsSearchOpen(false);
+              onQueryChange('');
+            }}
+            title="Close search"
+          >
+            <X size={16} />
+          </button>
+        </div>
       </div>
 
+      {/* Desktop static search (shown when expandable is not open) */}
+      {!isSearchOpen && (
+        <div className="header-search">
+          <SearchField value={query} onChange={onQueryChange} />
+        </div>
+      )}
+
       <div className="header-actions">
+        {/* Top Search Button */}
+        <button
+          type="button"
+          className={`btn-icon header-search-toggle ${isSearchOpen ? 'active' : ''}`}
+          onClick={() => setIsSearchOpen(!isSearchOpen)}
+          title={isSearchOpen ? 'Close search' : 'Search models'}
+          aria-label="Search models"
+          aria-expanded={isSearchOpen}
+        >
+          <Search size={18} />
+        </button>
+
         <ProjectionSelector />
 
         <EnvironmentSelector />

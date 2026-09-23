@@ -73,6 +73,7 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
   const currentYawDegRef = useRef<number>(0);
   const currentPitchDegRef = useRef<number>(0);
   const currentScaleRef = useRef<number>(1.0);
+  const targetScaleRef = useRef<number>(1.0);
   const minScaleRef = useRef<number>(1.0);
   const maxScaleRef = useRef<number>(12.5);
   const currentPosRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
@@ -133,6 +134,7 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
     if (typeof stageModelTransform.scale === 'number' && stageModelTransform.scale > 0.001) {
       const baseRatio = minScaleRef.current > 0 ? stageModelTransform.scale / minScaleRef.current : 1;
       currentScaleRef.current = baseRatio;
+      targetScaleRef.current = baseRatio;
       if (panRootRef.current) {
         panRootRef.current.scale.set(baseRatio, baseRatio, baseRatio);
       }
@@ -163,26 +165,18 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
   const syncThrottleRef = useRef<number>(0);
   const zoomHoldIntervalRef = useRef<number | null>(null);
 
-  // Discrete & continuous zoom step
+  // Discrete & continuous zoom step (smooth target scale)
   const zoomStep = useCallback((factor: number) => {
     if (isAutoRotatingRef.current) {
       isAutoRotatingRef.current = false;
       stopAutoRotate();
     }
     const maxRatio = maxScaleRef.current / (minScaleRef.current || 1);
-    currentScaleRef.current = Math.max(1.0, Math.min(maxRatio, currentScaleRef.current * factor));
-
-    if (panRootRef.current) {
-      panRootRef.current.scale.set(
-        currentScaleRef.current,
-        currentScaleRef.current,
-        currentScaleRef.current
-      );
-    }
+    targetScaleRef.current = Math.max(1.0, Math.min(maxRatio, targetScaleRef.current * factor));
     requestRender();
 
     if (isStageSyncRef.current) {
-      const unityScale = minScaleRef.current * currentScaleRef.current;
+      const unityScale = minScaleRef.current * targetScaleRef.current;
       const UNITY_MAX_PAN_X = 9.0;
       const UNITY_MAX_PAN_Y = 5.0;
       const normX = Math.max(-1, Math.min(1, currentPosRef.current.x / (maxPanXRef.current || 1)));
@@ -232,6 +226,7 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
     currentYawDegRef.current = 0;
     currentPitchDegRef.current = 0;
     currentScaleRef.current = 1.0;
+    targetScaleRef.current = 1.0;
     currentPosRef.current = { x: 0, y: 0 };
 
     if (yawGroupRef.current) {
@@ -321,6 +316,19 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
         currentYawDegRef.current = (currentYawDegRef.current + 10 * dt) % 360;
         if (yawGroupRef.current) {
           yawGroupRef.current.rotation.y = -(currentYawDegRef.current * Math.PI) / 180;
+        }
+        needsRenderRef.current = true;
+      }
+
+      // Smooth scale lerp toward targetScaleRef
+      if (Math.abs(currentScaleRef.current - targetScaleRef.current) > 0.001) {
+        currentScaleRef.current = THREE.MathUtils.lerp(currentScaleRef.current, targetScaleRef.current, 0.22);
+        if (panRootRef.current) {
+          panRootRef.current.scale.set(
+            currentScaleRef.current,
+            currentScaleRef.current,
+            currentScaleRef.current
+          );
         }
         needsRenderRef.current = true;
       }
@@ -442,19 +450,11 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
       }
       const zoomFactor = e.deltaY > 0 ? 0.94 : 1.06;
       const maxRatio = maxScaleRef.current / (minScaleRef.current || 1);
-      currentScaleRef.current = Math.max(1.0, Math.min(maxRatio, currentScaleRef.current * zoomFactor));
-
-      if (panRootRef.current) {
-        panRootRef.current.scale.set(
-          currentScaleRef.current,
-          currentScaleRef.current,
-          currentScaleRef.current
-        );
-      }
+      targetScaleRef.current = Math.max(1.0, Math.min(maxRatio, targetScaleRef.current * zoomFactor));
       requestRender();
 
       if (isStageSyncRef.current) {
-        const unityScale = minScaleRef.current * currentScaleRef.current;
+        const unityScale = minScaleRef.current * targetScaleRef.current;
         const UNITY_MAX_PAN_X = 9.0;
         const UNITY_MAX_PAN_Y = 5.0;
         const normX = Math.max(-1, Math.min(1, currentPosRef.current.x / (maxPanXRef.current || 1)));
@@ -552,7 +552,8 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
           const zoomSpeed = 0.006;
           const zoomMultiplier = 1 + pinchDelta * zoomSpeed;
           const maxRatio = maxScaleRef.current / (minScaleRef.current || 1);
-          currentScaleRef.current = Math.max(1.0, Math.min(maxRatio, currentScaleRef.current * zoomMultiplier));
+          targetScaleRef.current = Math.max(1.0, Math.min(maxRatio, targetScaleRef.current * zoomMultiplier));
+          currentScaleRef.current = targetScaleRef.current;
 
           if (panRootRef.current) {
             panRootRef.current.scale.set(

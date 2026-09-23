@@ -95,8 +95,29 @@ export const AssetCard: React.FC<AssetCardProps> = ({ asset }) => {
       ? `${Math.round(asset.videoDuration)}s`
       : null;
 
+  const handleCardClick = () => {
+    if (isActive) {
+      setIsControllerOpen(true);
+    } else {
+      loadAsset(asset);
+    }
+  };
+
   return (
-    <div ref={cardRef} className={`asset-card ${isActive ? 'active-stage' : ''}`}>
+    <div
+      ref={cardRef}
+      className={`asset-card ${isActive ? 'active-stage' : ''}`}
+      onClick={handleCardClick}
+      style={{ cursor: 'pointer' }}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          handleCardClick();
+        }
+      }}
+    >
       <div className="asset-thumb-wrapper">
         {thumbUrl ? (
           <img src={thumbUrl} alt={asset.AssetName} className="asset-thumb" loading="lazy" />
@@ -128,7 +149,10 @@ export const AssetCard: React.FC<AssetCardProps> = ({ asset }) => {
         <button
           type="button"
           className={`asset-fav ${isFavourite ? 'on' : ''}`}
-          onClick={() => toggleFavourite(asset.AssetID)}
+          onClick={(e) => {
+            e.stopPropagation();
+            toggleFavourite(asset.AssetID);
+          }}
           title={isFavourite ? 'Remove from favourites' : 'Add to favourites'}
           aria-label={isFavourite ? 'Remove from favourites' : 'Add to favourites'}
           aria-pressed={isFavourite}
@@ -153,27 +177,26 @@ export const AssetCard: React.FC<AssetCardProps> = ({ asset }) => {
           <button
             type="button"
             className={`btn btn-card-load ${isActive ? 'btn-secondary' : 'btn-primary'}`}
-            onClick={() => (isActive ? setIsControllerOpen(true) : loadAsset(asset))}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleCardClick();
+            }}
           >
             {isActive ? <Sliders size={14} /> : <Play size={14} />}
-            {isActive ? (
-              'Control'
-            ) : (
-              <>
-                <span className="label-full">Load to Stage</span>
-                <span className="label-short">Load</span>
-              </>
-            )}
+            {isActive ? 'Control' : 'Load'}
           </button>
 
           <button
             type="button"
             className={`btn-card-playlist-action ${isInCustomPlaylist ? 'in-playlist' : ''}`}
-            onClick={() =>
-              isInCustomPlaylist
-                ? removeFromCustomPlaylist(asset.AssetID)
-                : addToCustomPlaylist(asset.AssetID)
-            }
+            onClick={(e) => {
+              e.stopPropagation();
+              if (isInCustomPlaylist) {
+                removeFromCustomPlaylist(asset.AssetID);
+              } else {
+                addToCustomPlaylist(asset.AssetID);
+              }
+            }}
             title={isInCustomPlaylist ? 'Remove from playlist' : 'Add to playlist'}
           >
             {isInCustomPlaylist ? <Check size={15} /> : <Plus size={15} />}

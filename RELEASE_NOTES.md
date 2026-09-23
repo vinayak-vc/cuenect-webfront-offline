@@ -1,5 +1,21 @@
 # Release Notes - Cuenect Webfront Controller
 
+## [1.4.0] - 2026-09-23
+
+### Added
+- **Top Expandable Search Bar**:
+  - Added a search toggle icon button at the top header actions.
+  - Implemented smooth expanding animation revealing an auto-focused search input on both mobile and desktop.
+  - Added real-time filtering with clear and close actions.
+- **Card-Level Click-to-Load**:
+  - Clicking or tapping anywhere on an asset card now loads the model directly onto the hologram stage.
+  - Re-labeled the primary button from "Load to Stage" to "Load" for a clean, punchy design.
+- **Smooth Scale Lerping (Zero Jitter)**:
+  - Added target scale interpolation (`targetScaleRef`) in Three.js `animate()` loop.
+  - Eliminates scale stepping and jitter when pressing `+` and `-` zoom buttons or using the mouse wheel/pinch gestures.
+
+---
+
 ## [1.3.0] - 2026-09-23
 
 ### Added
