@@ -1,5 +1,38 @@
 # Release Notes - Cuenect Webfront Controller
 
+## [1.3.0] - 2026-09-23
+
+### Added
+- **Natural Multi-Touch 3D Controls (Simultaneous Pan & Zoom)**:
+  - 1-Finger Drag (or Left-click drag): Orbit / Rotate Yaw & Pitch (inverted horizontal delta for natural turning).
+  - 2-Finger Drag: Smooth Pan within clamped viewport boundaries.
+  - 2-Finger Pinch (or Mouse Wheel): Zoom / Scale model smoothly.
+  - Simultaneous 2-finger Pan and Pinch: Panning and scaling operate concurrently without conflicting gestures.
+- **On-Canvas Floating HUD Controls**:
+  - **Quick Mode Chip (`[ ⟳ Orbit | ✥ Pan ]`)**: Top-left on-canvas toggle enabling single-finger / single-thumb panning without navigating menus.
+  - **Quick Reset (`↺`)**: Top-right on-canvas floating button to instantly re-center, re-frame, and reset model orientation.
+  - **Floating Zoom Pill (`[ + ]` / `[ − ]`)**: Bottom-right on-canvas zoom buttons supporting both single-tap steps and press-and-hold continuous zooming.
+  - **Transient Interaction Hint**: Displays gesture guide on initial load, auto-dismissing after 4 seconds or immediately on first touch.
+  - **Active Gesture Feedback**: Clear real-time status overlay indicating current gesture (Orbiting, Panning, Scaling, or Panning & Scaling).
+
+### Changed
+- **Streamlined Control Layout (`ModelControlPanel.tsx`)**:
+  - Moved **Control Surface Selector (`[ 3D View | D-Pad ]`)** to the top of the interface for immediate visibility.
+  - Placed compact **Projection & Camera Toolbar** directly below the surface selector.
+  - Removed redundant outer `Control Mode` row when 3D View is active, maximizing vertical canvas height on mobile devices and eliminating unnecessary page scrolling.
+  - Displayed `D-Pad Direction Mode` specifically above the D-Pad when in classic D-Pad mode.
+
+---
+
+## [1.2.3] - 2026-09-23
+
+### Changed
+- **Removed Spotlight and Magnifier from Web Controller Interface**:
+  - Removed Spotlight (Light) and Magnifier options from the 3D model control mode selector (`ModelControlPanel.tsx`), streamlining controls to Rotate and Pan.
+  - Cleaned up unused icons and mode-switching logic in `ModelControlPanel.tsx` and `ModelViewer3D.tsx`.
+
+---
+
 ## [1.2.2] - 2026-09-23
 
 ### Fixed

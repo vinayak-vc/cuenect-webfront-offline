@@ -7,7 +7,11 @@ import { stageSocket } from '../../services/socketService';
 import {
   RotateCcw,
   AlertCircle,
-  Loader2
+  Loader2,
+  Orbit,
+  Move,
+  Plus,
+  Minus
 } from 'lucide-react';
 
 interface ModelViewer3DProps {
@@ -23,7 +27,8 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
     syncModelTransform,
     stopAutoRotate,
     stageModelTransform,
-    currentMovableMode
+    currentMovableMode,
+    setMovableMode
   } = useStage();
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -31,7 +36,16 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
   const [loadProgress, setLoadProgress] = useState<number>(0);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isStageSync, setIsStageSync] = useState<boolean>(true);
-  const [activeGesture, setActiveGesture] = useState<'rotate' | 'pan' | 'zoom' | null>(null);
+  const [activeGesture, setActiveGesture] = useState<'rotate' | 'pan' | 'zoom' | 'pan-zoom' | null>(null);
+  const [showGestureHint, setShowGestureHint] = useState<boolean>(true);
+
+  // Auto-dismiss gesture hint after 4 seconds
+  useEffect(() => {
+    const hintTimer = window.setTimeout(() => {
+      setShowGestureHint(false);
+    }, 4000);
+    return () => window.clearTimeout(hintTimer);
+  }, []);
 
   // Auto-rotation active until user interacts
   const isAutoRotatingRef = useRef<boolean>(true);
@@ -143,9 +157,73 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
   // Gesture tracking references
   const pointersRef = useRef<Map<number, { x: number; y: number }>>(new Map());
   const lastPinchDistRef = useRef<number | null>(null);
+  const lastTwoFingerCenterRef = useRef<{ x: number; y: number } | null>(null);
   const lastTapTimeRef = useRef<number>(0);
   const isDoubleTapPanRef = useRef<boolean>(false);
   const syncThrottleRef = useRef<number>(0);
+  const zoomHoldIntervalRef = useRef<number | null>(null);
+
+  // Discrete & continuous zoom step
+  const zoomStep = useCallback((factor: number) => {
+    if (isAutoRotatingRef.current) {
+      isAutoRotatingRef.current = false;
+      stopAutoRotate();
+    }
+    const maxRatio = maxScaleRef.current / (minScaleRef.current || 1);
+    currentScaleRef.current = Math.max(1.0, Math.min(maxRatio, currentScaleRef.current * factor));
+
+    if (panRootRef.current) {
+      panRootRef.current.scale.set(
+        currentScaleRef.current,
+        currentScaleRef.current,
+        currentScaleRef.current
+      );
+    }
+    requestRender();
+
+    if (isStageSyncRef.current) {
+      const unityScale = minScaleRef.current * currentScaleRef.current;
+      const UNITY_MAX_PAN_X = 9.0;
+      const UNITY_MAX_PAN_Y = 5.0;
+      const normX = Math.max(-1, Math.min(1, currentPosRef.current.x / (maxPanXRef.current || 1)));
+      const normY = Math.max(-1, Math.min(1, currentPosRef.current.y / (maxPanYRef.current || 1)));
+      syncModelTransform(
+        currentYawDegRef.current,
+        currentPitchDegRef.current,
+        unityScale,
+        normX * UNITY_MAX_PAN_X,
+        normY * UNITY_MAX_PAN_Y
+      );
+    }
+  }, [requestRender, stopAutoRotate, syncModelTransform]);
+
+  const handleZoomButtonDown = (factor: number) => {
+    setShowGestureHint(false);
+    zoomStep(factor);
+    if (zoomHoldIntervalRef.current) {
+      window.clearInterval(zoomHoldIntervalRef.current);
+    }
+    zoomHoldIntervalRef.current = window.setInterval(() => {
+      const continuousFactor = factor > 1 ? 1.04 : 0.96;
+      zoomStep(continuousFactor);
+    }, 90);
+  };
+
+  const handleZoomButtonUp = () => {
+    if (zoomHoldIntervalRef.current) {
+      window.clearInterval(zoomHoldIntervalRef.current);
+      zoomHoldIntervalRef.current = null;
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (zoomHoldIntervalRef.current) {
+        window.clearInterval(zoomHoldIntervalRef.current);
+        zoomHoldIntervalRef.current = null;
+      }
+    };
+  }, []);
 
   // Clean reset function
   const handleReset = useCallback(() => {
@@ -420,6 +498,7 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
     e.currentTarget.setPointerCapture(e.pointerId);
     pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
     isInteractingRef.current = true;
+    setShowGestureHint(false);
 
     // Stop auto-rotation immediately when user begins interaction
     if (isAutoRotatingRef.current) {
@@ -434,15 +513,19 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
       setActiveGesture('pan');
     } else {
       isDoubleTapPanRef.current = false;
+      const isPan = currentMovableMode === MoveableAssetType.Pan || e.buttons === 2 || e.shiftKey;
+      setActiveGesture(isPan ? 'pan' : 'rotate');
     }
     lastTapTimeRef.current = now;
 
-    if (pointersRef.current.size === 1) {
-      setActiveGesture(isDoubleTapPanRef.current ? 'pan' : 'rotate');
-    } else if (pointersRef.current.size === 2) {
-      setActiveGesture('zoom');
+    if (pointersRef.current.size === 2) {
+      setActiveGesture('pan-zoom');
       const pts = Array.from(pointersRef.current.values());
       lastPinchDistRef.current = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+      lastTwoFingerCenterRef.current = {
+        x: (pts[0].x + pts[1].x) / 2,
+        y: (pts[0].y + pts[1].y) / 2
+      };
     }
     requestRender();
   };
@@ -450,34 +533,69 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
   const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!pointersRef.current.has(e.pointerId)) return;
 
-    const prevPos = pointersRef.current.get(e.pointerId)!;
-    const dx = e.clientX - prevPos.x;
-    const dy = e.clientY - prevPos.y;
-    pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
-
-    // Gesture: Two-finger Pinch (Zoom)
+    // --- Gesture: Two-Finger Simultaneous Pan & Pinch-Zoom ---
     if (pointersRef.current.size === 2) {
+      pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
       const pts = Array.from(pointersRef.current.values());
       const currentDist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+      const currentCenter = {
+        x: (pts[0].x + pts[1].x) / 2,
+        y: (pts[0].y + pts[1].y) / 2
+      };
+
+      let hasChanged = false;
+
+      // 1. Pinch Zoom
       if (lastPinchDistRef.current !== null && lastPinchDistRef.current > 0) {
         const pinchDelta = currentDist - lastPinchDistRef.current;
-        const zoomSpeed = 0.006;
-        const zoomMultiplier = 1 + pinchDelta * zoomSpeed;
-        const maxRatio = maxScaleRef.current / (minScaleRef.current || 1);
-        currentScaleRef.current = Math.max(1.0, Math.min(maxRatio, currentScaleRef.current * zoomMultiplier));
+        if (Math.abs(pinchDelta) > 0.5) {
+          const zoomSpeed = 0.006;
+          const zoomMultiplier = 1 + pinchDelta * zoomSpeed;
+          const maxRatio = maxScaleRef.current / (minScaleRef.current || 1);
+          currentScaleRef.current = Math.max(1.0, Math.min(maxRatio, currentScaleRef.current * zoomMultiplier));
 
-        if (panRootRef.current) {
-          panRootRef.current.scale.set(
-            currentScaleRef.current,
-            currentScaleRef.current,
-            currentScaleRef.current
-          );
+          if (panRootRef.current) {
+            panRootRef.current.scale.set(
+              currentScaleRef.current,
+              currentScaleRef.current,
+              currentScaleRef.current
+            );
+          }
+          hasChanged = true;
         }
-        requestRender();
+      }
 
+      // 2. Two-Finger Pan
+      if (lastTwoFingerCenterRef.current !== null) {
+        const centerDx = currentCenter.x - lastTwoFingerCenterRef.current.x;
+        const centerDy = currentCenter.y - lastTwoFingerCenterRef.current.y;
+
+        if (Math.abs(centerDx) > 0.3 || Math.abs(centerDy) > 0.3) {
+          const containerWidth = containerRef.current?.clientWidth || 320;
+          const containerHeight = containerRef.current?.clientHeight || 320;
+          const panSensitivityX = (maxPanXRef.current * 1.8) / containerWidth;
+          const panSensitivityY = (maxPanYRef.current * 1.8) / containerHeight;
+
+          const nextX = Math.max(-maxPanXRef.current, Math.min(maxPanXRef.current, currentPosRef.current.x + centerDx * panSensitivityX));
+          const nextY = Math.max(-maxPanYRef.current, Math.min(maxPanYRef.current, currentPosRef.current.y - centerDy * panSensitivityY));
+          currentPosRef.current = { x: nextX, y: nextY };
+
+          if (panRootRef.current) {
+            panRootRef.current.position.set(nextX, nextY, 0);
+          }
+          hasChanged = true;
+        }
+      }
+
+      lastPinchDistRef.current = currentDist;
+      lastTwoFingerCenterRef.current = currentCenter;
+
+      if (hasChanged) {
+        setActiveGesture('pan-zoom');
+        requestRender();
         if (isStageSyncRef.current) {
           const now = Date.now();
-          if (now - syncThrottleRef.current > 60) {
+          if (now - syncThrottleRef.current > 40) {
             syncThrottleRef.current = now;
             const unityScale = minScaleRef.current * currentScaleRef.current;
             const UNITY_MAX_PAN_X = 9.0;
@@ -494,15 +612,18 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
           }
         }
       }
-      lastPinchDistRef.current = currentDist;
       return;
     }
 
-    // Gesture: Pan mode, Right Click Drag, or Double Tap Drag -> PAN
-    const isPanMode = currentMovableMode === MoveableAssetType.Pan || e.buttons === 2 || isDoubleTapPanRef.current;
-    const isLightOrMagnifier = currentMovableMode === MoveableAssetType.Spotlight || currentMovableMode === MoveableAssetType.Magnifier;
+    // --- Gesture: Single Pointer Drag (Rotate or Pan) ---
+    const prevPos = pointersRef.current.get(e.pointerId)!;
+    const dx = e.clientX - prevPos.x;
+    const dy = e.clientY - prevPos.y;
+    pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
 
-    if (isLightOrMagnifier || isPanMode) {
+    const isPanMode = currentMovableMode === MoveableAssetType.Pan || e.buttons === 2 || e.shiftKey || isDoubleTapPanRef.current;
+
+    if (isPanMode) {
       setActiveGesture('pan');
       const containerWidth = containerRef.current?.clientWidth || 320;
       const containerHeight = containerRef.current?.clientHeight || 320;
@@ -577,6 +698,7 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
     pointersRef.current.delete(e.pointerId);
     if (pointersRef.current.size < 2) {
       lastPinchDistRef.current = null;
+      lastTwoFingerCenterRef.current = null;
     }
     if (pointersRef.current.size === 0) {
       setActiveGesture(null);
@@ -633,30 +755,214 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
           }}
         />
 
-        {/* Transient interaction hint (only shown during active gestures) */}
-        {activeGesture && (
+        {/* Top-Left: 1-Thumb Mode Switcher (Orbit vs Pan) */}
+        <div
+          style={{
+            position: 'absolute',
+            top: 10,
+            left: 10,
+            display: 'flex',
+            background: 'rgba(7, 10, 19, 0.78)',
+            borderRadius: 20,
+            border: '1px solid rgba(255, 255, 255, 0.14)',
+            backdropFilter: 'blur(8px)',
+            padding: 2,
+            zIndex: 10,
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.4)'
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => setMovableMode(MoveableAssetType.Rotate)}
+            title="Single-finger drag rotates model"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 5,
+              padding: '4px 9px',
+              borderRadius: 16,
+              fontSize: '0.68rem',
+              fontWeight: 600,
+              border: 'none',
+              cursor: 'pointer',
+              background: currentMovableMode === MoveableAssetType.Rotate ? 'rgba(0, 229, 255, 0.22)' : 'transparent',
+              color: currentMovableMode === MoveableAssetType.Rotate ? '#00e5ff' : '#94a3b8',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            <Orbit size={12} />
+            Orbit
+          </button>
+          <button
+            type="button"
+            onClick={() => setMovableMode(MoveableAssetType.Pan)}
+            title="Single-finger drag pans model"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 5,
+              padding: '4px 9px',
+              borderRadius: 16,
+              fontSize: '0.68rem',
+              fontWeight: 600,
+              border: 'none',
+              cursor: 'pointer',
+              background: currentMovableMode === MoveableAssetType.Pan ? 'rgba(0, 229, 255, 0.22)' : 'transparent',
+              color: currentMovableMode === MoveableAssetType.Pan ? '#00e5ff' : '#94a3b8',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            <Move size={12} />
+            Pan
+          </button>
+        </div>
+
+        {/* Top-Right: Quick Reset Button */}
+        <button
+          type="button"
+          onClick={handleReset}
+          title="Reset orientation, framing, and position"
+          style={{
+            position: 'absolute',
+            top: 10,
+            right: 10,
+            width: 28,
+            height: 28,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderRadius: '50%',
+            background: 'rgba(7, 10, 19, 0.78)',
+            border: '1px solid rgba(255, 255, 255, 0.14)',
+            backdropFilter: 'blur(8px)',
+            color: '#f8fafc',
+            cursor: 'pointer',
+            zIndex: 10,
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.4)',
+            transition: 'all 0.15s ease'
+          }}
+        >
+          <RotateCcw size={13} />
+        </button>
+
+        {/* Bottom-Right: Floating Zoom Pill (Tap or Hold) */}
+        <div
+          style={{
+            position: 'absolute',
+            bottom: 12,
+            right: 10,
+            display: 'flex',
+            flexDirection: 'column',
+            background: 'rgba(7, 10, 19, 0.8)',
+            border: '1px solid rgba(255, 255, 255, 0.14)',
+            borderRadius: 12,
+            backdropFilter: 'blur(8px)',
+            overflow: 'hidden',
+            zIndex: 10,
+            boxShadow: '0 4px 14px rgba(0, 0, 0, 0.4)'
+          }}
+        >
+          <button
+            type="button"
+            onPointerDown={(e) => {
+              e.preventDefault();
+              handleZoomButtonDown(1.12);
+            }}
+            onPointerUp={handleZoomButtonUp}
+            onPointerLeave={handleZoomButtonUp}
+            onPointerCancel={handleZoomButtonUp}
+            title="Zoom In (Tap or hold)"
+            style={{
+              width: 32,
+              height: 32,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: 'transparent',
+              border: 'none',
+              borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+              color: '#f8fafc',
+              cursor: 'pointer',
+              transition: 'background 0.15s ease'
+            }}
+          >
+            <Plus size={15} />
+          </button>
+          <button
+            type="button"
+            onPointerDown={(e) => {
+              e.preventDefault();
+              handleZoomButtonDown(0.88);
+            }}
+            onPointerUp={handleZoomButtonUp}
+            onPointerLeave={handleZoomButtonUp}
+            onPointerCancel={handleZoomButtonUp}
+            title="Zoom Out (Tap or hold)"
+            style={{
+              width: 32,
+              height: 32,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: 'transparent',
+              border: 'none',
+              color: '#f8fafc',
+              cursor: 'pointer',
+              transition: 'background 0.15s ease'
+            }}
+          >
+            <Minus size={15} />
+          </button>
+        </div>
+
+        {/* Bottom-Left: Transient Gesture Hint or Active Status */}
+        {activeGesture ? (
           <div
             style={{
               position: 'absolute',
               bottom: 12,
-              left: '50%',
-              transform: 'translateX(-50%)',
-              padding: '4px 14px',
-              borderRadius: 20,
-              background: 'rgba(7, 10, 19, 0.82)',
-              border: '1px solid rgba(255, 255, 255, 0.15)',
+              left: 10,
+              padding: '4px 12px',
+              borderRadius: 16,
+              background: 'rgba(7, 10, 19, 0.85)',
+              border: '1px solid rgba(0, 229, 255, 0.3)',
               backdropFilter: 'blur(6px)',
-              fontSize: '0.72rem',
-              color: 'var(--text-primary, #f8fafc)',
+              fontSize: '0.7rem',
+              fontWeight: 500,
+              color: '#00e5ff',
+              pointerEvents: 'none',
+              zIndex: 10,
+              boxShadow: '0 2px 10px rgba(0, 229, 255, 0.15)'
+            }}
+          >
+            {activeGesture === 'rotate' && 'Orbiting Model & Stage...'}
+            {activeGesture === 'pan' && 'Panning Model...'}
+            {activeGesture === 'zoom' && 'Scaling Model...'}
+            {activeGesture === 'pan-zoom' && 'Panning & Scaling...'}
+          </div>
+        ) : showGestureHint ? (
+          <div
+            style={{
+              position: 'absolute',
+              bottom: 12,
+              left: 10,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 5,
+              padding: '4px 10px',
+              borderRadius: 16,
+              background: 'rgba(7, 10, 19, 0.82)',
+              border: '1px solid rgba(255, 255, 255, 0.12)',
+              backdropFilter: 'blur(6px)',
+              fontSize: '0.67rem',
+              color: '#94a3b8',
               pointerEvents: 'none',
               zIndex: 10
             }}
           >
-            {activeGesture === 'rotate' && 'Rotating Stage & Model...'}
-            {activeGesture === 'pan' && 'Panning Model...'}
-            {activeGesture === 'zoom' && 'Scaling Model...'}
+            <span>1-Finger: Drag • 2-Finger: Pan/Pinch • [+][−] Zoom</span>
           </div>
-        )}
+        ) : null}
 
         {/* Loading Overlay */}
         {isLoading && (

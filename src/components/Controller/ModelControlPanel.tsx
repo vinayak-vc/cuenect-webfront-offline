@@ -8,8 +8,6 @@ import { SegmentedControl, SegmentedOption } from '../Common/SegmentedControl';
 import {
   Box,
   Move,
-  SunMedium,
-  Search,
   AlertTriangle,
   Globe,
   Eye,
@@ -95,9 +93,7 @@ export const ModelControlPanel: React.FC = () => {
 
   const modes: SegmentedOption<MoveableAssetType>[] = [
     { value: MoveableAssetType.Rotate, label: 'Rotate', icon: <Box size={14} /> },
-    { value: MoveableAssetType.Pan, label: 'Pan', icon: <Move size={14} /> },
-    { value: MoveableAssetType.Spotlight, label: 'Light', icon: <SunMedium size={14} /> },
-    { value: MoveableAssetType.Magnifier, label: 'Magnifier', icon: <Search size={14} /> }
+    { value: MoveableAssetType.Pan, label: 'Pan', icon: <Move size={14} /> }
   ];
 
   const surfaceOptions: SegmentedOption<'3d' | 'dpad'>[] = [
@@ -182,16 +178,19 @@ export const ModelControlPanel: React.FC = () => {
         </div>
       )}
 
-      {/* Level 1: Primary Control Mode (Rotate, Pan, Light, Magnifier) */}
-      <div style={{ width: '100%', maxWidth: 420, display: 'flex', flexDirection: 'column', gap: 6 }}>
-        <span className="u-section-label">Control Mode</span>
-        <SegmentedControl
-          options={modes}
-          value={currentMovableMode}
-          onChange={handleModeChange}
-          ariaLabel="Model control mode"
-        />
-      </div>
+      {/* Level 1: Control Surface Selector (3D View vs D-Pad) */}
+      {canPreview && (
+        <div style={{ width: '100%', maxWidth: 420, display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <span className="u-section-label">Control Surface</span>
+          <SegmentedControl
+            options={surfaceOptions}
+            value={show3DViewer ? '3d' : 'dpad'}
+            onChange={handleSurfaceChange}
+            compact
+            ariaLabel="Control surface mode"
+          />
+        </div>
+      )}
 
       {/* Level 2: Secondary Stage Configuration (Projection & Camera) */}
       <div style={{ width: '100%', maxWidth: 420, display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -244,21 +243,7 @@ export const ModelControlPanel: React.FC = () => {
         )}
       </div>
 
-      {/* Level 3: Control Surface Selector (3D View vs D-Pad) */}
-      {canPreview && (
-        <div style={{ width: '100%', maxWidth: 420, display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <span className="u-section-label">Control Surface</span>
-          <SegmentedControl
-            options={surfaceOptions}
-            value={show3DViewer ? '3d' : 'dpad'}
-            onChange={handleSurfaceChange}
-            compact
-            ariaLabel="Control surface mode"
-          />
-        </div>
-      )}
-
-      {/* Level 4: Active Control Surface */}
+      {/* Level 3: Active Control Surface */}
       {/* 3D Viewport (Kept mounted in DOM when previewable so model is never destroyed or reloaded) */}
       {canPreview && activeAsset && (
         <div
@@ -286,9 +271,20 @@ export const ModelControlPanel: React.FC = () => {
           flexDirection: 'column',
           alignItems: 'center',
           width: '100%',
-          gap: 12
+          gap: 14
         }}
       >
+        {/* D-Pad Direction Mode Selector (Rotate vs Pan) */}
+        <div style={{ width: '100%', maxWidth: 420, display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <span className="u-section-label">D-Pad Direction Mode</span>
+          <SegmentedControl
+            options={modes}
+            value={currentMovableMode}
+            onChange={handleModeChange}
+            ariaLabel="D-Pad control mode"
+          />
+        </div>
+
         <DPad
           centerLabel={
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
