@@ -1,11 +1,15 @@
 {
+  "id": "/",
   "name": "Cuenect Stage Controller",
   "short_name": "Cuenect",
   "description": "Remote Controller for Cuenect Hologram Stage",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
+  "orientation": "portrait-primary",
   "background_color": "#0d1117",
   "theme_color": "#00e5ff",
+  "categories": ["utilities", "productivity", "multimedia"],
   "icons": [
     {
       "src": "/favicon.svg",
@@ -24,6 +28,13 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Controller",
+      "url": "/",
+      "description": "Open Hologram Stage Controller"
     }
   ]
 }

@@ -62,6 +62,8 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
   const minScaleRef = useRef<number>(1.0);
   const maxScaleRef = useRef<number>(12.5);
   const currentPosRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const maxPanXRef = useRef<number>(1.2);
+  const maxPanYRef = useRef<number>(0.9);
   const isInteractingRef = useRef<boolean>(false);
 
   // Sync state reference to avoid stale closures in event handlers
@@ -123,9 +125,15 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
     }
 
     if (typeof stageModelTransform.posX === 'number' && typeof stageModelTransform.posY === 'number') {
-      currentPosRef.current = { x: stageModelTransform.posX, y: stageModelTransform.posY };
+      const UNITY_MAX_PAN_X = 9.0;
+      const UNITY_MAX_PAN_Y = 5.0;
+      const normX = Math.max(-1, Math.min(1, stageModelTransform.posX / UNITY_MAX_PAN_X));
+      const normY = Math.max(-1, Math.min(1, stageModelTransform.posY / UNITY_MAX_PAN_Y));
+      const webX = normX * maxPanXRef.current;
+      const webY = normY * maxPanYRef.current;
+      currentPosRef.current = { x: webX, y: webY };
       if (panRootRef.current) {
-        panRootRef.current.position.set(stageModelTransform.posX, stageModelTransform.posY, 0);
+        panRootRef.current.position.set(webX, webY, 0);
       }
     }
 
@@ -296,6 +304,13 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
         camera.far = cameraDistance * 50;
         camera.updateProjectionMatrix();
 
+        // Calculate web pan bounds at this camera distance to keep the model inside the viewport
+        const viewHalfHeight = cameraDistance * Math.tan(fov / 2);
+        const aspect = (container.clientWidth || 320) / (container.clientHeight || 320);
+        const viewHalfWidth = viewHalfHeight * aspect;
+        maxPanXRef.current = Math.max(0.6, viewHalfWidth * 0.65);
+        maxPanYRef.current = Math.max(0.45, viewHalfHeight * 0.65);
+
         // Initialize pose & enable auto-rotation on load matching Unity
         currentYawDegRef.current = 0;
         currentPitchDegRef.current = 0;
@@ -362,12 +377,16 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
 
       if (isStageSyncRef.current) {
         const unityScale = minScaleRef.current * currentScaleRef.current;
+        const UNITY_MAX_PAN_X = 9.0;
+        const UNITY_MAX_PAN_Y = 5.0;
+        const normX = Math.max(-1, Math.min(1, currentPosRef.current.x / (maxPanXRef.current || 1)));
+        const normY = Math.max(-1, Math.min(1, currentPosRef.current.y / (maxPanYRef.current || 1)));
         syncModelTransform(
           currentYawDegRef.current,
           currentPitchDegRef.current,
           unityScale,
-          currentPosRef.current.x,
-          currentPosRef.current.y
+          normX * UNITY_MAX_PAN_X,
+          normY * UNITY_MAX_PAN_Y
         );
       }
     };
@@ -461,12 +480,16 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
           if (now - syncThrottleRef.current > 60) {
             syncThrottleRef.current = now;
             const unityScale = minScaleRef.current * currentScaleRef.current;
+            const UNITY_MAX_PAN_X = 9.0;
+            const UNITY_MAX_PAN_Y = 5.0;
+            const normX = Math.max(-1, Math.min(1, currentPosRef.current.x / (maxPanXRef.current || 1)));
+            const normY = Math.max(-1, Math.min(1, currentPosRef.current.y / (maxPanYRef.current || 1)));
             syncModelTransform(
               currentYawDegRef.current,
               currentPitchDegRef.current,
               unityScale,
-              currentPosRef.current.x,
-              currentPosRef.current.y
+              normX * UNITY_MAX_PAN_X,
+              normY * UNITY_MAX_PAN_Y
             );
           }
         }
@@ -481,26 +504,36 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
 
     if (isLightOrMagnifier || isPanMode) {
       setActiveGesture('pan');
-      const panFactor = 0.005;
-      currentPosRef.current.x += dx * panFactor;
-      currentPosRef.current.y -= dy * panFactor;
+      const containerWidth = containerRef.current?.clientWidth || 320;
+      const containerHeight = containerRef.current?.clientHeight || 320;
+      const panSensitivityX = (maxPanXRef.current * 1.8) / containerWidth;
+      const panSensitivityY = (maxPanYRef.current * 1.8) / containerHeight;
+
+      // Restrict pan inside Web 3D viewport bounds so model cannot fly out of screen
+      const nextX = Math.max(-maxPanXRef.current, Math.min(maxPanXRef.current, currentPosRef.current.x + dx * panSensitivityX));
+      const nextY = Math.max(-maxPanYRef.current, Math.min(maxPanYRef.current, currentPosRef.current.y - dy * panSensitivityY));
+      currentPosRef.current = { x: nextX, y: nextY };
 
       if (panRootRef.current) {
-        panRootRef.current.position.set(currentPosRef.current.x, currentPosRef.current.y, 0);
+        panRootRef.current.position.set(nextX, nextY, 0);
       }
       requestRender();
 
       if (isStageSyncRef.current) {
         const now = Date.now();
-        if (now - syncThrottleRef.current > 50) {
+        if (now - syncThrottleRef.current > 40) {
           syncThrottleRef.current = now;
           const unityScale = minScaleRef.current * currentScaleRef.current;
+          const UNITY_MAX_PAN_X = 9.0;
+          const UNITY_MAX_PAN_Y = 5.0;
+          const normX = nextX / (maxPanXRef.current || 1);
+          const normY = nextY / (maxPanYRef.current || 1);
           syncModelTransform(
             currentYawDegRef.current,
             currentPitchDegRef.current,
             unityScale,
-            currentPosRef.current.x,
-            currentPosRef.current.y
+            normX * UNITY_MAX_PAN_X,
+            normY * UNITY_MAX_PAN_Y
           );
         }
       }
@@ -508,7 +541,7 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
       // Gesture: Single Finger Drag -> ROTATE (Yaw & Pitch)
       setActiveGesture('rotate');
       const rotSpeed = 0.45; // degrees per pixel
-      currentYawDegRef.current = (currentYawDegRef.current + dx * rotSpeed) % 360;
+      currentYawDegRef.current = (currentYawDegRef.current - dx * rotSpeed) % 360;
       currentPitchDegRef.current = Math.max(-85, Math.min(85, currentPitchDegRef.current + dy * rotSpeed));
 
       if (yawGroupRef.current) {
@@ -524,12 +557,16 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
         if (now - syncThrottleRef.current > 35) {
           syncThrottleRef.current = now;
           const unityScale = minScaleRef.current * currentScaleRef.current;
+          const UNITY_MAX_PAN_X = 9.0;
+          const UNITY_MAX_PAN_Y = 5.0;
+          const normX = Math.max(-1, Math.min(1, currentPosRef.current.x / (maxPanXRef.current || 1)));
+          const normY = Math.max(-1, Math.min(1, currentPosRef.current.y / (maxPanYRef.current || 1)));
           syncModelTransform(
             currentYawDegRef.current,
             currentPitchDegRef.current,
             unityScale,
-            currentPosRef.current.x,
-            currentPosRef.current.y
+            normX * UNITY_MAX_PAN_X,
+            normY * UNITY_MAX_PAN_Y
           );
         }
       }
@@ -550,12 +587,16 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
       // Flush final exact transform to stage
       if (isStageSyncRef.current) {
         const unityScale = minScaleRef.current * currentScaleRef.current;
+        const UNITY_MAX_PAN_X = 9.0;
+        const UNITY_MAX_PAN_Y = 5.0;
+        const normX = Math.max(-1, Math.min(1, currentPosRef.current.x / (maxPanXRef.current || 1)));
+        const normY = Math.max(-1, Math.min(1, currentPosRef.current.y / (maxPanYRef.current || 1)));
         syncModelTransform(
           currentYawDegRef.current,
           currentPitchDegRef.current,
           unityScale,
-          currentPosRef.current.x,
-          currentPosRef.current.y
+          normX * UNITY_MAX_PAN_X,
+          normY * UNITY_MAX_PAN_Y
         );
       }
     }

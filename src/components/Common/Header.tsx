@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useStage } from '../../context/StageContext';
-import { RefreshCw, ListPlus, Sliders, Layers, Camera, Maximize } from 'lucide-react';
+import { RefreshCw, ListPlus, Sliders, Layers, Camera, Maximize, Download } from 'lucide-react';
+import { usePWAInstall } from '../../services/pwaService';
 import { ConnectionStatus } from './ConnectionStatus';
 import { ProjectionSelector } from './ProjectionSelector';
 import { EnvironmentSelector } from './EnvironmentSelector';
@@ -39,6 +40,7 @@ export const Header: React.FC<HeaderProps> = ({
   } = useStage();
 
   const [logoError, setLogoError] = useState<boolean>(false);
+  const { canInstall, triggerInstall } = usePWAInstall();
 
   return (
     <header className="app-header">
@@ -121,6 +123,20 @@ export const Header: React.FC<HeaderProps> = ({
             </span>
           )}
         </button>
+
+        {canInstall && (
+          <button
+            className="btn-icon pwa-install-btn"
+            onClick={triggerInstall}
+            title="Install Cuenect App to Home Screen"
+            style={{
+              borderColor: 'var(--color-primary)',
+              color: 'var(--color-primary)'
+            }}
+          >
+            <Download size={18} />
+          </button>
+        )}
       </div>
     </header>
   );
