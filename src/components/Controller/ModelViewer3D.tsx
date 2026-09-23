@@ -13,10 +13,11 @@ import {
 interface ModelViewer3DProps {
   asset: AssetInformation;
   isVisible?: boolean;
+  forceLoad?: boolean;
   onSwitchToDpad?: () => void;
 }
 
-export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible = true, onSwitchToDpad }) => {
+export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible = true, forceLoad = false, onSwitchToDpad }) => {
   const {
     resetModelTransform,
     syncModelTransform,
@@ -232,7 +233,8 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
 
     const baseUrl = stageSocket.getHttpBaseUrl();
     const modelParam = asset.ModelPath || asset.AssetName;
-    const modelUrl = `${baseUrl}/api/model?file=${encodeURIComponent(modelParam)}&ngrok-skip-browser-warning=true`;
+    const forceParam = forceLoad ? '&force=true' : '';
+    const modelUrl = `${baseUrl}/api/model?file=${encodeURIComponent(modelParam)}${forceParam}&ngrok-skip-browser-warning=true`;
 
     const loader = new GLTFLoader();
     loader.setRequestHeader({
@@ -365,7 +367,7 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
       renderer.dispose();
       scene.clear();
     };
-  }, [asset.AssetID, asset.ModelPath, asset.AssetName, syncModelTransform, requestRender]);
+  }, [asset.AssetID, asset.ModelPath, asset.AssetName, forceLoad, syncModelTransform, requestRender]);
 
   // ---- Touch & Mouse Gestures Handling ---------------------------------------
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {

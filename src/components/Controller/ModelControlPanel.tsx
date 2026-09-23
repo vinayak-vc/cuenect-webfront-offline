@@ -270,6 +270,7 @@ export const ModelControlPanel: React.FC = () => {
           <ModelViewer3D
             asset={activeAsset}
             isVisible={show3DViewer}
+            forceLoad={forceLoadAnyway}
             onSwitchToDpad={() => setUserSurfacePreference('dpad')}
           />
         </div>
