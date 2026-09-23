@@ -45,7 +45,7 @@ export const Header: React.FC<HeaderProps> = ({
       <div className="header-brand">
         {!logoError ? (
           <img
-            src="/assets/branding/cuenect - white - 01.png"
+            src="/icon-192.png"
             alt="Cuenect Hologram Stage"
             className="header-logo-img"
             onError={() => setLogoError(true)}

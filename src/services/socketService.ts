@@ -590,6 +590,15 @@ export class StageSocketService {
     this.emitEvent('hologram-joystick-action', payload);
   }
 
+  public stopAutoRotate(): void {
+    this.emitEvent('hologram-joystick-action', {
+      action: 'stop_auto_rotate',
+      direction: 'move',
+      xPos: 0,
+      yPos: 0
+    });
+  }
+
   public sendModelAction(action: string): void {
     this.emitEvent('hologram-model-action', { action });
   }

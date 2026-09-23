@@ -21,6 +21,7 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
   const {
     resetModelTransform,
     syncModelTransform,
+    stopAutoRotate,
     stageModelTransform,
     currentMovableMode
   } = useStage();
@@ -31,6 +32,9 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isStageSync, setIsStageSync] = useState<boolean>(true);
   const [activeGesture, setActiveGesture] = useState<'rotate' | 'pan' | 'zoom' | null>(null);
+
+  // Auto-rotation active until user interacts
+  const isAutoRotatingRef = useRef<boolean>(true);
 
   // Dirty rendering flag: only render when needed to reduce GPU/CPU/battery usage to 0% when idle
   const needsRenderRef = useRef<boolean>(true);
@@ -137,6 +141,8 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
 
   // Clean reset function
   const handleReset = useCallback(() => {
+    isAutoRotatingRef.current = false;
+    stopAutoRotate();
     currentYawDegRef.current = 0;
     currentPitchDegRef.current = 0;
     currentScaleRef.current = 1.0;
@@ -157,7 +163,7 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
     if (isStageSyncRef.current) {
       resetModelTransform();
     }
-  }, [resetModelTransform, requestRender]);
+  }, [resetModelTransform, stopAutoRotate, requestRender]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -214,17 +220,33 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
     pitchGroupRef.current = pitchGroup;
     modelPivotRef.current = modelPivot;
 
-    // Render loop: on-demand dirty rendering (0% CPU/GPU when idle)
-    const animate = () => {
+    // Render loop: auto-rotates model on load matching Unity (10 deg/s), drops to on-demand dirty rendering (0% CPU/GPU) when idle
+    let lastTime = performance.now();
+    const animate = (currentTime: number) => {
       animFrameRef.current = requestAnimationFrame(animate);
-      if (isVisibleRef.current && needsRenderRef.current) {
+      const deltaTime = (currentTime - lastTime) / 1000;
+      lastTime = currentTime;
+
+      if (!isVisibleRef.current) return;
+
+      if (isAutoRotatingRef.current && !isInteractingRef.current) {
+        // Auto-rotate yaw at 10 deg/sec matching Unity
+        const dt = Math.min(deltaTime, 0.1);
+        currentYawDegRef.current = (currentYawDegRef.current + 10 * dt) % 360;
+        if (yawGroupRef.current) {
+          yawGroupRef.current.rotation.y = -(currentYawDegRef.current * Math.PI) / 180;
+        }
+        needsRenderRef.current = true;
+      }
+
+      if (needsRenderRef.current) {
         needsRenderRef.current = false;
         if (rendererRef.current && sceneRef.current && cameraRef.current) {
           rendererRef.current.render(sceneRef.current, cameraRef.current);
         }
       }
     };
-    animate();
+    animFrameRef.current = requestAnimationFrame(animate);
 
     // 2. Load GLB Model
     setIsLoading(true);
@@ -274,11 +296,12 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
         camera.far = cameraDistance * 50;
         camera.updateProjectionMatrix();
 
-        // Initialize pose
+        // Initialize pose & enable auto-rotation on load matching Unity
         currentYawDegRef.current = 0;
         currentPitchDegRef.current = 0;
         currentScaleRef.current = 1.0;
         currentPosRef.current = { x: 0, y: 0 };
+        isAutoRotatingRef.current = true;
 
         yawGroup.rotation.set(0, 0, 0);
         pitchGroup.rotation.set(0, 0, 0);
@@ -320,6 +343,10 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
     // Non-passive wheel handler to prevent page scrolling and zoom the 3D model
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
+      if (isAutoRotatingRef.current) {
+        isAutoRotatingRef.current = false;
+        stopAutoRotate();
+      }
       const zoomFactor = e.deltaY > 0 ? 0.94 : 1.06;
       const maxRatio = maxScaleRef.current / (minScaleRef.current || 1);
       currentScaleRef.current = Math.max(1.0, Math.min(maxRatio, currentScaleRef.current * zoomFactor));
@@ -367,13 +394,19 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
       renderer.dispose();
       scene.clear();
     };
-  }, [asset.AssetID, asset.ModelPath, asset.AssetName, forceLoad, syncModelTransform, requestRender]);
+  }, [asset.AssetID, asset.ModelPath, asset.AssetName, forceLoad, syncModelTransform, stopAutoRotate, requestRender]);
 
   // ---- Touch & Mouse Gestures Handling ---------------------------------------
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     e.currentTarget.setPointerCapture(e.pointerId);
     pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
     isInteractingRef.current = true;
+
+    // Stop auto-rotation immediately when user begins interaction
+    if (isAutoRotatingRef.current) {
+      isAutoRotatingRef.current = false;
+      stopAutoRotate();
+    }
 
     // Double tap detection for Pan mode
     const now = Date.now();

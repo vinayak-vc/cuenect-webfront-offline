@@ -66,6 +66,7 @@ interface StageContextValue {
   sendModelJoystick: (direction: JoyStickDirection, xPos?: number, yPos?: number, zoom?: number, action?: string) => void;
   resetModelTransform: () => void;
   syncModelTransform: (yaw: number, pitch: number, scale?: number, posX?: number, posY?: number) => void;
+  stopAutoRotate: () => void;
   stageModelTransform: ModelTransformPayload | null;
   setMovableMode: (mode: MoveableAssetType) => void;
   currentMovableMode: MoveableAssetType;
@@ -559,6 +560,10 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     stageSocket.sendSyncTransform(yaw, pitch, scale, posX, posY);
   }, []);
 
+  const stopAutoRotate = useCallback(() => {
+    stageSocket.stopAutoRotate();
+  }, []);
+
   const setMovableMode = useCallback((mode: MoveableAssetType) => {
     setCurrentMovableMode(mode);
     const actionName = MovableModeActionNames[mode] || 'rotate';
@@ -847,6 +852,7 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     sendModelJoystick,
     resetModelTransform,
     syncModelTransform,
+    stopAutoRotate,
     stageModelTransform,
     setMovableMode,
     currentMovableMode,

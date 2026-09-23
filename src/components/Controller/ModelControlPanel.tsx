@@ -41,7 +41,8 @@ export const ModelControlPanel: React.FC = () => {
     stereoSettings,
     resetModelTransform,
     activeTransport,
-    transportState
+    transportState,
+    stopAutoRotate
   } = useStage();
 
   const [isProjectionOpen, setIsProjectionOpen] = useState(false);
@@ -83,7 +84,9 @@ export const ModelControlPanel: React.FC = () => {
 
   const handleSurfaceChange = (surface: '3d' | 'dpad') => {
     setUserSurfacePreference(surface);
-    if (surface === '3d') {
+    if (surface === 'dpad') {
+      stopAutoRotate();
+    } else if (surface === '3d') {
       if (!isRotateOrPan) {
         setMovableMode(MoveableAssetType.Rotate);
       }
