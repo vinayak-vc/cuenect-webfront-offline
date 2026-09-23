@@ -20,16 +20,23 @@ import {
 export type SocketMessageHandler = (event: string, data: any) => void;
 export type SocketStateChangeHandler = (state: ConnectionState, detail?: string, isInitial?: boolean) => void;
 export type SocketUsersChangeHandler = (users: User[]) => void;
+export type ConnectionTransport = 'ngrok' | 'lan';
+export type TransportPromotionState = 'idle' | 'discovering' | 'probing' | 'promoted' | 'fallback';
+export type TransportChangeHandler = (transport: ConnectionTransport, state: TransportPromotionState) => void;
 
 export class StageSocketService {
   private socket: Socket | null = null;
   private url: string = '';
   private state: ConnectionState = 'disconnected';
+  private transport: ConnectionTransport = 'lan';
+  private transportState: TransportPromotionState = 'idle';
+  private hasAttemptedLanPromotion: boolean = false;
   private users: User[] = [];
   private clientName: string = '';
   private messageHandlers: Set<SocketMessageHandler> = new Set();
   private stateHandlers: Set<SocketStateChangeHandler> = new Set();
   private usersHandlers: Set<SocketUsersChangeHandler> = new Set();
+  private transportHandlers: Set<TransportChangeHandler> = new Set();
 
   public getState(): ConnectionState {
     return this.state;
@@ -39,9 +46,41 @@ export class StageSocketService {
     return this.url;
   }
 
+  public getActiveServerUrl(): string {
+    return this.url;
+  }
+
+  public getActiveApiBaseUrl(): string {
+    return this.getHttpBaseUrl();
+  }
+
+  public getTransport(): ConnectionTransport {
+    return this.transport;
+  }
+
+  public getTransportState(): TransportPromotionState {
+    return this.transportState;
+  }
+
+  public isLocalConnection(): boolean {
+    return this.transport === 'lan';
+  }
+
   public isTunnelConnection(): boolean {
-    const baseUrl = this.getHttpBaseUrl();
-    return baseUrl.includes('ngrok') || baseUrl.includes('.app');
+    return this.transport === 'ngrok';
+  }
+
+  public onTransportChange(handler: TransportChangeHandler): () => void {
+    this.transportHandlers.add(handler);
+    handler(this.transport, this.transportState);
+    return () => {
+      this.transportHandlers.delete(handler);
+    };
+  }
+
+  private setTransportState(state: TransportPromotionState): void {
+    this.transportState = state;
+    this.transportHandlers.forEach((h) => h(this.transport, this.transportState));
   }
 
   public getHttpBaseUrl(): string {
@@ -184,6 +223,19 @@ export class StageSocketService {
     }
 
     this.url = targetUrl;
+    if (isPublicTunnel) {
+      this.transport = 'ngrok';
+      if (!this.hasAttemptedLanPromotion) {
+        this.setTransportState('idle');
+      }
+      console.log(`[Connection] Starting with ngrok: ${this.url}`);
+    } else {
+      this.transport = 'lan';
+      this.setTransportState('promoted');
+      this.hasAttemptedLanPromotion = true;
+      console.log(`[Connection] Starting with LAN: ${this.url}`);
+    }
+
     this.setState('connecting');
 
     try {
@@ -198,6 +250,15 @@ export class StageSocketService {
       this.socket.on('connect', () => {
         this.setState('connected');
         this.socket?.emit('login', { name: this.clientName });
+
+        // Fallback timer if login_response is delayed or doesn't provide serverInfo
+        if (isPublicTunnel && !this.hasAttemptedLanPromotion) {
+          setTimeout(() => {
+            if (isPublicTunnel && !this.hasAttemptedLanPromotion) {
+              this.attemptLanPromotion();
+            }
+          }, 2000);
+        }
       });
 
       this.socket.on('connect_error', (err) => {
@@ -211,10 +272,34 @@ export class StageSocketService {
         this.setState('disconnected', reason);
       });
 
-      this.socket.on('login_response', (resp: { success: boolean; users?: string[] }) => {
+      this.socket.on('login_response', (resp: {
+        success: boolean;
+        users?: string[];
+        serverInfo?: {
+          localIp: string;
+          localIps?: string[];
+          port: number;
+          localUrl?: string;
+          isTunnel?: boolean;
+        };
+      }) => {
         if (resp && resp.users) {
           const userList: User[] = resp.users.map((name, idx) => ({ name, id: idx + 1 }));
           this.setUsers(userList);
+        }
+
+        // Fast path: server already reported its local network coordinates over the socket
+        if (isPublicTunnel && !this.hasAttemptedLanPromotion) {
+          if (resp?.serverInfo?.localIp && resp?.serverInfo?.port) {
+            this.attemptLanPromotion({
+              localIp: resp.serverInfo.localIp,
+              localIps: resp.serverInfo.localIps,
+              port: resp.serverInfo.port,
+              localUrl: resp.serverInfo.localUrl || `http://${resp.serverInfo.localIp}:${resp.serverInfo.port}`
+            });
+          } else {
+            this.attemptLanPromotion();
+          }
         }
       });
 
@@ -240,7 +325,11 @@ export class StageSocketService {
     }
   }
 
-  public disconnect(): void {
+  public disconnect(resetPromotionState: boolean = false): void {
+    if (resetPromotionState) {
+      this.hasAttemptedLanPromotion = false;
+      this.setTransportState('idle');
+    }
     const wasConnected = this.state !== 'disconnected';
     if (this.socket) {
       this.socket.removeAllListeners();
@@ -251,6 +340,166 @@ export class StageSocketService {
       this.setState('disconnected');
     }
     this.setUsers([]);
+  }
+
+  private async attemptLanPromotion(directInfo?: {
+    localIp: string;
+    localIps?: string[];
+    port: number;
+    localUrl: string;
+  }): Promise<void> {
+    if (this.hasAttemptedLanPromotion) return;
+    this.hasAttemptedLanPromotion = true;
+
+    this.setTransportState('discovering');
+    console.log('[Connection] Discovering local IP...');
+
+    let info: { localIp: string; localIps?: string[]; port: number; localUrl: string } | null = directInfo || null;
+
+    if (!info) {
+      const ngrokHttpBase = this.getHttpBaseUrl();
+      const discoveryUrl = `${ngrokHttpBase}/api/connection-info?ngrok-skip-browser-warning=true`;
+
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3500);
+        const res = await fetch(discoveryUrl, {
+          headers: {
+            'ngrok-skip-browser-warning': 'true',
+            Accept: 'application/json'
+          },
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+
+        const contentType = res.headers.get('content-type') || '';
+        if (!res.ok || !contentType.includes('application/json')) {
+          throw new Error(`HTTP ${res.status} (${contentType || 'non-JSON'})`);
+        }
+        info = await res.json();
+      } catch (err: any) {
+        console.warn(`[Connection] Local discovery request failed: ${err?.message || err}`);
+        console.log('[Connection] Staying on ngrok fallback');
+        this.setTransportState('fallback');
+        return;
+      }
+    }
+
+    if (!info || !info.localIp || !info.port) {
+      console.warn('[Connection] Invalid discovery response received:', info);
+      console.log('[Connection] Staying on ngrok fallback');
+      this.setTransportState('fallback');
+      return;
+    }
+
+    const targetLocalIp = info.localIp;
+    const targetPort = info.port;
+    const targetLocalUrl = info.localUrl || `http://${targetLocalIp}:${targetPort}`;
+
+    console.log(`[Connection] Discovered local address: ${targetLocalUrl}`);
+    this.setTransportState('probing');
+    console.log(`[Connection] Probing local address: ${targetLocalUrl}...`);
+
+    const isReachable = await this.probeLanEndpoint(targetLocalUrl, 2500);
+
+    if (!isReachable) {
+      console.warn(`[Connection] Local server unreachable. Continuing via ngrok.`);
+      console.log('[Connection] Staying on ngrok fallback');
+      this.setTransportState('fallback');
+      return;
+    }
+
+    console.log('[Connection] Local address reachable! Switching...');
+    console.log(`[Connection] Switching transport: ngrok -> LAN (${targetLocalUrl})`);
+
+    // Disconnect and clean up the ngrok socket cleanly
+    if (this.socket) {
+      this.socket.removeAllListeners();
+      this.socket.disconnect();
+      this.socket = null;
+      console.log('[Connection] Ngrok socket disconnected');
+    }
+
+    // Switch transport to LAN
+    this.transport = 'lan';
+    this.setTransportState('promoted');
+
+    // Connect to LAN socket
+    this.connect(targetLocalIp, true, targetPort);
+    console.log('[Connection] Local socket connected');
+  }
+
+  private async probeLanEndpoint(localUrl: string, timeoutMs: number = 2500): Promise<boolean> {
+    return new Promise<boolean>((resolve) => {
+      let resolved = false;
+      let probeSocket: Socket | null = null;
+      let timer: any = null;
+
+      const finish = (result: boolean, reason?: string) => {
+        if (resolved) return;
+        resolved = true;
+        if (timer) clearTimeout(timer);
+        if (probeSocket) {
+          try {
+            probeSocket.removeAllListeners();
+            probeSocket.disconnect();
+            probeSocket.close();
+          } catch {}
+          probeSocket = null;
+        }
+        if (!result && reason) {
+          console.warn(`[Connection] Local probe failed: ${reason}`);
+        }
+        resolve(result);
+      };
+
+      timer = setTimeout(() => {
+        finish(false, `Timeout after ${timeoutMs}ms`);
+      }, timeoutMs);
+
+      // Attempt lightweight fetch probe in parallel (non-blocking)
+      try {
+        const controller = new AbortController();
+        const fetchTimer = setTimeout(() => controller.abort(), timeoutMs);
+        fetch(`${localUrl}/health`, { method: 'GET', mode: 'cors', signal: controller.signal })
+          .then((res) => {
+            clearTimeout(fetchTimer);
+            if (res.ok) {
+              finish(true);
+            }
+          })
+          .catch((_fetchErr) => {
+            clearTimeout(fetchTimer);
+          });
+      } catch {
+        // Mixed content or network error on fetch attempt is expected on HTTPS, ignore
+      }
+
+      // Attempt Socket.IO WebSocket probe
+      try {
+        probeSocket = io(localUrl, {
+          transports: ['websocket'],
+          reconnection: false,
+          timeout: timeoutMs,
+          forceNew: true,
+          autoConnect: true
+        });
+
+        probeSocket.on('connect', () => {
+          finish(true);
+        });
+
+        probeSocket.on('connect_error', (err) => {
+          finish(false, err?.message || 'Socket connect_error');
+        });
+
+        probeSocket.on('error', (err: any) => {
+          finish(false, err?.message || 'Socket error');
+        });
+      } catch (err: any) {
+        finish(false, err?.message || 'Exception initializing probe');
+      }
+    });
   }
 
   /**
@@ -268,7 +517,8 @@ export class StageSocketService {
     'hologram-action',
     'hologram-camera-orthographic-action',
     'StereoSettingsActionKey',
-    'hologram-display-mode-action'
+    'hologram-display-mode-action',
+    'hologram-model-transform'
   ]);
 
   /**
@@ -321,6 +571,23 @@ export class StageSocketService {
 
   public sendJoystickControl(control: ModelControl | any): void {
     this.emitEvent('hologram-joystick-action', control);
+  }
+
+  public sendModelTransform(transform: any): void {
+    this.emitEvent('hologram-model-transform', transform);
+  }
+
+  public sendSyncTransform(yaw: number, pitch: number, scale?: number, posX?: number, posY?: number): void {
+    const payload = {
+      action: 'sync_transform',
+      direction: 'move',
+      yaw,
+      pitch,
+      scale: scale ?? 1,
+      xPos: posX ?? 0,
+      yPos: posY ?? 0
+    };
+    this.emitEvent('hologram-joystick-action', payload);
   }
 
   public sendModelAction(action: string): void {

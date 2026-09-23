@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { AssetInformation, JoyStickDirection, MoveableAssetType } from '../../types/protocol';
+import { AssetInformation, MoveableAssetType } from '../../types/protocol';
 import { useStage } from '../../context/StageContext';
 import { stageSocket } from '../../services/socketService';
 import {
@@ -17,7 +17,12 @@ interface ModelViewer3DProps {
 }
 
 export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible = true, onSwitchToDpad }) => {
-  const { sendModelJoystick, resetModelTransform, currentMovableMode } = useStage();
+  const {
+    resetModelTransform,
+    syncModelTransform,
+    stageModelTransform,
+    currentMovableMode
+  } = useStage();
 
   const containerRef = useRef<HTMLDivElement>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -31,6 +36,34 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
   const requestRender = useCallback(() => {
     needsRenderRef.current = true;
   }, []);
+
+  // Three.js internal references
+  const sceneRef = useRef<THREE.Scene | null>(null);
+  const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
+  const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
+  const animFrameRef = useRef<number | null>(null);
+
+  // Synchronized transform hierarchy matching Unity:
+  // panRoot (position & scale) -> yawGroup (rotation.y) -> pitchGroup (rotation.x) -> model (centered)
+  const panRootRef = useRef<THREE.Group | null>(null);
+  const yawGroupRef = useRef<THREE.Group | null>(null);
+  const pitchGroupRef = useRef<THREE.Group | null>(null);
+  const modelPivotRef = useRef<THREE.Group | null>(null);
+
+  // Real-time pose state
+  const currentYawDegRef = useRef<number>(0);
+  const currentPitchDegRef = useRef<number>(0);
+  const currentScaleRef = useRef<number>(1.0);
+  const minScaleRef = useRef<number>(1.0);
+  const maxScaleRef = useRef<number>(12.5);
+  const currentPosRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const isInteractingRef = useRef<boolean>(false);
+
+  // Sync state reference to avoid stale closures in event handlers
+  const isStageSyncRef = useRef<boolean>(isStageSync);
+  useEffect(() => {
+    isStageSyncRef.current = isStageSync;
+  }, [isStageSync]);
 
   // Track visibility to pause animation loop when D-Pad is showing
   const isVisibleRef = useRef<boolean>(isVisible);
@@ -50,41 +83,76 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
     }
   }, [isVisible, requestRender]);
 
-  // Three.js internal references
-  const sceneRef = useRef<THREE.Scene | null>(null);
-  const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
-  const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
-  const modelGroupRef = useRef<THREE.Group | null>(null);
-  const animFrameRef = useRef<number | null>(null);
+  // Synchronize incoming stage transform from Unity (when user is not actively interacting)
+  useEffect(() => {
+    if (!stageModelTransform || isInteractingRef.current) return;
 
-  // Default camera/model pose for Reset
-  const defaultDistRef = useRef<number>(3);
-  const defaultRotRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+    if (typeof stageModelTransform.yaw === 'number') {
+      currentYawDegRef.current = stageModelTransform.yaw;
+      if (yawGroupRef.current) {
+        yawGroupRef.current.rotation.y = -(stageModelTransform.yaw * Math.PI) / 180;
+      }
+    }
 
-  // Gesture tracking
+    if (typeof stageModelTransform.pitch === 'number') {
+      const clampedPitch = Math.max(-85, Math.min(85, stageModelTransform.pitch));
+      currentPitchDegRef.current = clampedPitch;
+      if (pitchGroupRef.current) {
+        pitchGroupRef.current.rotation.x = (clampedPitch * Math.PI) / 180;
+      }
+    }
+
+    if (typeof stageModelTransform.minScale === 'number' && stageModelTransform.minScale > 0.001) {
+      minScaleRef.current = stageModelTransform.minScale;
+    }
+    if (typeof stageModelTransform.maxScale === 'number' && stageModelTransform.maxScale > 0.001) {
+      maxScaleRef.current = stageModelTransform.maxScale;
+    }
+
+    if (typeof stageModelTransform.scale === 'number' && stageModelTransform.scale > 0.001) {
+      const baseRatio = minScaleRef.current > 0 ? stageModelTransform.scale / minScaleRef.current : 1;
+      currentScaleRef.current = baseRatio;
+      if (panRootRef.current) {
+        panRootRef.current.scale.set(baseRatio, baseRatio, baseRatio);
+      }
+    }
+
+    if (typeof stageModelTransform.posX === 'number' && typeof stageModelTransform.posY === 'number') {
+      currentPosRef.current = { x: stageModelTransform.posX, y: stageModelTransform.posY };
+      if (panRootRef.current) {
+        panRootRef.current.position.set(stageModelTransform.posX, stageModelTransform.posY, 0);
+      }
+    }
+
+    requestRender();
+  }, [stageModelTransform, requestRender]);
+
+  // Gesture tracking references
   const pointersRef = useRef<Map<number, { x: number; y: number }>>(new Map());
   const lastPinchDistRef = useRef<number | null>(null);
   const lastTapTimeRef = useRef<number>(0);
   const isDoubleTapPanRef = useRef<boolean>(false);
   const syncThrottleRef = useRef<number>(0);
-  const accumulatedYawDegRef = useRef<number>(0);
-  const accumulatedPitchDegRef = useRef<number>(0);
-
-  // Sync state reference to avoid stale closures in event handlers
-  const isStageSyncRef = useRef<boolean>(isStageSync);
-  useEffect(() => {
-    isStageSyncRef.current = isStageSync;
-  }, [isStageSync]);
 
   // Clean reset function
   const handleReset = useCallback(() => {
-    if (modelGroupRef.current && cameraRef.current) {
-      modelGroupRef.current.rotation.set(defaultRotRef.current.x, defaultRotRef.current.y, 0);
-      modelGroupRef.current.position.set(0, 0, 0);
-      cameraRef.current.position.set(0, 0, defaultDistRef.current);
-      cameraRef.current.lookAt(0, 0, 0);
-      requestRender();
+    currentYawDegRef.current = 0;
+    currentPitchDegRef.current = 0;
+    currentScaleRef.current = 1.0;
+    currentPosRef.current = { x: 0, y: 0 };
+
+    if (yawGroupRef.current) {
+      yawGroupRef.current.rotation.set(0, 0, 0);
     }
+    if (pitchGroupRef.current) {
+      pitchGroupRef.current.rotation.set(0, 0, 0);
+    }
+    if (panRootRef.current) {
+      panRootRef.current.position.set(0, 0, 0);
+      panRootRef.current.scale.set(1.0, 1.0, 1.0);
+    }
+    requestRender();
+
     if (isStageSyncRef.current) {
       resetModelTransform();
     }
@@ -102,7 +170,7 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
     const height = container.clientHeight || 320;
 
     const camera = new THREE.PerspectiveCamera(45, width / height, 0.05, 100);
-    camera.position.set(0, 0, 3);
+    camera.position.set(0, 0, 3.2);
     cameraRef.current = camera;
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
@@ -129,9 +197,21 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
     rimLight.position.set(0, -4, 3);
     scene.add(rimLight);
 
-    const modelGroup = new THREE.Group();
-    scene.add(modelGroup);
-    modelGroupRef.current = modelGroup;
+    // Build hierarchy matching Unity
+    const panRoot = new THREE.Group();
+    const yawGroup = new THREE.Group();
+    const pitchGroup = new THREE.Group();
+    const modelPivot = new THREE.Group();
+
+    panRoot.add(yawGroup);
+    yawGroup.add(pitchGroup);
+    pitchGroup.add(modelPivot);
+    scene.add(panRoot);
+
+    panRootRef.current = panRoot;
+    yawGroupRef.current = yawGroup;
+    pitchGroupRef.current = pitchGroup;
+    modelPivotRef.current = modelPivot;
 
     // Render loop: on-demand dirty rendering (0% CPU/GPU when idle)
     const animate = () => {
@@ -158,18 +238,19 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
     loader.setRequestHeader({
       'ngrok-skip-browser-warning': 'true'
     });
+
     loader.load(
       modelUrl,
       (gltf) => {
         setIsLoading(false);
         // Clean any existing model
-        while (modelGroup.children.length > 0) {
-          modelGroup.remove(modelGroup.children[0]);
+        while (modelPivot.children.length > 0) {
+          modelPivot.remove(modelPivot.children[0]);
         }
 
         const model = gltf.scene;
 
-        // Auto-center and frame model
+        // Auto-center and frame model in the modelPivot group
         const box = new THREE.Box3().setFromObject(model);
         const center = new THREE.Vector3();
         box.getCenter(center);
@@ -178,9 +259,9 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
 
         // Center pivot
         model.position.sub(center);
-        modelGroup.add(model);
+        modelPivot.add(model);
 
-        // Compute optimal camera distance
+        // Compute optimal camera distance so model fits neatly
         const maxDim = Math.max(size.x, size.y, size.z);
         const fov = camera.fov * (Math.PI / 180);
         let cameraDistance = Math.abs(maxDim / (2 * Math.tan(fov / 2))) * 1.35;
@@ -191,10 +272,18 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
         camera.far = cameraDistance * 50;
         camera.updateProjectionMatrix();
 
-        defaultDistRef.current = cameraDistance;
-        defaultRotRef.current = { x: 0, y: 0 };
+        // Initialize pose
+        currentYawDegRef.current = 0;
+        currentPitchDegRef.current = 0;
+        currentScaleRef.current = 1.0;
+        currentPosRef.current = { x: 0, y: 0 };
 
-        // Pre-warm / compile shaders to eliminate frame drop violation
+        yawGroup.rotation.set(0, 0, 0);
+        pitchGroup.rotation.set(0, 0, 0);
+        panRoot.position.set(0, 0, 0);
+        panRoot.scale.set(1.0, 1.0, 1.0);
+
+        // Pre-warm / compile shaders to eliminate frame drop violations
         renderer.compile(scene, camera);
         requestRender();
       },
@@ -229,17 +318,28 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
     // Non-passive wheel handler to prevent page scrolling and zoom the 3D model
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
-      const camera = cameraRef.current;
-      if (!camera) return;
+      const zoomFactor = e.deltaY > 0 ? 0.94 : 1.06;
+      const maxRatio = maxScaleRef.current / (minScaleRef.current || 1);
+      currentScaleRef.current = Math.max(1.0, Math.min(maxRatio, currentScaleRef.current * zoomFactor));
 
-      const zoomStep = e.deltaY > 0 ? 1.08 : 0.92;
-      const newZ = camera.position.z * zoomStep;
-      camera.position.z = Math.max(defaultDistRef.current * 0.2, Math.min(defaultDistRef.current * 4, newZ));
+      if (panRootRef.current) {
+        panRootRef.current.scale.set(
+          currentScaleRef.current,
+          currentScaleRef.current,
+          currentScaleRef.current
+        );
+      }
       requestRender();
 
       if (isStageSyncRef.current) {
-        const zoomVal = e.deltaY > 0 ? -1 : 1;
-        sendModelJoystick(JoyStickDirection.Scale, 0, 0, zoomVal);
+        const unityScale = minScaleRef.current * currentScaleRef.current;
+        syncModelTransform(
+          currentYawDegRef.current,
+          currentPitchDegRef.current,
+          unityScale,
+          currentPosRef.current.x,
+          currentPosRef.current.y
+        );
       }
     };
 
@@ -265,12 +365,13 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
       renderer.dispose();
       scene.clear();
     };
-  }, [asset.AssetID, asset.ModelPath, asset.AssetName, sendModelJoystick]);
+  }, [asset.AssetID, asset.ModelPath, asset.AssetName, syncModelTransform, requestRender]);
 
   // ---- Touch & Mouse Gestures Handling ---------------------------------------
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     e.currentTarget.setPointerCapture(e.pointerId);
     pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    isInteractingRef.current = true;
 
     // Double tap detection for Pan mode
     const now = Date.now();
@@ -300,32 +401,38 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
     const dy = e.clientY - prevPos.y;
     pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
 
-    const modelGroup = modelGroupRef.current;
-    const camera = cameraRef.current;
-    if (!modelGroup || !camera) return;
-
-    const container = containerRef.current;
-    const cWidth = container?.clientWidth || 320;
-    const cHeight = container?.clientHeight || 320;
-
     // Gesture: Two-finger Pinch (Zoom)
     if (pointersRef.current.size === 2) {
       const pts = Array.from(pointersRef.current.values());
       const currentDist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
       if (lastPinchDistRef.current !== null && lastPinchDistRef.current > 0) {
         const pinchDelta = currentDist - lastPinchDistRef.current;
-        const zoomSpeed = 0.01;
-        const newZ = camera.position.z - pinchDelta * zoomSpeed * (camera.position.z * 0.1);
-        camera.position.z = Math.max(defaultDistRef.current * 0.2, Math.min(defaultDistRef.current * 4, newZ));
+        const zoomSpeed = 0.006;
+        const zoomMultiplier = 1 + pinchDelta * zoomSpeed;
+        const maxRatio = maxScaleRef.current / (minScaleRef.current || 1);
+        currentScaleRef.current = Math.max(1.0, Math.min(maxRatio, currentScaleRef.current * zoomMultiplier));
+
+        if (panRootRef.current) {
+          panRootRef.current.scale.set(
+            currentScaleRef.current,
+            currentScaleRef.current,
+            currentScaleRef.current
+          );
+        }
         requestRender();
 
-        // Sync zoom to stage
         if (isStageSyncRef.current) {
           const now = Date.now();
-          if (now - syncThrottleRef.current > 120) {
+          if (now - syncThrottleRef.current > 60) {
             syncThrottleRef.current = now;
-            const zoomDirection = pinchDelta > 0 ? 1 : -1;
-            sendModelJoystick(JoyStickDirection.Scale, 0, 0, zoomDirection);
+            const unityScale = minScaleRef.current * currentScaleRef.current;
+            syncModelTransform(
+              currentYawDegRef.current,
+              currentPitchDegRef.current,
+              unityScale,
+              currentPosRef.current.x,
+              currentPosRef.current.y
+            );
           }
         }
       }
@@ -333,61 +440,62 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
       return;
     }
 
-    // Gesture: Pan mode, Right Click Drag, Two-Finger centroid, or Double Tap Drag -> PAN
+    // Gesture: Pan mode, Right Click Drag, or Double Tap Drag -> PAN
     const isPanMode = currentMovableMode === MoveableAssetType.Pan || e.buttons === 2 || isDoubleTapPanRef.current;
     const isLightOrMagnifier = currentMovableMode === MoveableAssetType.Spotlight || currentMovableMode === MoveableAssetType.Magnifier;
 
-    if (isLightOrMagnifier) {
+    if (isLightOrMagnifier || isPanMode) {
       setActiveGesture('pan');
-      if (isStageSyncRef.current) {
-        const now = Date.now();
-        if (now - syncThrottleRef.current > 60) {
-          syncThrottleRef.current = now;
-          const normX = Math.max(-1, Math.min(1, (dx / cWidth) * 3));
-          const normY = Math.max(-1, Math.min(1, (dy / cHeight) * 3));
-          sendModelJoystick(JoyStickDirection.Move, normX, normY);
-        }
+      const panFactor = 0.005;
+      currentPosRef.current.x += dx * panFactor;
+      currentPosRef.current.y -= dy * panFactor;
+
+      if (panRootRef.current) {
+        panRootRef.current.position.set(currentPosRef.current.x, currentPosRef.current.y, 0);
       }
-    } else if (isPanMode) {
-      setActiveGesture('pan');
-      const panFactor = (camera.position.z / cHeight) * 1.2;
-      modelGroup.position.x += dx * panFactor;
-      modelGroup.position.y -= dy * panFactor;
       requestRender();
 
       if (isStageSyncRef.current) {
         const now = Date.now();
-        if (now - syncThrottleRef.current > 80) {
+        if (now - syncThrottleRef.current > 50) {
           syncThrottleRef.current = now;
-          const normX = Math.max(-1, Math.min(1, (dx / cWidth) * 4));
-          const normY = Math.max(-1, Math.min(1, (-dy / cHeight) * 4));
-          sendModelJoystick(JoyStickDirection.Move, normX, normY);
+          const unityScale = minScaleRef.current * currentScaleRef.current;
+          syncModelTransform(
+            currentYawDegRef.current,
+            currentPitchDegRef.current,
+            unityScale,
+            currentPosRef.current.x,
+            currentPosRef.current.y
+          );
         }
       }
     } else {
-      // Gesture: Single Finger Drag -> ROTATE
+      // Gesture: Single Finger Drag -> ROTATE (Yaw & Pitch)
       setActiveGesture('rotate');
-      const rotSpeed = 0.008;
-      const deltaYawDeg = (dx * rotSpeed * 180) / Math.PI;
-      const deltaPitchDeg = (dy * rotSpeed * 180) / Math.PI;
+      const rotSpeed = 0.45; // degrees per pixel
+      currentYawDegRef.current = (currentYawDegRef.current + dx * rotSpeed) % 360;
+      currentPitchDegRef.current = Math.max(-85, Math.min(85, currentPitchDegRef.current + dy * rotSpeed));
 
-      modelGroup.rotation.y += dx * rotSpeed;
-      modelGroup.rotation.x = Math.max(-Math.PI / 2.2, Math.min(Math.PI / 2.2, modelGroup.rotation.x + dy * rotSpeed));
+      if (yawGroupRef.current) {
+        yawGroupRef.current.rotation.y = -(currentYawDegRef.current * Math.PI) / 180;
+      }
+      if (pitchGroupRef.current) {
+        pitchGroupRef.current.rotation.x = (currentPitchDegRef.current * Math.PI) / 180;
+      }
       requestRender();
 
       if (isStageSyncRef.current) {
-        accumulatedYawDegRef.current += deltaYawDeg;
-        accumulatedPitchDegRef.current += deltaPitchDeg;
-
         const now = Date.now();
         if (now - syncThrottleRef.current > 35) {
           syncThrottleRef.current = now;
-          const sendYaw = accumulatedYawDegRef.current;
-          const sendPitch = accumulatedPitchDegRef.current;
-          accumulatedYawDegRef.current = 0;
-          accumulatedPitchDegRef.current = 0;
-
-          sendModelJoystick(JoyStickDirection.Move, sendYaw, sendPitch, undefined, 'delta');
+          const unityScale = minScaleRef.current * currentScaleRef.current;
+          syncModelTransform(
+            currentYawDegRef.current,
+            currentPitchDegRef.current,
+            unityScale,
+            currentPosRef.current.x,
+            currentPosRef.current.y
+          );
         }
       }
     }
@@ -401,23 +509,19 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
     if (pointersRef.current.size === 0) {
       setActiveGesture(null);
       isDoubleTapPanRef.current = false;
+      isInteractingRef.current = false;
       requestRender();
 
-      // Flush remaining rotation delta if any and stop stage velocity
+      // Flush final exact transform to stage
       if (isStageSyncRef.current) {
-        if (Math.abs(accumulatedYawDegRef.current) > 0.01 || Math.abs(accumulatedPitchDegRef.current) > 0.01) {
-          sendModelJoystick(
-            JoyStickDirection.Move,
-            accumulatedYawDegRef.current,
-            accumulatedPitchDegRef.current,
-            undefined,
-            'delta'
-          );
-          accumulatedYawDegRef.current = 0;
-          accumulatedPitchDegRef.current = 0;
-        }
-        sendModelJoystick(JoyStickDirection.End, 0, 0);
-        sendModelJoystick(JoyStickDirection.Move, 0, 0);
+        const unityScale = minScaleRef.current * currentScaleRef.current;
+        syncModelTransform(
+          currentYawDegRef.current,
+          currentPitchDegRef.current,
+          unityScale,
+          currentPosRef.current.x,
+          currentPosRef.current.y
+        );
       }
     }
   };
@@ -558,11 +662,15 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
             borderRadius: 20,
             fontSize: '0.74rem',
             fontWeight: 600,
-            background: isStageSync ? 'rgba(34, 197, 94, 0.15)' : 'rgba(100, 116, 139, 0.15)',
-            color: isStageSync ? 'var(--color-success, #22c55e)' : 'var(--text-muted, #64748b)',
-            border: `1px solid ${isStageSync ? 'rgba(34, 197, 94, 0.35)' : 'rgba(255, 255, 255, 0.08)'}`,
             cursor: 'pointer',
-            transition: 'var(--transition)'
+            border: isStageSync
+              ? '1px solid rgba(34, 197, 94, 0.4)'
+              : '1px solid rgba(148, 163, 184, 0.25)',
+            background: isStageSync
+              ? 'rgba(34, 197, 94, 0.12)'
+              : 'rgba(148, 163, 184, 0.08)',
+            color: isStageSync ? 'var(--color-success, #22c55e)' : 'var(--text-muted, #94a3b8)',
+            transition: 'all 0.15s ease'
           }}
         >
           <span
@@ -570,46 +678,50 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
               width: 7,
               height: 7,
               borderRadius: '50%',
-              backgroundColor: isStageSync ? 'var(--color-success, #22c55e)' : 'var(--text-muted, #64748b)'
+              background: isStageSync ? 'var(--color-success, #22c55e)' : 'var(--text-muted, #94a3b8)',
+              boxShadow: isStageSync ? '0 0 8px #22c55e' : 'none'
             }}
           />
-          <span>{isStageSync ? 'Sync Stage ● ON' : 'Sync Stage ○ OFF'}</span>
+          {isStageSync ? 'Stage Sync ON' : 'Preview Only'}
         </button>
 
-        {/* Subtle Metadata Readout */}
-        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted, #64748b)' }}>
-          {asset.triangleCount ? `${(asset.triangleCount / 1000).toFixed(1)}k tris` : ''}
-          {asset.triangleCount && asset.fileSizeMB ? ' · ' : ''}
-          {asset.fileSizeMB ? `${asset.fileSizeMB} MB` : ''}
+        {/* Action Buttons */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={handleReset}
+            title="Reset model pose and framing"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 5,
+              padding: '5px 11px',
+              fontSize: '0.74rem',
+              borderRadius: 20
+            }}
+          >
+            <RotateCcw size={13} />
+            Reset
+          </button>
+
+          {onSwitchToDpad && (
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={onSwitchToDpad}
+              title="Switch to directional button pad"
+              style={{
+                fontSize: '0.74rem',
+                padding: '5px 10px',
+                borderRadius: 20,
+                color: 'var(--color-primary-bright, #00e5ff)'
+              }}
+            >
+              D-Pad
+            </button>
+          )}
         </div>
-
-        {/* Reset View Button */}
-        <button
-          type="button"
-          onClick={handleReset}
-          title="Reset 3D camera pose and stage model"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 5,
-            padding: '5px 12px',
-            borderRadius: 20,
-            fontSize: '0.74rem',
-            fontWeight: 500,
-            background: 'var(--surface-input, rgba(255, 255, 255, 0.05))',
-            color: 'var(--text-secondary, #94a3b8)',
-            border: '1px solid var(--line-subtle, rgba(255, 255, 255, 0.1))',
-            cursor: 'pointer'
-          }}
-        >
-          <RotateCcw size={12} />
-          <span>Reset View</span>
-        </button>
-      </div>
-
-      {/* Subtle Hint Underneath */}
-      <div style={{ textAlign: 'center', fontSize: '0.7rem', color: 'var(--text-muted, #64748b)' }}>
-        1-finger rotate · 2-finger pan · pinch zoom
       </div>
     </div>
   );

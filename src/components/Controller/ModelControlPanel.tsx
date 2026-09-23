@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useStage } from '../../context/StageContext';
 import { MoveableAssetType, DisplayModeShortLabels } from '../../types/protocol';
-import { stageSocket } from '../../services/socketService';
 import { ProjectionSheet } from '../Stage/ProjectionSheet';
 import { DPad } from './DPad';
 import { ModelViewer3D } from './ModelViewer3D';
@@ -17,7 +16,8 @@ import {
   Grid,
   Camera,
   Layers,
-  RotateCcw
+  RotateCcw,
+  Loader2
 } from 'lucide-react';
 
 /**
@@ -39,7 +39,9 @@ export const ModelControlPanel: React.FC = () => {
     isOrthographic,
     toggleOrthographic,
     stereoSettings,
-    resetModelTransform
+    resetModelTransform,
+    activeTransport,
+    transportState
   } = useStage();
 
   const [isProjectionOpen, setIsProjectionOpen] = useState(false);
@@ -51,10 +53,11 @@ export const ModelControlPanel: React.FC = () => {
     setForceLoadAnyway(false);
   }, [activeAsset?.AssetID]);
 
-  const isTunnel = stageSocket.isTunnelConnection();
+  const isTunnel = activeTransport === 'ngrok';
+  const isProbing = transportState === 'discovering' || transportState === 'probing';
 
   // Check whether the active model is eligible for web 3D rendering
-  // If connected via cloud tunnel (ngrok), auto-load is disabled to protect tunnel bandwidth limit
+  // If connected via cloud tunnel (ngrok) or probing LAN, auto-load is disabled to protect tunnel bandwidth limit
   const isWithinThreshold = Boolean(
     activeAsset &&
       activeAsset.isWebPreviewable !== false &&
@@ -62,7 +65,7 @@ export const ModelControlPanel: React.FC = () => {
       (!activeAsset.triangleCount || activeAsset.triangleCount <= 250000)
   );
 
-  const isEligible = isWithinThreshold && !isTunnel;
+  const isEligible = isWithinThreshold && !isTunnel && !isProbing;
   const canPreview = (isEligible || forceLoadAnyway) && Boolean(activeAsset);
 
   // Show Camera toggle ONLY when Rotate or Pan is selected; hide for Light or Magnifier
@@ -101,8 +104,8 @@ export const ModelControlPanel: React.FC = () => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%', gap: 14 }}>
-      {/* High-Poly / Oversized Model Notice (Compact single-line with Load Anyway) */}
-      {!isEligible && activeAsset && (
+      {/* High-Poly / Oversized Model / Tunnel / Probing Notice */}
+      {activeAsset && (!isEligible || isProbing) && (
         <div
           style={{
             width: '100%',
@@ -113,26 +116,38 @@ export const ModelControlPanel: React.FC = () => {
             gap: 8,
             padding: '5px 10px 5px 12px',
             borderRadius: 'var(--radius-full, 9999px)',
-            background: isTunnel ? 'rgba(59, 130, 246, 0.12)' : 'rgba(245, 158, 11, 0.12)',
-            border: isTunnel ? '1px solid rgba(59, 130, 246, 0.35)' : '1px solid rgba(245, 158, 11, 0.3)',
-            color: isTunnel ? '#60a5fa' : 'var(--color-warning, #f59e0b)',
+            background: isProbing
+              ? 'rgba(99, 102, 241, 0.12)'
+              : isTunnel
+              ? 'rgba(59, 130, 246, 0.12)'
+              : 'rgba(245, 158, 11, 0.12)',
+            border: isProbing
+              ? '1px solid rgba(99, 102, 241, 0.35)'
+              : isTunnel
+              ? '1px solid rgba(59, 130, 246, 0.35)'
+              : '1px solid rgba(245, 158, 11, 0.3)',
+            color: isProbing ? '#818cf8' : isTunnel ? '#60a5fa' : 'var(--color-warning, #f59e0b)',
             fontSize: '0.72rem',
             lineHeight: 1.2
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, overflow: 'hidden' }}>
-            {isTunnel ? (
+            {isProbing ? (
+              <Loader2 size={13} className="animate-spin" style={{ flexShrink: 0 }} />
+            ) : isTunnel ? (
               <Globe size={13} style={{ flexShrink: 0 }} />
             ) : (
               <AlertTriangle size={13} style={{ flexShrink: 0 }} />
             )}
             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {isTunnel
+              {isProbing
+                ? 'Checking local network connectivity...'
+                : isTunnel
                 ? 'Cloud tunnel (ngrok) · 3D download paused to save data'
                 : `Direct stage control · Model exceeds web preview ${activeAsset.fileSizeMB ? `(${activeAsset.fileSizeMB} MB)` : ''}`}
             </span>
           </div>
-          {!forceLoadAnyway ? (
+          {!isProbing && !forceLoadAnyway ? (
             <button
               type="button"
               onClick={() => {
@@ -158,7 +173,7 @@ export const ModelControlPanel: React.FC = () => {
             </button>
           ) : (
             <span style={{ flexShrink: 0, fontSize: '0.65rem', opacity: 0.8, fontStyle: 'italic' }}>
-              {isTunnel ? 'Tunnel preview active' : 'Preview forced'}
+              {isProbing ? 'Checking...' : isTunnel ? 'Tunnel preview active' : 'Preview forced'}
             </span>
           )}
         </div>

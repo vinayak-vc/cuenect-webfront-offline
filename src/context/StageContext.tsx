@@ -20,9 +20,14 @@ import {
   EnvironmentPreset,
   parseEnvironmentPreset,
   ControlLockState,
-  DEFAULT_CONTROL_LOCK
+  DEFAULT_CONTROL_LOCK,
+  ModelTransformPayload
 } from '../types/protocol';
-import { stageSocket } from '../services/socketService';
+import {
+  stageSocket,
+  ConnectionTransport,
+  TransportPromotionState
+} from '../services/socketService';
 import { StorageService, ConnectionConfig } from '../services/storage';
 
 export interface ToastMessage {
@@ -38,6 +43,11 @@ interface StageContextValue {
   config: ConnectionConfig;
   connect: (config: ConnectionConfig) => void;
   disconnect: () => void;
+  activeTransport: ConnectionTransport;
+  transportState: TransportPromotionState;
+  isLocalConnection: boolean;
+  activeServerUrl: string;
+  activeApiBaseUrl: string;
   assets: AssetInformation[];
   playlists: string[];
   selectedPlaylist: string;
@@ -55,6 +65,8 @@ interface StageContextValue {
   // Model controls
   sendModelJoystick: (direction: JoyStickDirection, xPos?: number, yPos?: number, zoom?: number, action?: string) => void;
   resetModelTransform: () => void;
+  syncModelTransform: (yaw: number, pitch: number, scale?: number, posX?: number, posY?: number) => void;
+  stageModelTransform: ModelTransformPayload | null;
   setMovableMode: (mode: MoveableAssetType) => void;
   currentMovableMode: MoveableAssetType;
   toggleOrthographic: () => void;
@@ -119,6 +131,8 @@ const StageContext = createContext<StageContextValue | null>(null);
 
 export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [connectionState, setConnectionState] = useState<ConnectionState>('disconnected');
+  const [activeTransport, setActiveTransport] = useState<ConnectionTransport>(stageSocket.getTransport());
+  const [transportState, setTransportState] = useState<TransportPromotionState>(stageSocket.getTransportState());
   const [connectedUsers, setConnectedUsers] = useState<User[]>([]);
   const [config, setConfig] = useState<ConnectionConfig>(StorageService.getConnectionConfig());
   const [assets, setAssets] = useState<AssetInformation[]>([]);
@@ -131,6 +145,7 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   
   // Model & stage state
   const [currentMovableMode, setCurrentMovableMode] = useState<MoveableAssetType>(MoveableAssetType.Rotate);
+  const [stageModelTransform, setStageModelTransform] = useState<ModelTransformPayload | null>(null);
   const [isOrthographic, setIsOrthographic] = useState<boolean>(false);
   const [stereoSettings, setStereoSettings] = useState<StereoAdjustSettings>(StorageService.getStereoSettings());
   const stereoSettingsRef = useRef<StereoAdjustSettings>(stereoSettings);
@@ -184,7 +199,7 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const disconnect = useCallback(() => {
     StorageService.saveAutoConnect(false);
-    stageSocket.disconnect();
+    stageSocket.disconnect(true);
     requestedThumbnailsRef.current.clear();
     setActiveAsset(null);
     setIsControllerOpen(false);
@@ -377,6 +392,11 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         return;
       }
 
+      if (eventName === 'hologram-model-transform' && data) {
+        setStageModelTransform(data);
+        return;
+      }
+
       // The stage is authoritative about which projection is actually live: it can
       // refuse HOLO (the player is not on OpenGL Core), be switched by its own F5
       // hotkey, or be driven by another operator. Adopt what it reports and never
@@ -453,11 +473,20 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
     });
 
+    const unsubTransport = stageSocket.onTransportChange((transport, state) => {
+      setActiveTransport(transport);
+      setTransportState(state);
+      if (transport === 'lan' && state === 'promoted') {
+        addToast('Connected via Local Network', 'Promoted to local LAN for full 3D model streaming', 'success');
+      }
+    });
+
     return () => {
       unsubState();
       unsubUsers();
       unsubSocketMsg();
       unsubBlocked();
+      unsubTransport();
     };
   }, [addToast, parseAndSetAssets]);
 
@@ -524,6 +553,10 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const resetModelTransform = useCallback(() => {
     const payload: ModelControl = { direction: JoyStickDirection.Reset, action: 'reset' };
     stageSocket.sendModelControl(payload);
+  }, []);
+
+  const syncModelTransform = useCallback((yaw: number, pitch: number, scale?: number, posX?: number, posY?: number) => {
+    stageSocket.sendSyncTransform(yaw, pitch, scale, posX, posY);
   }, []);
 
   const setMovableMode = useCallback((mode: MoveableAssetType) => {
@@ -793,6 +826,11 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     config,
     connect,
     disconnect,
+    activeTransport,
+    transportState,
+    isLocalConnection: activeTransport === 'lan',
+    activeServerUrl: stageSocket.getActiveServerUrl(),
+    activeApiBaseUrl: stageSocket.getActiveApiBaseUrl(),
     assets,
     playlists,
     selectedPlaylist,
@@ -808,6 +846,8 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setIsSettingsOpen,
     sendModelJoystick,
     resetModelTransform,
+    syncModelTransform,
+    stageModelTransform,
     setMovableMode,
     currentMovableMode,
     toggleOrthographic,

@@ -315,11 +315,24 @@ export const StaticStrings = {
   CameraOrthographicAction: 'CameraOrthographicActionKey',
   DisplayModeActionKey: 'hologram-display-mode-action',
   EnvironmentActionKey: 'hologram-environment-action',
+  ModelTransformActionKey: 'hologram-model-transform',
   ControlLockState: 'control-lock-state',
   ControlRequest: 'control-request',
   ControlRelease: 'control-release',
   DeleteAsset: 'DeleteAsset'
 } as const;
+
+export interface ModelTransformPayload {
+  yaw: number;
+  pitch: number;
+  roll?: number;
+  scale?: number;
+  minScale?: number;
+  maxScale?: number;
+  posX?: number;
+  posY?: number;
+  posZ?: number;
+}
 
 export type ConnectionState = 'disconnected' | 'connecting' | 'connected' | 'error';
 
