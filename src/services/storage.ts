@@ -18,6 +18,7 @@ const STORAGE_KEYS = {
   CUSTOM_PLAYLIST: 'cuenect_custom_playlist',
   STEREO_SETTINGS: 'cuenect_stereo_settings',
   DISPLAY_MODE: 'cuenect_display_mode',
+  DEFAULT_DISPLAY_MODE: 'cuenect_default_display_mode',
   ENVIRONMENT_PRESET: 'cuenect_environment_preset',
   RECENT_ASSETS: 'cuenect_recent_assets',
   FAVOURITE_ASSETS: 'cuenect_favourite_assets'
@@ -89,6 +90,25 @@ export const StorageService = {
 
   saveDisplayMode(mode: DisplayMode): void {
     localStorage.setItem(STORAGE_KEYS.DISPLAY_MODE, mode.toString());
+  },
+
+  getDefaultDisplayMode(): DisplayMode {
+    const raw = localStorage.getItem(STORAGE_KEYS.DEFAULT_DISPLAY_MODE);
+    if (raw === null) return DEFAULT_DISPLAY_MODE;
+    const parsed = parseInt(raw, 10);
+    if (
+      parsed === DisplayMode.Mono2D ||
+      parsed === DisplayMode.StereoSbs ||
+      parsed === DisplayMode.HoloDevice ||
+      parsed === DisplayMode.KmaxDevice
+    ) {
+      return parsed;
+    }
+    return DEFAULT_DISPLAY_MODE;
+  },
+
+  saveDefaultDisplayMode(mode: DisplayMode): void {
+    localStorage.setItem(STORAGE_KEYS.DEFAULT_DISPLAY_MODE, mode.toString());
   },
 
   getEnvironmentPreset(): EnvironmentPreset {

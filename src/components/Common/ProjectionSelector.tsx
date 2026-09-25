@@ -20,7 +20,7 @@ const OPTIONS: ProjectionOption[] = [
   {
     mode: DisplayMode.StereoSbs,
     icon: <Layers size={16} />,
-    desc: 'Side-by-side stereo pair rendered on the stage.'
+    desc: 'Side-by-side stereo pair.'
   },
   {
     mode: DisplayMode.HoloDevice,
@@ -30,7 +30,7 @@ const OPTIONS: ProjectionOption[] = [
   {
     mode: DisplayMode.KmaxDevice,
     icon: <Glasses size={16} />,
-    desc: 'Kmax XR panel with head-tracked per-eye rendering.'
+    desc: 'FMAX XR panel with head-tracked per-eye rendering.'
   }
 ];
 
@@ -105,7 +105,7 @@ export const ProjectionSelector: React.FC = () => {
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="listbox"
         aria-expanded={open}
-        title="Stage projection mode"
+        title="Projection mode"
       >
         <span className="projection-trigger-label">
           <span className="projection-trigger-caption">Projection</span>
@@ -124,7 +124,7 @@ export const ProjectionSelector: React.FC = () => {
           isOpen={open}
           onClose={() => setOpen(false)}
           title="Projection Mode"
-          subtitle="How the stage renders the loaded asset"
+          subtitle="Rendering projection mode"
         >
           {optionList}
         </BottomSheet>

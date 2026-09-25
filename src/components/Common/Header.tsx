@@ -56,7 +56,7 @@ export const Header: React.FC<HeaderProps> = ({
         {!logoError ? (
           <img
             src="/icon-192.png"
-            alt="Cuenect Hologram Stage"
+            alt="Cuenect Hologram"
             className="header-logo-img"
             onError={() => setLogoError(true)}
           />
@@ -68,7 +68,7 @@ export const Header: React.FC<HeaderProps> = ({
         <div className="header-title-wrap">
           <h1 className="header-title">CUENECT</h1>
           <div className="header-subtitle">
-            {selectedPlaylist !== 'All' ? `Playlist: ${selectedPlaylist}` : 'Hologram Stage Controller'}
+            {selectedPlaylist !== 'All' ? `Playlist: ${selectedPlaylist}` : 'Hologram Controller'}
           </div>
         </div>
       </div>
@@ -156,14 +156,14 @@ export const Header: React.FC<HeaderProps> = ({
           <Camera size={18} />
         </button>
 
-        <button className="btn-icon hide-on-mobile" onClick={triggerFullscreen} title="Toggle stage fullscreen">
+        <button className="btn-icon hide-on-mobile" onClick={triggerFullscreen} title="Toggle fullscreen">
           <Maximize size={18} />
         </button>
 
         <button
           className="btn-icon hide-on-mobile"
           onClick={() => setIsSettingsOpen(true)}
-          title="Stereo calibration & stage settings"
+          title="Stereo calibration & settings"
         >
           <Sliders size={18} />
         </button>

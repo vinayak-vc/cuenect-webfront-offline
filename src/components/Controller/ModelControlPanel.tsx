@@ -23,7 +23,7 @@ import {
  *
  * Features:
  * - Persistent Control Mode Selector (Rotate, Pan, Light, Magnifier) for both Live View & D-Pad.
- * - View Mode Changer (Projection: 2D, SBS, HOLO, KMAX) accessible in both views.
+ * - View Mode Changer (Projection: 2D, SBS, HOLO, FMAX) accessible in both views.
  * - Camera Toggle (Ortho / Perspective): visible when Rotate or Pan is selected;
  *   automatically hidden when Light or Magnifier is selected.
  * - 3D Touch vs D-Pad switcher for eligible models.
@@ -143,7 +143,7 @@ export const ModelControlPanel: React.FC = () => {
                 ? 'Checking local network connectivity...'
                 : isTunnel
                 ? 'Cloud tunnel (ngrok) · 3D download paused to save data'
-                : `Direct stage control · Model exceeds web preview ${activeAsset.fileSizeMB ? `(${activeAsset.fileSizeMB} MB)` : ''}`}
+                : `Direct control · Model exceeds web preview ${activeAsset.fileSizeMB ? `(${activeAsset.fileSizeMB} MB)` : ''}`}
             </span>
           </div>
           {!isProbing && !forceLoadAnyway ? (
@@ -192,13 +192,13 @@ export const ModelControlPanel: React.FC = () => {
         </div>
       )}
 
-      {/* Level 2: Secondary Stage Configuration (Projection & Camera) */}
+      {/* Level 2: Secondary Configuration (Projection & Camera) */}
       <div style={{ width: '100%', maxWidth: 420, display: 'flex', gap: 8, alignItems: 'center' }}>
         <button
           type="button"
           className="btn btn-secondary"
           onClick={() => setIsProjectionOpen(true)}
-          title="Change Stage Projection Mode (2D / SBS / HOLO / KMAX)"
+          title="Change Projection Mode (2D / SBS / HOLO / FMAX)"
           style={{
             flex: 1,
             display: 'flex',
@@ -293,7 +293,7 @@ export const ModelControlPanel: React.FC = () => {
             </div>
           }
           onCenterPress={resetModelTransform}
-          centerTitle="Reset model rotation and position on Hologram Stage"
+          centerTitle="Reset model rotation and position"
         />
       </div>
 

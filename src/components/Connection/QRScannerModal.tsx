@@ -188,7 +188,7 @@ export const QRScannerModal: React.FC<QRScannerModalProps> = ({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Scan Stage QR Code" maxWidth="420px">
+    <Modal isOpen={isOpen} onClose={onClose} title="Scan QR Code" maxWidth="420px">
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 }}>
         {/* Scanner Viewport */}
         <div

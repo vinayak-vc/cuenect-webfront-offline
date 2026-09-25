@@ -60,7 +60,7 @@ export const PlaylistMakerModal: React.FC<PlaylistMakerModalProps> = ({ isOpen, 
       subtitle={
         playlistAssets.length > 0
           ? `${playlistAssets.length} items · ${formatRuntime(totalRuntime)} runtime`
-          : 'Build an automated stage sequence'
+          : 'Build an automated sequence'
       }
       footer={
         playlistAssets.length > 0 ? (
@@ -80,7 +80,7 @@ export const PlaylistMakerModal: React.FC<PlaylistMakerModalProps> = ({ isOpen, 
         <StateView
           icon={<ListPlus size={26} />}
           title="Playlist is empty"
-          description="Add assets with the + button on any catalog tile, then order them here to run an automated stage sequence."
+          description="Add assets with the + button on any catalog tile, then order them here to run an automated sequence."
           actions={
             <button type="button" className="btn btn-secondary" onClick={onClose}>
               Browse Assets
@@ -130,7 +130,7 @@ export const PlaylistMakerModal: React.FC<PlaylistMakerModalProps> = ({ isOpen, 
                   <div className="playlist-row-body">
                     <div className="playlist-row-name">{asset.AssetName}</div>
                     <div className="u-mono" style={{ color: 'var(--text-muted)' }}>
-                      {slideDuration}s{isCurrent ? ' · on stage' : ''}
+                      {slideDuration}s{isCurrent ? ' · active' : ''}
                     </div>
                   </div>
 

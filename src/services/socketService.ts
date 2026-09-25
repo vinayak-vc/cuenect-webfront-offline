@@ -660,6 +660,19 @@ export class StageSocketService {
   }
 
   /**
+   * Set the system-wide persistent default display mode on Unity.
+   * Triggered only from Advanced Settings or first-time setup.
+   */
+  public sendDefaultDisplayMode(mode: DisplayMode): void {
+    const payload: DisplayModePayload = {
+      mode,
+      modeName: DisplayModeNames[mode]
+    };
+    this.emitEvent(StaticStrings.DefaultDisplayModeActionKey, payload);
+    this.emitEvent('message', `DefaultDisplayMode#${DisplayModeNames[mode]}`);
+  }
+
+  /**
    * Switch the stage environment: the black void the stage shipped with, or space.
    * Both `preset` and `presetName` are sent so either Unity parse branch resolves it.
    *

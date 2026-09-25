@@ -137,7 +137,7 @@ export const AssetCard: React.FC<AssetCardProps> = ({ asset }) => {
         {isActive ? (
           <span className="asset-live-badge">
             <span className="live-dot" />
-            ON STAGE
+            LIVE
           </span>
         ) : isInCustomPlaylist ? (
           <span className="asset-state-badge">

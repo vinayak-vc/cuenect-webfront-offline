@@ -1,5 +1,56 @@
 # Release Notes - Cuenect Webfront Controller
 
+## [1.4.4] - 2026-09-25
+
+### Added
+- **System Default View Mode Setting**:
+  - Added "System Default View Mode" dropdown selector under Advanced Settings (`Settings -> Advanced`).
+  - Allows selecting persistent startup projection mode (`2D`, `SBS`, `HOLO`, `FMAX`) saved on the Unity stage via PlayerPrefs.
+  - Normal mode changes from the header or projection drawer remain temporary session switches and do not alter the system default.
+- **Unity First-Time Startup Mode Synchronization**:
+  - Web now adopts Unity's active mode directly upon connection without pushing cached localStorage modes, ensuring unity and web states are immediately unified on launch.
+
+### Fixed
+- **Unified Scale Minimum & Clamp**:
+  - Unified scale math across 3D view `+` / `−` buttons, mouse wheel, pinch zoom, and D-Pad zoom relative to the model's framed baseline ($0.25\times$ to $25.0\times$), eliminating discrepancies where mouse scroll and buttons had different minimum scales.
+- **Smooth 3D View Pan Drag**:
+  - Eliminated jitter during 3D view pan drag by removing the 60fps idle joystick position overwrite in Unity and enforcing clamped normalized coordinates `[-1, 1]`.
+
+---
+
+## [1.4.3] - 2026-09-25
+
+### Changed
+- **Unified 3D View and D-Pad Zoom Behavior**:
+  - Aligned the 3D View `+` and `-` zoom buttons to use the exact same joystick scale pipeline as the D-Pad (`sendModelJoystick` with direction `Scale`), eliminating scale desync and drift.
+- **Unified Pan Mode with Double-Tap Pan Gesture**:
+  - Decoupled the 3D view `[ ✥ Pan ]` mode chip from the Unity-side movable action command, operating single-finger pan with the identical smooth translation and camera lerp as the double-tap drag gesture.
+- **Removed "Stage" Across Entire Web Application**:
+  - Removed all user-facing instances of the word "Stage" from buttons, badges, navigation, modals, sheets, toasts, and descriptions for cleaner, modern branding.
+- **Replaced "KMAX" with "FMAX"**:
+  - Renamed all UI displays and projection selector options from KMAX to FMAX.
+  - Added protocol and parser support for FMAX aliases while maintaining seamless backward compatibility.
+
+---
+
+## [1.4.2] - 2026-09-25
+
+### Changed
+- **Expanded Zoom Clamp Range ($0.25\times$ to $25.0\times$)**:
+  - Expanded minimum zoom clamp down to `0.25x` (zoom out to 25% of framed baseline scale) and maximum zoom up to `25.0x` across mouse wheel, pinch gesture, and zoom buttons.
+  - Aligned with Unity's updated `PanController` scale bounds so models can be freely inspected both at macro overview and high-magnification close-up.
+
+---
+
+## [1.4.1] - 2026-09-24
+
+### Fixed
+- **Clean Model Load Scale Initialization**:
+  - Ensured `targetScaleRef` is cleanly reset to `1.0` alongside `currentScaleRef` when a new GLB model finishes streaming, preventing stale zoom multipliers from carrying over to newly loaded models.
+  - Aligned Web Front D-Pad pan commands with Unity's updated position tracking so direction controls move the stage model smoothly without snapping back.
+
+---
+
 ## [1.4.0] - 2026-09-23
 
 ### Added

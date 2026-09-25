@@ -1,4 +1,5 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import packageJson from '../package.json';
 import { Header } from './components/Common/Header';
 import { AssetGrid } from './components/Catalog/AssetGrid';
 import { ConnectionModal } from './components/Connection/ConnectionModal';
@@ -35,6 +36,10 @@ export const App: React.FC = () => {
   const [query, setQuery] = useState<string>('');
 
   const isMobile = useIsMobile();
+
+  useEffect(() => {
+    document.title = `Cuenect Controller v${packageJson.version}`;
+  }, []);
 
   // Nav highlight is derived from which surface is open - no duplicate state.
   const activeSection: MobileSection = useMemo(() => {
@@ -126,12 +131,12 @@ export const App: React.FC = () => {
       <BottomSheet
         isOpen={isNoAssetSheetOpen}
         onClose={() => setIsNoAssetSheetOpen(false)}
-        title="Stage Controller"
+        title="Controller"
       >
         <StateView
           icon={<Gamepad2 size={26} />}
-          title="Nothing on the stage"
-          description="Load an asset to the stage, then return here to rotate, pan, zoom and light it."
+          title="No active asset"
+          description="Load an asset, then return here to rotate, pan, zoom and light it."
           actions={
             <button
               type="button"

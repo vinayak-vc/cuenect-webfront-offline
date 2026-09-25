@@ -67,7 +67,7 @@ export const EnvironmentSelector: React.FC = () => {
   };
 
   const optionList = (
-    <div role="listbox" aria-label="Stage environment">
+    <div role="listbox" aria-label="Environment">
       {OPTIONS.map((opt) => (
         <button
           key={opt.preset}
@@ -100,7 +100,7 @@ export const EnvironmentSelector: React.FC = () => {
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="listbox"
         aria-expanded={open}
-        title="Stage environment"
+        title="Environment"
       >
         <span className="projection-trigger-label">
           <span className="projection-trigger-caption">Environment</span>
@@ -118,7 +118,7 @@ export const EnvironmentSelector: React.FC = () => {
         <BottomSheet
           isOpen={open}
           onClose={() => setOpen(false)}
-          title="Stage Environment"
+          title="Environment"
           subtitle="What the loaded asset is shown against"
         >
           {optionList}

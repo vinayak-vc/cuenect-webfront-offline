@@ -105,8 +105,8 @@ export const AssetGrid: React.FC<AssetGridProps> = ({ onOpenConnection, query, o
     return (
       <StateView
         icon={<Loader2 size={30} className="spin" />}
-        title="Connecting to stage"
-        description={`Establishing a link with ${config.serverIp || 'the stage server'}.`}
+        title="Connecting"
+        description={`Establishing a link with ${config.serverIp || 'the server'}.`}
         actions={
           <button type="button" className="btn btn-secondary" onClick={onOpenConnection}>
             Connection Settings
@@ -121,8 +121,8 @@ export const AssetGrid: React.FC<AssetGridProps> = ({ onOpenConnection, query, o
       <StateView
         tone="danger"
         icon={<AlertCircle size={30} />}
-        title="Unable to reach the stage"
-        description={`No response from ${config.serverIp || 'the stage'}. Check that the stage server is running and this device is on the same network.`}
+        title="Unable to reach the server"
+        description={`No response from ${config.serverIp || 'the server'}. Check that the server is running and this device is on the same network.`}
         actions={
           <>
             <button type="button" className="btn btn-primary" onClick={onOpenConnection}>
@@ -141,11 +141,11 @@ export const AssetGrid: React.FC<AssetGridProps> = ({ onOpenConnection, query, o
     return (
       <StateView
         icon={<WifiOff size={28} />}
-        title="Stage disconnected"
-        description="Connect to the hologram stage's local server, or scan its QR code, to browse and load assets."
+        title="Disconnected"
+        description="Connect to the local server, or scan its QR code, to browse and load assets."
         actions={
           <button type="button" className="btn btn-primary" onClick={onOpenConnection}>
-            Connect to Stage
+            Connect
           </button>
         }
       />
@@ -158,7 +158,7 @@ export const AssetGrid: React.FC<AssetGridProps> = ({ onOpenConnection, query, o
       <div className="catalog-container">
         <div className="catalog-toolbar">
           <div className="catalog-toolbar-row">
-            <span className="u-section-label">Syncing catalog from stage</span>
+            <span className="u-section-label">Syncing catalog</span>
             <button
               type="button"
               className="btn btn-secondary"

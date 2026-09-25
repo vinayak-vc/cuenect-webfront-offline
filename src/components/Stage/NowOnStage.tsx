@@ -29,7 +29,7 @@ export const NowOnStage: React.FC<NowOnStageProps> = ({ onOpenController }) => {
       type="button"
       className="stage-dock"
       onClick={onOpenController}
-      aria-label={`Now on stage: ${activeAsset.AssetName}. Open the stage controller.`}
+      aria-label={`Now active: ${activeAsset.AssetName}. Open controller.`}
     >
       {thumb ? (
         <img src={thumb} alt="" className="stage-dock-thumb" />
@@ -45,7 +45,7 @@ export const NowOnStage: React.FC<NowOnStageProps> = ({ onOpenController }) => {
       <span className="stage-dock-body">
         <span className="stage-dock-label">
           <span className="live-dot" />
-          Now on Stage
+          Now Active
         </span>
         <span className="stage-dock-name">{activeAsset.AssetName}</span>
         <span className="stage-dock-mode">{DisplayModeLabels[displayMode]}</span>

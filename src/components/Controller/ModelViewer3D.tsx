@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { AssetInformation, MoveableAssetType } from '../../types/protocol';
+import { AssetInformation, JoyStickDirection } from '../../types/protocol';
 import { useStage } from '../../context/StageContext';
 import { stageSocket } from '../../services/socketService';
 import {
@@ -27,8 +27,7 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
     syncModelTransform,
     stopAutoRotate,
     stageModelTransform,
-    currentMovableMode,
-    setMovableMode
+    sendModelJoystick
   } = useStage();
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -36,6 +35,7 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
   const [loadProgress, setLoadProgress] = useState<number>(0);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isStageSync, setIsStageSync] = useState<boolean>(true);
+  const [viewDragMode, setViewDragMode] = useState<'orbit' | 'pan'>('orbit');
   const [activeGesture, setActiveGesture] = useState<'rotate' | 'pan' | 'zoom' | 'pan-zoom' | null>(null);
   const [showGestureHint, setShowGestureHint] = useState<boolean>(true);
 
@@ -70,12 +70,15 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
   const modelPivotRef = useRef<THREE.Group | null>(null);
 
   // Real-time pose state
+  const MIN_ZOOM_RATIO = 0.25;
+  const MAX_ZOOM_RATIO = 25.0;
   const currentYawDegRef = useRef<number>(0);
   const currentPitchDegRef = useRef<number>(0);
   const currentScaleRef = useRef<number>(1.0);
   const targetScaleRef = useRef<number>(1.0);
-  const minScaleRef = useRef<number>(1.0);
-  const maxScaleRef = useRef<number>(12.5);
+  const framedScaleRef = useRef<number>(1.0);
+  const minScaleRef = useRef<number>(0.25);
+  const maxScaleRef = useRef<number>(25.0);
   const currentPosRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const maxPanXRef = useRef<number>(1.2);
   const maxPanYRef = useRef<number>(0.9);
@@ -124,19 +127,24 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
       }
     }
 
-    if (typeof stageModelTransform.minScale === 'number' && stageModelTransform.minScale > 0.001) {
-      minScaleRef.current = stageModelTransform.minScale;
-    }
     if (typeof stageModelTransform.maxScale === 'number' && stageModelTransform.maxScale > 0.001) {
       maxScaleRef.current = stageModelTransform.maxScale;
+      framedScaleRef.current = stageModelTransform.maxScale / MAX_ZOOM_RATIO;
+    }
+    if (typeof stageModelTransform.minScale === 'number' && stageModelTransform.minScale > 0.001) {
+      minScaleRef.current = stageModelTransform.minScale;
+      if (!stageModelTransform.maxScale) {
+        framedScaleRef.current = stageModelTransform.minScale / MIN_ZOOM_RATIO;
+      }
     }
 
     if (typeof stageModelTransform.scale === 'number' && stageModelTransform.scale > 0.001) {
-      const baseRatio = minScaleRef.current > 0 ? stageModelTransform.scale / minScaleRef.current : 1;
-      currentScaleRef.current = baseRatio;
-      targetScaleRef.current = baseRatio;
+      const baseRatio = framedScaleRef.current > 0 ? stageModelTransform.scale / framedScaleRef.current : 1;
+      const clampedRatio = Math.max(MIN_ZOOM_RATIO, Math.min(MAX_ZOOM_RATIO, baseRatio));
+      currentScaleRef.current = clampedRatio;
+      targetScaleRef.current = clampedRatio;
       if (panRootRef.current) {
-        panRootRef.current.scale.set(baseRatio, baseRatio, baseRatio);
+        panRootRef.current.scale.set(clampedRatio, clampedRatio, clampedRatio);
       }
     }
 
@@ -165,64 +173,58 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
   const syncThrottleRef = useRef<number>(0);
   const zoomHoldIntervalRef = useRef<number | null>(null);
 
-  // Discrete & continuous zoom step (smooth target scale)
-  const zoomStep = useCallback((factor: number) => {
+
+
+  const handleZoomButtonDown = (zoomVal: number) => {
+    setShowGestureHint(false);
     if (isAutoRotatingRef.current) {
       isAutoRotatingRef.current = false;
       stopAutoRotate();
     }
-    const maxRatio = maxScaleRef.current / (minScaleRef.current || 1);
-    targetScaleRef.current = Math.max(1.0, Math.min(maxRatio, targetScaleRef.current * factor));
-    requestRender();
+    sendModelJoystick(JoyStickDirection.Scale, 0, 0, zoomVal);
 
-    if (isStageSyncRef.current) {
-      const unityScale = minScaleRef.current * targetScaleRef.current;
-      const UNITY_MAX_PAN_X = 9.0;
-      const UNITY_MAX_PAN_Y = 5.0;
-      const normX = Math.max(-1, Math.min(1, currentPosRef.current.x / (maxPanXRef.current || 1)));
-      const normY = Math.max(-1, Math.min(1, currentPosRef.current.y / (maxPanYRef.current || 1)));
-      syncModelTransform(
-        currentYawDegRef.current,
-        currentPitchDegRef.current,
-        unityScale,
-        normX * UNITY_MAX_PAN_X,
-        normY * UNITY_MAX_PAN_Y
-      );
-    }
-  }, [requestRender, stopAutoRotate, syncModelTransform]);
-
-  const handleZoomButtonDown = (factor: number) => {
-    setShowGestureHint(false);
-    zoomStep(factor);
     if (zoomHoldIntervalRef.current) {
       window.clearInterval(zoomHoldIntervalRef.current);
     }
     zoomHoldIntervalRef.current = window.setInterval(() => {
-      const continuousFactor = factor > 1 ? 1.04 : 0.96;
-      zoomStep(continuousFactor);
-    }, 90);
+      sendModelJoystick(JoyStickDirection.Scale, 0, 0, zoomVal);
+    }, 150);
   };
 
-  const handleZoomButtonUp = () => {
+  const handleZoomButtonUp = useCallback(() => {
     if (zoomHoldIntervalRef.current) {
       window.clearInterval(zoomHoldIntervalRef.current);
       zoomHoldIntervalRef.current = null;
     }
-  };
+    sendModelJoystick(JoyStickDirection.End, 0, 0);
+    sendModelJoystick(JoyStickDirection.Move, 0, 0);
+  }, [sendModelJoystick]);
 
   useEffect(() => {
-    return () => {
+    const handleGlobalZoomRelease = () => {
       if (zoomHoldIntervalRef.current) {
-        window.clearInterval(zoomHoldIntervalRef.current);
-        zoomHoldIntervalRef.current = null;
+        handleZoomButtonUp();
       }
     };
-  }, []);
+    window.addEventListener('pointerup', handleGlobalZoomRelease);
+    window.addEventListener('pointercancel', handleGlobalZoomRelease);
+    window.addEventListener('mouseup', handleGlobalZoomRelease);
+    window.addEventListener('touchend', handleGlobalZoomRelease);
+    window.addEventListener('blur', handleGlobalZoomRelease);
+    return () => {
+      window.removeEventListener('pointerup', handleGlobalZoomRelease);
+      window.removeEventListener('pointercancel', handleGlobalZoomRelease);
+      window.removeEventListener('mouseup', handleGlobalZoomRelease);
+      window.removeEventListener('touchend', handleGlobalZoomRelease);
+      window.removeEventListener('blur', handleGlobalZoomRelease);
+    };
+  }, [handleZoomButtonUp]);
 
   // Clean reset function
   const handleReset = useCallback(() => {
     isAutoRotatingRef.current = false;
     stopAutoRotate();
+    setViewDragMode('orbit');
     currentYawDegRef.current = 0;
     currentPitchDegRef.current = 0;
     currentScaleRef.current = 1.0;
@@ -401,6 +403,7 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
         currentYawDegRef.current = 0;
         currentPitchDegRef.current = 0;
         currentScaleRef.current = 1.0;
+        targetScaleRef.current = 1.0;
         currentPosRef.current = { x: 0, y: 0 };
         isAutoRotatingRef.current = true;
 
@@ -449,12 +452,15 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
         stopAutoRotate();
       }
       const zoomFactor = e.deltaY > 0 ? 0.94 : 1.06;
-      const maxRatio = maxScaleRef.current / (minScaleRef.current || 1);
-      targetScaleRef.current = Math.max(1.0, Math.min(maxRatio, targetScaleRef.current * zoomFactor));
+      targetScaleRef.current = Math.max(MIN_ZOOM_RATIO, Math.min(MAX_ZOOM_RATIO, targetScaleRef.current * zoomFactor));
+      currentScaleRef.current = targetScaleRef.current;
+      if (panRootRef.current) {
+        panRootRef.current.scale.set(targetScaleRef.current, targetScaleRef.current, targetScaleRef.current);
+      }
       requestRender();
 
       if (isStageSyncRef.current) {
-        const unityScale = minScaleRef.current * targetScaleRef.current;
+        const unityScale = framedScaleRef.current * targetScaleRef.current;
         const UNITY_MAX_PAN_X = 9.0;
         const UNITY_MAX_PAN_Y = 5.0;
         const normX = Math.max(-1, Math.min(1, currentPosRef.current.x / (maxPanXRef.current || 1)));
@@ -508,12 +514,13 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
 
     // Double tap detection for Pan mode
     const now = Date.now();
-    if (pointersRef.current.size === 1 && now - lastTapTimeRef.current < 300) {
+    const isDoubleTap = pointersRef.current.size === 1 && now - lastTapTimeRef.current < 300;
+    if (isDoubleTap) {
       isDoubleTapPanRef.current = true;
       setActiveGesture('pan');
     } else {
       isDoubleTapPanRef.current = false;
-      const isPan = currentMovableMode === MoveableAssetType.Pan || e.buttons === 2 || e.shiftKey;
+      const isPan = viewDragMode === 'pan' || e.buttons === 2 || e.shiftKey;
       setActiveGesture(isPan ? 'pan' : 'rotate');
     }
     lastTapTimeRef.current = now;
@@ -551,8 +558,7 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
         if (Math.abs(pinchDelta) > 0.5) {
           const zoomSpeed = 0.006;
           const zoomMultiplier = 1 + pinchDelta * zoomSpeed;
-          const maxRatio = maxScaleRef.current / (minScaleRef.current || 1);
-          targetScaleRef.current = Math.max(1.0, Math.min(maxRatio, targetScaleRef.current * zoomMultiplier));
+          targetScaleRef.current = Math.max(MIN_ZOOM_RATIO, Math.min(MAX_ZOOM_RATIO, targetScaleRef.current * zoomMultiplier));
           currentScaleRef.current = targetScaleRef.current;
 
           if (panRootRef.current) {
@@ -598,7 +604,7 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
           const now = Date.now();
           if (now - syncThrottleRef.current > 40) {
             syncThrottleRef.current = now;
-            const unityScale = minScaleRef.current * currentScaleRef.current;
+            const unityScale = framedScaleRef.current * currentScaleRef.current;
             const UNITY_MAX_PAN_X = 9.0;
             const UNITY_MAX_PAN_Y = 5.0;
             const normX = Math.max(-1, Math.min(1, currentPosRef.current.x / (maxPanXRef.current || 1)));
@@ -622,7 +628,7 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
     const dy = e.clientY - prevPos.y;
     pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
 
-    const isPanMode = currentMovableMode === MoveableAssetType.Pan || e.buttons === 2 || e.shiftKey || isDoubleTapPanRef.current;
+    const isPanMode = viewDragMode === 'pan' || isDoubleTapPanRef.current || e.buttons === 2 || e.shiftKey;
 
     if (isPanMode) {
       setActiveGesture('pan');
@@ -645,11 +651,11 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
         const now = Date.now();
         if (now - syncThrottleRef.current > 40) {
           syncThrottleRef.current = now;
-          const unityScale = minScaleRef.current * currentScaleRef.current;
+          const unityScale = framedScaleRef.current * currentScaleRef.current;
           const UNITY_MAX_PAN_X = 9.0;
           const UNITY_MAX_PAN_Y = 5.0;
-          const normX = nextX / (maxPanXRef.current || 1);
-          const normY = nextY / (maxPanYRef.current || 1);
+          const normX = Math.max(-1, Math.min(1, nextX / (maxPanXRef.current || 1)));
+          const normY = Math.max(-1, Math.min(1, nextY / (maxPanYRef.current || 1)));
           syncModelTransform(
             currentYawDegRef.current,
             currentPitchDegRef.current,
@@ -678,7 +684,7 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
         const now = Date.now();
         if (now - syncThrottleRef.current > 35) {
           syncThrottleRef.current = now;
-          const unityScale = minScaleRef.current * currentScaleRef.current;
+          const unityScale = framedScaleRef.current * currentScaleRef.current;
           const UNITY_MAX_PAN_X = 9.0;
           const UNITY_MAX_PAN_Y = 5.0;
           const normX = Math.max(-1, Math.min(1, currentPosRef.current.x / (maxPanXRef.current || 1)));
@@ -709,7 +715,7 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
 
       // Flush final exact transform to stage
       if (isStageSyncRef.current) {
-        const unityScale = minScaleRef.current * currentScaleRef.current;
+        const unityScale = framedScaleRef.current * currentScaleRef.current;
         const UNITY_MAX_PAN_X = 9.0;
         const UNITY_MAX_PAN_Y = 5.0;
         const normX = Math.max(-1, Math.min(1, currentPosRef.current.x / (maxPanXRef.current || 1)));
@@ -752,7 +758,7 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
           style={{
             width: '100%',
             height: '100%',
-            cursor: activeGesture === 'pan' ? 'grabbing' : activeGesture === 'rotate' ? 'crosshair' : 'grab'
+            cursor: activeGesture === 'pan' || viewDragMode === 'pan' ? 'grabbing' : activeGesture === 'rotate' ? 'crosshair' : 'grab'
           }}
         />
 
@@ -774,7 +780,7 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
         >
           <button
             type="button"
-            onClick={() => setMovableMode(MoveableAssetType.Rotate)}
+            onClick={() => setViewDragMode('orbit')}
             title="Single-finger drag rotates model"
             style={{
               display: 'flex',
@@ -786,8 +792,8 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
               fontWeight: 600,
               border: 'none',
               cursor: 'pointer',
-              background: currentMovableMode === MoveableAssetType.Rotate ? 'rgba(0, 229, 255, 0.22)' : 'transparent',
-              color: currentMovableMode === MoveableAssetType.Rotate ? '#00e5ff' : '#94a3b8',
+              background: viewDragMode === 'orbit' ? 'rgba(0, 229, 255, 0.22)' : 'transparent',
+              color: viewDragMode === 'orbit' ? '#00e5ff' : '#94a3b8',
               transition: 'all 0.15s ease'
             }}
           >
@@ -796,7 +802,7 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
           </button>
           <button
             type="button"
-            onClick={() => setMovableMode(MoveableAssetType.Pan)}
+            onClick={() => setViewDragMode('pan')}
             title="Single-finger drag pans model"
             style={{
               display: 'flex',
@@ -808,8 +814,8 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
               fontWeight: 600,
               border: 'none',
               cursor: 'pointer',
-              background: currentMovableMode === MoveableAssetType.Pan ? 'rgba(0, 229, 255, 0.22)' : 'transparent',
-              color: currentMovableMode === MoveableAssetType.Pan ? '#00e5ff' : '#94a3b8',
+              background: viewDragMode === 'pan' ? 'rgba(0, 229, 255, 0.22)' : 'transparent',
+              color: viewDragMode === 'pan' ? '#00e5ff' : '#94a3b8',
               transition: 'all 0.15s ease'
             }}
           >
@@ -867,7 +873,7 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
             type="button"
             onPointerDown={(e) => {
               e.preventDefault();
-              handleZoomButtonDown(1.12);
+              handleZoomButtonDown(1);
             }}
             onPointerUp={handleZoomButtonUp}
             onPointerLeave={handleZoomButtonUp}
@@ -893,7 +899,7 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
             type="button"
             onPointerDown={(e) => {
               e.preventDefault();
-              handleZoomButtonDown(0.88);
+              handleZoomButtonDown(0);
             }}
             onPointerUp={handleZoomButtonUp}
             onPointerLeave={handleZoomButtonUp}
@@ -1032,11 +1038,11 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
           padding: '0 2px'
         }}
       >
-        {/* Stage Sync Toggle */}
+        {/* Real-time Sync Toggle */}
         <button
           type="button"
           onClick={() => setIsStageSync(!isStageSync)}
-          title={isStageSync ? 'Broadcasting live to Hologram Stage' : 'Local preview only'}
+          title={isStageSync ? 'Broadcasting live in real-time' : 'Local preview only'}
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -1065,7 +1071,7 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
               boxShadow: isStageSync ? '0 0 8px #22c55e' : 'none'
             }}
           />
-          {isStageSync ? 'Stage Sync ON' : 'Preview Only'}
+          {isStageSync ? 'Sync ON' : 'Preview Only'}
         </button>
 
         {/* Action Buttons */}

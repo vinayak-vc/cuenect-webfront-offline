@@ -20,11 +20,11 @@ export const ConnectionStatus: React.FC<ConnectionStatusProps> = ({ onClick }) =
   const primary = (): string => {
     switch (connectionState) {
       case 'connected':
-        return 'Stage Ready';
+        return 'Ready';
       case 'connecting':
         return 'Connecting';
       case 'error':
-        return 'Stage Error';
+        return 'Error';
       default:
         return 'Disconnected';
     }

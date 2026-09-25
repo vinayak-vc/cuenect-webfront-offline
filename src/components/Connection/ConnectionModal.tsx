@@ -105,7 +105,7 @@ export const ConnectionModal: React.FC<ConnectionModalProps> = ({ isOpen, onClos
 
   return (
     <>
-      <Modal isOpen={isOpen} onClose={onClose} title="Stage Connection">
+      <Modal isOpen={isOpen} onClose={onClose} title="Connection">
         {/* Status Banner */}
         {connectionState === 'connected' && (
           <div
@@ -129,7 +129,7 @@ export const ConnectionModal: React.FC<ConnectionModalProps> = ({ isOpen, onClos
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
                   {connectedUsers.length > 0
                     ? `${connectedUsers.length} Active User${connectedUsers.length > 1 ? 's' : ''} Online`
-                    : 'Stage Connection Active'}
+                    : 'Connection Active'}
                 </div>
               </div>
             </div>
@@ -165,7 +165,7 @@ export const ConnectionModal: React.FC<ConnectionModalProps> = ({ isOpen, onClos
               <Loader2 size={18} className="spin" style={{ color: 'var(--color-warning)' }} />
               <div>
                 <div style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--color-warning)' }}>
-                  Connecting to Stage...
+                  Connecting...
                 </div>
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
                   Handshaking with {config.serverIp}
@@ -199,7 +199,7 @@ export const ConnectionModal: React.FC<ConnectionModalProps> = ({ isOpen, onClos
           >
             <AlertCircle size={18} style={{ color: 'var(--color-danger)' }} />
             <div style={{ fontSize: '0.8rem', color: 'var(--color-danger)' }}>
-              Could not reach stage server. Please check IP address and ensure the stage is running.
+              Could not reach server. Please check IP address and ensure the application is running.
             </div>
           </div>
         )}
@@ -221,7 +221,7 @@ export const ConnectionModal: React.FC<ConnectionModalProps> = ({ isOpen, onClos
               type="button"
               className="btn btn-secondary"
               onClick={() => setIsScannerOpen(true)}
-              title="Scan Stage QR"
+              title="Scan QR"
               disabled={connectionState === 'connecting'}
             >
               <QrCode size={18} />
@@ -315,7 +315,7 @@ export const ConnectionModal: React.FC<ConnectionModalProps> = ({ isOpen, onClos
               ) : (
                 <>
                   <Wifi size={16} />
-                  Connect to Stage
+                  Connect
                 </>
               )}
             </button>

@@ -81,7 +81,7 @@ export const FullScreenController: React.FC = () => {
   // ---- Live asset identity -------------------------------------------------
   const assetLine = (
     <div className={isDesktop ? 'controller-panel' : 'controller-asset-line'}>
-      {isDesktop && <span className="u-section-label">Now on Stage</span>}
+      {isDesktop && <span className="u-section-label">Now Active</span>}
 
       <div style={{ display: 'flex', gap: 12, alignItems: 'center', minWidth: 0 }}>
         {thumbUrl ? (
@@ -127,7 +127,7 @@ export const FullScreenController: React.FC = () => {
   const statusStrip = (
     <button type="button" className="status-strip" onClick={() => setIsStatusOpen(true)}>
       <span className={`status-strip-dot ${connectionState === 'connected' ? 'ok' : 'bad'}`} />
-      <span className="status-strip-value">{connectionState === 'connected' ? 'Stage Ready' : 'Offline'}</span>
+      <span className="status-strip-value">{connectionState === 'connected' ? 'Ready' : 'Offline'}</span>
       <span className="status-strip-sep">·</span>
       <span className="status-strip-value">{SHORT_MODE[displayMode] ?? '2D'}</span>
       <span className="status-strip-sep">·</span>
@@ -187,9 +187,9 @@ export const FullScreenController: React.FC = () => {
       {category === DataType.Video && <VideoControlPanel />}
       {category === DataType.Image && (
         <div className="controller-panel" style={{ textAlign: 'center' }}>
-          <span className="u-section-label">Image on Stage</span>
+          <span className="u-section-label">Active Image</span>
           <p className="u-meta">
-            Still images have no transform controls. Use Clear Stage to return to the company logo.
+            Still images have no transform controls. Use Clear to return to the company logo.
           </p>
         </div>
       )}
@@ -198,7 +198,7 @@ export const FullScreenController: React.FC = () => {
 
   const desktopStatusPanel = (
     <div className="controller-panel">
-      <span className="u-section-label">Stage Status</span>
+      <span className="u-section-label">Status</span>
       {statusDetail}
       <span className="u-section-label" style={{ marginTop: 4 }}>
         Quick Actions
@@ -214,7 +214,7 @@ export const FullScreenController: React.FC = () => {
         </button>
         <button type="button" className="quick-btn danger" onClick={() => setIsClearConfirmOpen(true)}>
           <Square size={14} />
-          Clear Stage
+          Clear
         </button>
       </div>
     </div>
@@ -227,16 +227,16 @@ export const FullScreenController: React.FC = () => {
           type="button"
           className="btn-icon"
           onClick={() => setIsControllerOpen(false)}
-          title="Back to assets (keeps the asset on the stage)"
+          title="Back to assets"
           aria-label="Back to assets"
         >
           <ArrowLeft size={20} />
         </button>
 
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-          <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>Stage Controller</div>
+          <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>Controller</div>
           <div className="u-meta">
-            {connectionState === 'connected' ? 'Live stage control' : 'Stage offline'}
+            {connectionState === 'connected' ? 'Live control' : 'Offline'}
           </div>
         </div>
 
@@ -244,8 +244,8 @@ export const FullScreenController: React.FC = () => {
           type="button"
           className="btn-icon"
           onClick={() => setIsMoreOpen(true)}
-          title="More stage actions"
-          aria-label="More stage actions"
+          title="More actions"
+          aria-label="More actions"
         >
           <MoreHorizontal size={18} />
         </button>
@@ -256,12 +256,12 @@ export const FullScreenController: React.FC = () => {
           {connectionState === 'connecting' ? (
             <>
               <Loader2 size={14} className="spin" />
-              <span>Reconnecting to stage — controls paused</span>
+              <span>Reconnecting — controls paused</span>
             </>
           ) : (
             <>
               <AlertTriangle size={14} />
-              <span>Stage disconnected — controls paused</span>
+              <span>Disconnected — controls paused</span>
             </>
           )}
         </div>
@@ -297,7 +297,7 @@ export const FullScreenController: React.FC = () => {
       <BottomSheet
         isOpen={isMoreOpen}
         onClose={() => setIsMoreOpen(false)}
-        title="Stage Actions"
+        title="Actions"
         subtitle={activeAsset.AssetName}
       >
         <div className="sheet-action-list">
@@ -327,7 +327,7 @@ export const FullScreenController: React.FC = () => {
           >
             <Sliders size={17} />
             <span>
-              <strong>Stage settings & calibration</strong>
+              <strong>Settings & calibration</strong>
               <em>Stereo, lighting, camera</em>
             </span>
           </button>
@@ -342,8 +342,8 @@ export const FullScreenController: React.FC = () => {
           >
             <Maximize size={17} />
             <span>
-              <strong>Toggle stage fullscreen</strong>
-              <em>Switch the stage window mode</em>
+              <strong>Toggle fullscreen</strong>
+              <em>Switch window mode</em>
             </span>
           </button>
 
@@ -374,7 +374,7 @@ export const FullScreenController: React.FC = () => {
           >
             <Square size={17} />
             <span>
-              <strong>Clear stage</strong>
+              <strong>Clear</strong>
               <em>Remove the current content and show the company logo</em>
             </span>
           </button>
@@ -384,18 +384,18 @@ export const FullScreenController: React.FC = () => {
       <BottomSheet
         isOpen={isStatusOpen}
         onClose={() => setIsStatusOpen(false)}
-        title="Stage Status"
+        title="Status"
         subtitle="Live link, projection and control ownership"
       >
         {statusDetail}
       </BottomSheet>
 
-      {/* Clearing the stage is visible to the audience - always confirm. */}
+      {/* Clearing is visible to the audience - always confirm. */}
       <ConfirmDialog
         isOpen={isClearConfirmOpen}
-        title="Clear Stage?"
-        message="This removes the current content from the stage and restores the company logo. The audience will see this change."
-        confirmLabel="Clear Stage"
+        title="Clear Content?"
+        message="This removes the current content and restores the company logo. The audience will see this change."
+        confirmLabel="Clear"
         destructive
         onCancel={() => setIsClearConfirmOpen(false)}
         onConfirm={() => {
@@ -417,5 +417,6 @@ const MOVABLE_LABELS: Record<number, string> = {
 const SHORT_MODE: Record<number, string> = {
   0: '2D',
   1: 'SBS',
-  2: 'HOLO'
+  2: 'HOLO',
+  3: 'FMAX'
 };

@@ -153,6 +153,9 @@ export function parseDisplayMode(payload: { mode?: unknown; modeName?: unknown }
 
   if (typeof payload.modeName === 'string') {
     const name = payload.modeName.trim().toLowerCase();
+    if (name === 'fmax' || name === 'fmaxdevice' || name === 'kmax' || name === 'kmaxdevice') {
+      return DisplayMode.KmaxDevice;
+    }
     const match = (Object.keys(DisplayModeNames) as unknown as DisplayMode[])
       .find((key) => DisplayModeNames[key] === name);
     if (match !== undefined) return Number(match) as DisplayMode;
@@ -166,14 +169,14 @@ export const DisplayModeShortLabels: Record<DisplayMode, string> = {
   [DisplayMode.Mono2D]: '2D',
   [DisplayMode.StereoSbs]: 'SBS',
   [DisplayMode.HoloDevice]: 'HOLO',
-  [DisplayMode.KmaxDevice]: 'KMAX'
+  [DisplayMode.KmaxDevice]: 'FMAX'
 };
 
 export const DisplayModeLabels: Record<DisplayMode, string> = {
   [DisplayMode.Mono2D]: '2D',
   [DisplayMode.StereoSbs]: 'Stereoscopic (SBS)',
   [DisplayMode.HoloDevice]: 'HOLO Stereoscopic',
-  [DisplayMode.KmaxDevice]: 'KMAX Stereoscopic'
+  [DisplayMode.KmaxDevice]: 'FMAX Stereoscopic'
 };
 
 /**
@@ -244,7 +247,7 @@ export const EnvironmentPresetLabels: Record<EnvironmentPreset, string> = {
 };
 
 export const EnvironmentPresetDescriptions: Record<EnvironmentPreset, string> = {
-  [EnvironmentPreset.Void]: 'The object alone on black. What the stage shipped with.',
+  [EnvironmentPreset.Void]: 'The object alone on black background.',
   [EnvironmentPreset.Space]: 'Drifting debris, dust and a starfield around the object.'
 };
 
@@ -314,6 +317,7 @@ export const StaticStrings = {
   StereoSettingsActionKey: 'StereoSettingsActionKey',
   CameraOrthographicAction: 'CameraOrthographicActionKey',
   DisplayModeActionKey: 'hologram-display-mode-action',
+  DefaultDisplayModeActionKey: 'hologram-default-display-mode-action',
   EnvironmentActionKey: 'hologram-environment-action',
   ModelTransformActionKey: 'hologram-model-transform',
   ControlLockState: 'control-lock-state',

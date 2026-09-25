@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useStage } from '../../context/StageContext';
+import { DisplayMode } from '../../types/protocol';
 import { BottomSheet } from '../Common/BottomSheet';
 import { Slider } from '../Common/Slider';
 import { ChevronDown, Eye, Sun, Camera, RotateCcw, FlaskConical } from 'lucide-react';
@@ -53,14 +54,16 @@ export const StageSettingsModal: React.FC = () => {
     updateStereoSettings,
     resetStereoSettings,
     isOrthographic,
-    toggleOrthographic
+    toggleOrthographic,
+    defaultDisplayMode,
+    setDefaultDisplayMode
   } = useStage();
 
   return (
     <BottomSheet
       isOpen={isSettingsOpen}
       onClose={() => setIsSettingsOpen(false)}
-      title="Stage Settings"
+      title="Settings"
       subtitle="Stereo, lighting and camera calibration"
       footer={
         <button
@@ -114,7 +117,7 @@ export const StageSettingsModal: React.FC = () => {
         />
       </Section>
 
-      <Section title="Lighting" subtitle="Stage brightness" icon={<Sun size={18} />}>
+      <Section title="Lighting" subtitle="Brightness" icon={<Sun size={18} />}>
         <Slider
           label="Directional light intensity"
           valueLabel={stereoSettings.lightBrightness.toFixed(2)}
@@ -127,7 +130,7 @@ export const StageSettingsModal: React.FC = () => {
         />
       </Section>
 
-      <Section title="Camera" subtitle="Stage projection geometry" icon={<Camera size={18} />}>
+      <Section title="Camera" subtitle="Projection geometry" icon={<Camera size={18} />}>
         <div className="stage-readout">
           <span style={{ color: 'var(--text-secondary)', fontSize: '0.82rem' }}>Projection</span>
           <button
@@ -140,7 +143,7 @@ export const StageSettingsModal: React.FC = () => {
           </button>
         </div>
         <p className="u-meta">
-          Both stereo modes require a perspective camera; the stage locks this while stereo is active.
+          Both stereo modes require a perspective camera; this is locked while stereo is active.
         </p>
       </Section>
 
@@ -165,6 +168,41 @@ export const StageSettingsModal: React.FC = () => {
             style={{ accentColor: 'var(--color-primary)', width: 20, height: 20, flexShrink: 0 }}
           />
         </label>
+
+        <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--border-glass, rgba(255, 255, 255, 0.08))', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <span style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600 }}>
+                System Default View Mode
+              </span>
+              <span className="setting-section-sub">
+                Startup projection mode saved on the Unity stage.
+              </span>
+            </div>
+            <select
+              className="form-control"
+              value={defaultDisplayMode}
+              onChange={(e) => setDefaultDisplayMode(Number(e.target.value) as DisplayMode)}
+              style={{
+                width: 'auto',
+                minWidth: 100,
+                padding: '0.4rem 0.6rem',
+                borderRadius: 'var(--radius-sm, 6px)',
+                background: 'rgba(255, 255, 255, 0.06)',
+                border: '1px solid var(--border-glass, rgba(255, 255, 255, 0.15))',
+                color: 'var(--color-primary, #64c5be)',
+                fontWeight: 600,
+                fontSize: '0.85rem',
+                cursor: 'pointer'
+              }}
+            >
+              <option value={DisplayMode.Mono2D} style={{ background: '#111', color: '#fff' }}>2D</option>
+              <option value={DisplayMode.StereoSbs} style={{ background: '#111', color: '#fff' }}>SBS</option>
+              <option value={DisplayMode.HoloDevice} style={{ background: '#111', color: '#fff' }}>HOLO</option>
+              <option value={DisplayMode.KmaxDevice} style={{ background: '#111', color: '#fff' }}>FMAX</option>
+            </select>
+          </div>
+        </div>
       </Section>
     </BottomSheet>
   );

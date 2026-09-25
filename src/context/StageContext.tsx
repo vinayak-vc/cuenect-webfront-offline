@@ -29,6 +29,7 @@ import {
   TransportPromotionState
 } from '../services/socketService';
 import { StorageService, ConnectionConfig } from '../services/storage';
+import packageJson from '../../package.json';
 
 export interface ToastMessage {
   id: string;
@@ -88,6 +89,8 @@ interface StageContextValue {
   // Display path: 2D / SBS stereo / HOLO device
   displayMode: DisplayMode;
   setDisplayMode: (mode: DisplayMode) => void;
+  defaultDisplayMode: DisplayMode;
+  setDefaultDisplayMode: (mode: DisplayMode) => void;
   environmentPreset: EnvironmentPreset;
   setEnvironmentPreset: (preset: EnvironmentPreset) => void;
 
@@ -153,6 +156,7 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   stereoSettingsRef.current = stereoSettings;
   const stereoDebounceTimerRef = useRef<number | null>(null);
   const [displayMode, setDisplayModeState] = useState<DisplayMode>(StorageService.getDisplayMode());
+  const [defaultDisplayMode, setDefaultDisplayModeState] = useState<DisplayMode>(StorageService.getDefaultDisplayMode());
   const [environmentPreset, setEnvironmentPresetState] = useState<EnvironmentPreset>(StorageService.getEnvironmentPreset());
   const [recentAssetIds, setRecentAssetIds] = useState<string[]>(StorageService.getRecentAssets());
   const [favouriteAssetIds, setFavouriteAssetIds] = useState<string[]>(StorageService.getFavouriteAssets());
@@ -252,7 +256,7 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           new Set(normalizedAssets.map((a) => a.PlaylistName).filter(Boolean))
         );
         setPlaylists(['All', ...names]);
-        addToast('Loaded', `Received ${normalizedAssets.length} stage assets`, 'success');
+        addToast('Loaded', `Received ${normalizedAssets.length} assets`, 'success');
       }
     } catch (e) {
       console.error('Error parsing assets JSON:', e);
@@ -264,7 +268,7 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       requestedThumbnailsRef.current.clear();
       setThumbnails({});
       stageSocket.emitEvent('message', StaticStrings.ReqAsset);
-      addToast('Sync', 'Requesting assets from stage...', 'info');
+      addToast('Sync', 'Requesting assets from server...', 'info');
     }
   }, [connectionState, addToast]);
 
@@ -343,15 +347,15 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setConnectionState(state);
       if (isInitial) return;
       if (state === 'connected') {
-        addToast('Connected', 'Connected to Stage Server', 'success');
+        addToast('Connected', 'Connected to Server', 'success');
 
         // Handshake with Unity desktop app now that the socket is live
-        stageSocket.emitEvent('message', `${StaticStrings.AppVersion}#1.0.0`);
+        stageSocket.emitEvent('message', `${StaticStrings.AppVersion}#${packageJson.version}`);
         stageSocket.emitEvent('message', StaticStrings.ReqAsset);
         const currentSettings = StorageService.getStereoSettings();
         stageSocket.sendStereoSettings(currentSettings);
-        // Re-assert the display path: the stage may have restarted since we last set it.
-        stageSocket.sendDisplayMode(StorageService.getDisplayMode());
+        // Display mode is authoritative on Unity (it starts in DefaultViewMode and broadcasts it).
+        // Web adopts Unity's active mode on connect rather than overriding it.
         // Same for the environment: a stage restart drops back to whatever its own
         // inspector says, which is not necessarily what the operator last chose.
         stageSocket.sendEnvironmentPreset(StorageService.getEnvironmentPreset());
@@ -363,9 +367,9 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           // Stop auto-connect immediately on first error for public cloud URLs
           StorageService.saveAutoConnect(false);
         }
-        addToast('Connection Error', detail || 'Failed to connect to stage server', 'error');
+        addToast('Connection Error', detail || 'Failed to connect to server', 'error');
       } else if (state === 'disconnected') {
-        addToast('Disconnected', 'Disconnected from stage', 'warning');
+        addToast('Disconnected', 'Disconnected from server', 'warning');
         setControlLock(DEFAULT_CONTROL_LOCK);
         stageSocket.setStageControl(true);
       }
@@ -381,8 +385,8 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (now - lastBlockedToastRef.current < 4000) return;
       lastBlockedToastRef.current = now;
       addToast(
-        'Stage is locked',
-        `${controlLockRef.current.holderName || 'Another operator'} has control. Request control to drive the stage.`,
+        'Locked',
+        `${controlLockRef.current.holderName || 'Another operator'} has control. Request control to operate.`,
         'warning'
       );
     });
@@ -419,6 +423,15 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         return;
       }
 
+      if (eventName === StaticStrings.DefaultDisplayModeActionKey) {
+        const reported = parseDisplayMode(data);
+        if (reported !== null) {
+          setDefaultDisplayModeState(reported);
+          StorageService.saveDefaultDisplayMode(reported);
+        }
+        return;
+      }
+
       // Same contract for the environment: the stage is authoritative. A Build can
       // decline - a missing layer asset leaves the stage bare - and a controller
       // showing "Space" over a black void is worse than one that never offered it.
@@ -441,9 +454,9 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           };
           // Only announce genuine transitions, not every refresh.
           if (prev.youHaveControl && !next.youHaveControl) {
-            addToast('Control taken', `${next.holderName || 'Another operator'} is now controlling the stage`, 'warning');
+            addToast('Control taken', `${next.holderName || 'Another operator'} is now in control`, 'warning');
           } else if (!prev.youHaveControl && next.youHaveControl) {
-            addToast('Control granted', 'You are controlling the stage', 'success');
+            addToast('Control granted', 'You are in control', 'success');
           }
           // Keep the transport in sync so blocked commands never leave the device.
           stageSocket.setStageControl(next.youHaveControl);
@@ -495,7 +508,7 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const loadAsset = useCallback((asset: AssetInformation) => {
     if (!stageSocket.canDriveStage) {
       addToast(
-        'Stage is locked',
+        'Locked',
         `${controlLockRef.current.holderName || 'Another operator'} has control. Request control before loading assets.`,
         'warning'
       );
@@ -613,6 +626,16 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setIsOrthographic(false);
       stageSocket.sendCameraOrthographic({ isOrthographic: false });
     }
+  }, []);
+
+  /**
+   * Set the system default display mode (configured in Advanced Settings).
+   * This is sent to Unity to persist in its PlayerPrefs as the startup mode.
+   */
+  const setDefaultDisplayMode = useCallback((mode: DisplayMode) => {
+    setDefaultDisplayModeState(mode);
+    StorageService.saveDefaultDisplayMode(mode);
+    stageSocket.sendDefaultDisplayMode(mode);
   }, []);
 
   /**
@@ -862,6 +885,8 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     triggerFullscreen,
     displayMode,
     setDisplayMode,
+    defaultDisplayMode,
+    setDefaultDisplayMode,
     environmentPreset,
     setEnvironmentPreset,
     recentAssetIds,

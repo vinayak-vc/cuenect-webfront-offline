@@ -35,7 +35,7 @@ export const MoreSheet: React.FC<MoreSheetProps> = ({
   const hasControl = controlLock.youHaveControl;
 
   return (
-    <BottomSheet isOpen={isOpen} onClose={onClose} title="More" subtitle="Stage configuration">
+    <BottomSheet isOpen={isOpen} onClose={onClose} title="More" subtitle="Configuration">
       {/* Control ownership first: it decides whether anything else works. */}
       <div className="setting-section open">
         <div className="setting-section-header" style={{ cursor: 'default' }}>
@@ -111,7 +111,7 @@ export const MoreSheet: React.FC<MoreSheetProps> = ({
         >
           <Sliders size={17} />
           <span>
-            <strong>Stage settings & calibration</strong>
+            <strong>Settings & calibration</strong>
             <em>Stereo, lighting, camera, advanced</em>
           </span>
         </button>
@@ -126,10 +126,10 @@ export const MoreSheet: React.FC<MoreSheetProps> = ({
         >
           <Plug size={17} />
           <span>
-            <strong>Stage connection</strong>
+            <strong>Connection</strong>
             <em>
               {connectionState === 'connected'
-                ? `${config.serverIp || 'stage'} · ${connectedUsers.length} online`
+                ? `${config.serverIp || 'server'} · ${connectedUsers.length} online`
                 : 'Not connected'}
             </em>
           </span>
@@ -138,8 +138,8 @@ export const MoreSheet: React.FC<MoreSheetProps> = ({
         <div className="sheet-action" style={{ cursor: 'default', opacity: 0.75 }}>
           <Info size={17} />
           <span>
-            <strong>CUENECT Stage Controller</strong>
-            <em>Remote controller for the hologram stage</em>
+            <strong>CUENECT Controller</strong>
+            <em>Remote controller for hologram display</em>
           </span>
         </div>
       </div>

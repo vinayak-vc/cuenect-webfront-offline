@@ -1,8 +1,8 @@
 {
   "id": "/",
-  "name": "Cuenect Stage Controller",
+  "name": "Cuenect Controller",
   "short_name": "Cuenect",
-  "description": "Remote Controller for Cuenect Hologram Stage",
+  "description": "Remote Controller for Cuenect Hologram",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
