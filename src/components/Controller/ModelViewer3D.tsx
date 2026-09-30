@@ -961,9 +961,9 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
               bottom: 10,
               left: 10,
               right: 52,
-              padding: '8px 11px',
+              padding: '10px 12px',
               borderRadius: 10,
-              background: 'rgba(7, 10, 19, 0.86)',
+              background: 'rgba(7, 10, 19, 0.88)',
               border: '1px solid rgba(100, 197, 190, 0.32)',
               backdropFilter: 'blur(8px)',
               pointerEvents: 'none',
@@ -974,73 +974,89 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
               gap: 3
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
-              <span
-                style={{
-                  fontSize: '0.72rem',
-                  fontWeight: 700,
-                  color: '#f8fafc',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap'
-                }}
-              >
-                {asset.metadata.title || asset.AssetName}
-              </span>
-              <span
-                style={{
-                  flexShrink: 0,
-                  fontSize: '0.58rem',
-                  fontWeight: 700,
-                  padding: '1px 5px',
-                  borderRadius: 4,
-                  background: 'rgba(0, 229, 255, 0.16)',
-                  color: '#00e5ff',
-                  border: '1px solid rgba(0, 229, 255, 0.3)'
-                }}
-              >
-                CC0
-              </span>
+            <div
+              style={{
+                fontSize: '0.74rem',
+                fontWeight: 700,
+                color: '#f8fafc',
+                whiteSpace: 'normal',
+                wordBreak: 'break-word'
+              }}
+            >
+              {asset.metadata.title || asset.AssetName}
             </div>
             {asset.metadata.museum && (
               <div
                 style={{
-                  fontSize: '0.64rem',
+                  fontSize: '0.66rem',
                   fontWeight: 600,
                   color: '#64c5be',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap'
+                  whiteSpace: 'normal',
+                  wordBreak: 'break-word'
                 }}
               >
                 {asset.metadata.museum}
               </div>
             )}
-            {(asset.metadata.creator || asset.metadata.date || asset.metadata.collection || asset.metadata.dimensions) && (
+            {asset.metadata.creator &&
+              asset.metadata.creator.trim().toLowerCase() !== (asset.metadata.museum || '').trim().toLowerCase() && (
+                <div
+                  style={{
+                    fontSize: '0.62rem',
+                    color: '#cbd5e1',
+                    whiteSpace: 'normal',
+                    wordBreak: 'break-word'
+                  }}
+                >
+                  {asset.metadata.creator}
+                </div>
+              )}
+            {asset.metadata.date &&
+              asset.metadata.date.trim().toLowerCase() !== 'smithsonian archive' && (
+                <div
+                  style={{
+                    fontSize: '0.62rem',
+                    color: '#cbd5e1',
+                    whiteSpace: 'normal',
+                    wordBreak: 'break-word'
+                  }}
+                >
+                  {asset.metadata.date}
+                </div>
+              )}
+            {asset.metadata.collection &&
+              asset.metadata.collection.trim().toLowerCase() !== 'open access 3d collection' && (
+                <div
+                  style={{
+                    fontSize: '0.62rem',
+                    color: '#cbd5e1',
+                    whiteSpace: 'normal',
+                    wordBreak: 'break-word'
+                  }}
+                >
+                  {asset.metadata.collection}
+                </div>
+              )}
+            {asset.metadata.dimensions && (
               <div
                 style={{
-                  fontSize: '0.61rem',
+                  fontSize: '0.62rem',
                   color: '#cbd5e1',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap'
+                  whiteSpace: 'normal',
+                  wordBreak: 'break-word'
                 }}
               >
-                {[asset.metadata.creator, asset.metadata.date, asset.metadata.collection, asset.metadata.dimensions]
-                  .filter(Boolean)
-                  .join(' • ')}
+                {asset.metadata.dimensions}
               </div>
             )}
             {asset.metadata.description && (
               <div
                 style={{
-                  fontSize: '0.6rem',
+                  fontSize: '0.61rem',
                   color: '#94a3b8',
-                  lineHeight: 1.3,
-                  display: '-webkit-box',
-                  WebkitLineClamp: 2,
-                  WebkitBoxOrient: 'vertical',
-                  overflow: 'hidden'
+                  lineHeight: 1.35,
+                  whiteSpace: 'normal',
+                  wordBreak: 'break-word'
                 }}
               >
                 {asset.metadata.description}

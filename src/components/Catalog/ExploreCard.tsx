@@ -104,7 +104,7 @@ export const ExploreCard: React.FC<ExploreCardProps> = ({ model }) => {
         {!isActive && (
           <span className="category-badge model">
             <Box size={11} />
-            <span>CC0 • 3D</span>
+            <span>3D Model</span>
           </span>
         )}
 

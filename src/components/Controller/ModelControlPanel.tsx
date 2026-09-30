@@ -345,47 +345,39 @@ export const ModelControlPanel: React.FC = () => {
               gap: 4
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-              <span style={{ fontSize: '0.76rem', fontWeight: 700, color: '#f8fafc' }}>
-                {activeAsset.metadata.title || activeAsset.AssetName}
-              </span>
-              <span
-                style={{
-                  flexShrink: 0,
-                  fontSize: '0.6rem',
-                  fontWeight: 700,
-                  padding: '1px 6px',
-                  borderRadius: 4,
-                  background: 'rgba(0, 229, 255, 0.16)',
-                  color: '#00e5ff',
-                  border: '1px solid rgba(0, 229, 255, 0.3)'
-                }}
-              >
-                CC0
-              </span>
+            <div style={{ fontSize: '0.76rem', fontWeight: 700, color: '#f8fafc', whiteSpace: 'normal', wordBreak: 'break-word' }}>
+              {activeAsset.metadata.title || activeAsset.AssetName}
             </div>
             {activeAsset.metadata.museum && (
-              <div style={{ fontSize: '0.68rem', fontWeight: 600, color: '#64c5be' }}>
+              <div style={{ fontSize: '0.68rem', fontWeight: 600, color: '#64c5be', whiteSpace: 'normal', wordBreak: 'break-word' }}>
                 {activeAsset.metadata.museum}
               </div>
             )}
-            {(activeAsset.metadata.creator ||
-              activeAsset.metadata.date ||
-              activeAsset.metadata.collection ||
-              activeAsset.metadata.dimensions) && (
-              <div style={{ fontSize: '0.64rem', color: '#cbd5e1' }}>
-                {[
-                  activeAsset.metadata.creator,
-                  activeAsset.metadata.date,
-                  activeAsset.metadata.collection,
-                  activeAsset.metadata.dimensions
-                ]
-                  .filter(Boolean)
-                  .join(' • ')}
+            {activeAsset.metadata.creator &&
+              activeAsset.metadata.creator.trim().toLowerCase() !== (activeAsset.metadata.museum || '').trim().toLowerCase() && (
+                <div style={{ fontSize: '0.64rem', color: '#cbd5e1', whiteSpace: 'normal', wordBreak: 'break-word' }}>
+                  {activeAsset.metadata.creator}
+                </div>
+              )}
+            {activeAsset.metadata.date &&
+              activeAsset.metadata.date.trim().toLowerCase() !== 'smithsonian archive' && (
+                <div style={{ fontSize: '0.64rem', color: '#cbd5e1', whiteSpace: 'normal', wordBreak: 'break-word' }}>
+                  {activeAsset.metadata.date}
+                </div>
+              )}
+            {activeAsset.metadata.collection &&
+              activeAsset.metadata.collection.trim().toLowerCase() !== 'open access 3d collection' && (
+                <div style={{ fontSize: '0.64rem', color: '#cbd5e1', whiteSpace: 'normal', wordBreak: 'break-word' }}>
+                  {activeAsset.metadata.collection}
+                </div>
+              )}
+            {activeAsset.metadata.dimensions && (
+              <div style={{ fontSize: '0.64rem', color: '#cbd5e1', whiteSpace: 'normal', wordBreak: 'break-word' }}>
+                {activeAsset.metadata.dimensions}
               </div>
             )}
             {activeAsset.metadata.description && (
-              <div style={{ fontSize: '0.64rem', color: '#94a3b8', lineHeight: 1.35 }}>
+              <div style={{ fontSize: '0.64rem', color: '#94a3b8', lineHeight: 1.35, whiteSpace: 'normal', wordBreak: 'break-word' }}>
                 {activeAsset.metadata.description}
               </div>
             )}
