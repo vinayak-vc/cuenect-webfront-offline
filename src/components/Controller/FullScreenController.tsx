@@ -1,6 +1,12 @@
 import React, { useState } from 'react';
 import { useStage } from '../../context/StageContext';
-import { DataType, DisplayModeLabels, resolveCategory, hasModelMetadata } from '../../types/protocol';
+import {
+  DataType,
+  DisplayModeLabels,
+  resolveCategory,
+  hasModelMetadata,
+  cleanMetadataDescription
+} from '../../types/protocol';
 import { ModelControlPanel } from './ModelControlPanel';
 import { VideoControlPanel } from './VideoControlPanel';
 import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
@@ -20,7 +26,9 @@ import {
   Maximize,
   MoreHorizontal,
   Lock,
-  Unlock
+  Unlock,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 
 /**
@@ -49,7 +57,9 @@ export const FullScreenController: React.FC = () => {
     currentMovableMode,
     controlLock,
     requestControl,
-    isMetadataVisible
+    isMetadataVisible,
+    isFullMetadataOpen,
+    toggleFullMetadataModal
   } = useStage();
 
   const isDesktop = useIsDesktop();
@@ -221,113 +231,266 @@ export const FullScreenController: React.FC = () => {
     </div>
   );
 
-  const metadataCard =
-    isMetadataVisible && hasModelMetadata(activeAsset) && activeAsset.metadata ? (
+  const metadataCard = (() => {
+    if (!isMetadataVisible || !hasModelMetadata(activeAsset) || !activeAsset.metadata) {
+      return null;
+    }
+
+    const md = activeAsset.metadata;
+    const museum = md.museum?.trim() || '';
+    const creator =
+      md.creator && md.creator.trim().toLowerCase() !== museum.toLowerCase()
+        ? md.creator.trim()
+        : '';
+    const date =
+      md.date && md.date.trim().toLowerCase() !== 'smithsonian archive'
+        ? md.date.trim()
+        : '';
+    const collection =
+      md.collection && md.collection.trim().toLowerCase() !== 'open access 3d collection'
+        ? md.collection.trim()
+        : '';
+    const place = md.place?.trim() || '';
+    const medium = md.medium?.trim() || '';
+    const dimensions = md.dimensions?.trim() || '';
+    const creditLine = md.creditLine?.trim() || '';
+    const identifier = md.identifier?.trim() || '';
+    const taxonomy = md.taxonomy?.trim() || '';
+    const annotations = md.annotations?.trim() || '';
+    const cleanedDesc = cleanMetadataDescription(md.description);
+
+    const leftItems = [collection, creator, date].filter(Boolean);
+    const rightItems = [place, medium, dimensions].filter(Boolean);
+
+    const extraDetails = (md.details || []).filter((item) => {
+      if (!item || !item.value) return false;
+      const val = item.value.trim();
+      if (!val) return false;
+      const shown = [
+        museum,
+        creator,
+        date,
+        collection,
+        place,
+        medium,
+        dimensions,
+        creditLine,
+        identifier,
+        taxonomy,
+        annotations
+      ];
+      return !shown.some((s) => s && s.toLowerCase() === val.toLowerCase());
+    });
+
+    const isLongDesc = cleanedDesc.length > 140;
+    const hasExtraCuratorial = Boolean(
+      isLongDesc ||
+        place ||
+        medium ||
+        creditLine ||
+        identifier ||
+        taxonomy ||
+        annotations ||
+        extraDetails.length > 0 ||
+        cleanedDesc.length > 0
+    );
+
+    const displayedDesc =
+      !isFullMetadataOpen && isLongDesc
+        ? `${cleanedDesc.slice(0, 140).trimEnd()}…`
+        : cleanedDesc;
+
+    return (
       <div
         style={{
           width: '100%',
           maxWidth: isDesktop ? '100%' : 420,
           padding: '12px 14px',
           borderRadius: 'var(--radius-md, 12px)',
-          background: 'rgba(13, 19, 34, 0.85)',
+          background: 'rgba(13, 19, 34, 0.88)',
           border: '1px solid rgba(100, 197, 190, 0.28)',
           boxShadow: '0 4px 18px rgba(0, 0, 0, 0.35)',
           display: 'flex',
           flexDirection: 'column',
-          gap: 4
+          gap: 6
         }}
       >
         <div
           style={{
-            fontSize: '0.82rem',
+            fontSize: '0.84rem',
             fontWeight: 700,
             color: '#f8fafc',
             whiteSpace: 'normal',
             wordBreak: 'break-word'
           }}
         >
-          {activeAsset.metadata.title || activeAsset.AssetName}
+          {md.title || activeAsset.AssetName}
         </div>
-        {activeAsset.metadata.museum && (
+
+        {museum && (
           <div
             style={{
-              fontSize: '0.73rem',
+              fontSize: '0.74rem',
               fontWeight: 600,
               color: '#64c5be',
               whiteSpace: 'normal',
               wordBreak: 'break-word'
             }}
           >
-            {activeAsset.metadata.museum}
+            {museum}
           </div>
         )}
-        {activeAsset.metadata.creator &&
-          activeAsset.metadata.creator.trim().toLowerCase() !==
-            (activeAsset.metadata.museum || '').trim().toLowerCase() && (
-            <div
-              style={{
-                fontSize: '0.7rem',
-                color: '#cbd5e1',
-                whiteSpace: 'normal',
-                wordBreak: 'break-word'
-              }}
-            >
-              {activeAsset.metadata.creator}
-            </div>
-          )}
-        {activeAsset.metadata.date &&
-          activeAsset.metadata.date.trim().toLowerCase() !== 'smithsonian archive' && (
-            <div
-              style={{
-                fontSize: '0.7rem',
-                color: '#cbd5e1',
-                whiteSpace: 'normal',
-                wordBreak: 'break-word'
-              }}
-            >
-              {activeAsset.metadata.date}
-            </div>
-          )}
-        {activeAsset.metadata.collection &&
-          activeAsset.metadata.collection.trim().toLowerCase() !== 'open access 3d collection' && (
-            <div
-              style={{
-                fontSize: '0.7rem',
-                color: '#cbd5e1',
-                whiteSpace: 'normal',
-                wordBreak: 'break-word'
-              }}
-            >
-              {activeAsset.metadata.collection}
-            </div>
-          )}
-        {activeAsset.metadata.dimensions && (
+
+        {(leftItems.length > 0 || rightItems.length > 0) && (
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns:
+                leftItems.length > 0 && rightItems.length > 0 ? '1fr 1fr' : '1fr',
+              gap: '6px 12px',
+              marginTop: 2
+            }}
+          >
+            {leftItems.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0 }}>
+                {leftItems.map((line, idx) => (
+                  <div
+                    key={`l-${idx}`}
+                    style={{
+                      fontSize: '0.7rem',
+                      color: '#cbd5e1',
+                      lineHeight: 1.35,
+                      whiteSpace: 'normal',
+                      wordBreak: 'break-word'
+                    }}
+                  >
+                    {line}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {rightItems.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0 }}>
+                {rightItems.map((line, idx) => (
+                  <div
+                    key={`r-${idx}`}
+                    style={{
+                      fontSize: '0.7rem',
+                      color: '#cbd5e1',
+                      lineHeight: 1.35,
+                      whiteSpace: 'normal',
+                      wordBreak: 'break-word'
+                    }}
+                  >
+                    {line}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {displayedDesc && (
           <div
             style={{
               fontSize: '0.7rem',
-              color: '#cbd5e1',
+              color: '#94a3b8',
+              lineHeight: 1.45,
               whiteSpace: 'normal',
-              wordBreak: 'break-word'
+              wordBreak: 'break-word',
+              marginTop: 2
             }}
           >
-            {activeAsset.metadata.dimensions}
+            {displayedDesc}
           </div>
         )}
-        {activeAsset.metadata.description && (
+
+        {isFullMetadataOpen && (
           <div
             style={{
-              fontSize: '0.69rem',
-              color: '#94a3b8',
-              lineHeight: 1.4,
-              whiteSpace: 'normal',
-              wordBreak: 'break-word'
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 4,
+              marginTop: 4,
+              paddingTop: 6,
+              borderTop: '1px solid rgba(148, 163, 184, 0.16)'
             }}
           >
-            {activeAsset.metadata.description}
+            {taxonomy && (
+              <div style={{ fontSize: '0.69rem', color: '#cbd5e1', wordBreak: 'break-word' }}>
+                <strong style={{ color: '#64c5be' }}>Taxonomy: </strong>
+                {taxonomy}
+              </div>
+            )}
+            {creditLine && (
+              <div style={{ fontSize: '0.69rem', color: '#cbd5e1', wordBreak: 'break-word' }}>
+                <strong style={{ color: '#64c5be' }}>Credit: </strong>
+                {creditLine}
+              </div>
+            )}
+            {identifier && (
+              <div style={{ fontSize: '0.69rem', color: '#cbd5e1', wordBreak: 'break-word' }}>
+                <strong style={{ color: '#64c5be' }}>Identifier: </strong>
+                {identifier}
+              </div>
+            )}
+            {annotations && (
+              <div style={{ fontSize: '0.69rem', color: '#cbd5e1', wordBreak: 'break-word' }}>
+                <strong style={{ color: '#64c5be' }}>Annotations: </strong>
+                {annotations}
+              </div>
+            )}
+            {extraDetails.map((item, idx) => (
+              <div
+                key={`d-${idx}`}
+                style={{ fontSize: '0.69rem', color: '#cbd5e1', wordBreak: 'break-word' }}
+              >
+                <strong style={{ color: '#64c5be' }}>{item.label}: </strong>
+                {item.value}
+              </div>
+            ))}
           </div>
         )}
+
+        {hasExtraCuratorial && (
+          <button
+            type="button"
+            onClick={toggleFullMetadataModal}
+            style={{
+              marginTop: 4,
+              alignSelf: 'flex-start',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 5,
+              padding: '5px 10px',
+              borderRadius: 999,
+              fontSize: '0.7rem',
+              fontWeight: 600,
+              color: isFullMetadataOpen ? '#070a13' : '#64c5be',
+              background: isFullMetadataOpen
+                ? '#64c5be'
+                : 'rgba(100, 197, 190, 0.14)',
+              border: '1px solid rgba(100, 197, 190, 0.4)',
+              cursor: 'pointer'
+            }}
+          >
+            {isFullMetadataOpen ? (
+              <>
+                <ChevronUp size={13} />
+                <span>Close Full Info on Stage</span>
+              </>
+            ) : (
+              <>
+                <ChevronDown size={13} />
+                <span>Read More · View on Stage</span>
+              </>
+            )}
+          </button>
+        )}
       </div>
-    ) : null;
+    );
+  })();
 
   return (
     <div className="controller-modal">

@@ -84,6 +84,8 @@ interface StageContextValue {
   // Metadata HUD visibility (controlled from mobile/webfront)
   isMetadataVisible: boolean;
   toggleMetadataVisible: () => void;
+  isFullMetadataOpen: boolean;
+  toggleFullMetadataModal: () => void;
   
   // Model controls
   sendModelJoystick: (direction: JoyStickDirection, xPos?: number, yPos?: number, zoom?: number, action?: string) => void;
@@ -179,6 +181,7 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [activeDownloads, setActiveDownloads] = useState<Record<string, ExploreDownloadProgress>>({});
   const [completedDownloadPrompt, setCompletedDownloadPrompt] = useState<AssetInformation | null>(null);
   const [isMetadataVisible, setIsMetadataVisible] = useState<boolean>(true);
+  const [isFullMetadataOpen, setIsFullMetadataOpen] = useState<boolean>(false);
 
   // Track whether the user is currently viewing the Explore screen
   const isUserOnExploreScreenRef = useRef<boolean>(false);
@@ -647,6 +650,7 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     const hasMeta = hasModelMetadata(normalized);
     setIsMetadataVisible(hasMeta);
+    setIsFullMetadataOpen(false);
 
     const assetPayload = {
       uuid: asset.AssetID,
@@ -662,7 +666,9 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     stageSocket.sendLoadAsset(assetPayload);
     stageSocket.sendMetadataAction({
       visible: hasMeta,
+      fullScreen: false,
       assetId: asset.AssetID,
+      title: asset.AssetName,
       metadata: hasMeta ? asset.metadata || null : null
     });
     
@@ -682,7 +688,8 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const unloadAsset = useCallback(() => {
     const modelControl: ModelControl = { isAssetClose: 'true', action: 'reset' };
     stageSocket.sendModelControl(modelControl);
-    stageSocket.sendMetadataAction({ visible: false, metadata: null });
+    stageSocket.sendMetadataAction({ visible: false, fullScreen: false, metadata: null });
+    setIsFullMetadataOpen(false);
     setActiveAsset(null);
     setIsControllerOpen(false);
     setIsVideoPlaying(false);
@@ -691,9 +698,31 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const toggleMetadataVisible = useCallback(() => {
     setIsMetadataVisible((prev) => {
       const next = !prev;
+      if (!next) {
+        setIsFullMetadataOpen(false);
+      }
       stageSocket.sendMetadataAction({
         visible: next,
+        fullScreen: false,
         assetId: activeAsset?.AssetID,
+        title: activeAsset?.AssetName,
+        metadata: activeAsset?.metadata || null
+      });
+      return next;
+    });
+  }, [activeAsset]);
+
+  const toggleFullMetadataModal = useCallback(() => {
+    setIsFullMetadataOpen((prev) => {
+      const next = !prev;
+      if (next) {
+        setIsMetadataVisible(true);
+      }
+      stageSocket.sendMetadataAction({
+        visible: true,
+        fullScreen: next,
+        assetId: activeAsset?.AssetID,
+        title: activeAsset?.AssetName,
         metadata: activeAsset?.metadata || null
       });
       return next;
@@ -1141,6 +1170,8 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     dismissCompletedDownloadPrompt,
     isMetadataVisible,
     toggleMetadataVisible,
+    isFullMetadataOpen,
+    toggleFullMetadataModal,
     sendModelJoystick,
     resetModelTransform,
     syncModelTransform,

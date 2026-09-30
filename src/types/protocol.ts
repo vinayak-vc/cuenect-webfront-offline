@@ -6,15 +6,28 @@ export enum DataType {
   Video = 2
 }
 
+export interface MetadataDetailItem {
+  label: string;
+  value: string;
+}
+
 export interface ModelMetadata {
   title?: string;
   museum?: string;
   creator?: string;
   date?: string;
   collection?: string;
+  place?: string;
+  medium?: string;
   dimensions?: string;
+  creditLine?: string;
+  identifier?: string;
+  taxonomy?: string;
+  annotations?: string;
   description?: string;
+  details?: MetadataDetailItem[];
   license?: string;
+  sourceUrl?: string;
 }
 
 export interface SmithsonianExploreModel {
@@ -43,7 +56,9 @@ export interface ExploreDownloadProgress {
 
 export interface MetadataActionPayload {
   visible: boolean;
+  fullScreen?: boolean;
   assetId?: string;
+  title?: string;
   metadata?: ModelMetadata | null;
 }
 
@@ -68,16 +83,31 @@ export interface AssetInformation {
   metadata?: ModelMetadata | null;
 }
 
+export function cleanMetadataDescription(desc?: string | null): string {
+  if (!desc) return '';
+  const trimmed = desc.trim();
+  if (/^3D digitized artifact from the /i.test(trimmed)) return '';
+  return trimmed;
+}
+
 export function hasModelMetadata(asset?: Partial<AssetInformation> | null): boolean {
   if (!asset || !asset.metadata) return false;
   const m = asset.metadata;
+  const desc = cleanMetadataDescription(m.description);
   return Boolean(
     (m.museum && m.museum.trim()) ||
     (m.creator && m.creator.trim()) ||
     (m.date && m.date.trim()) ||
     (m.collection && m.collection.trim()) ||
+    (m.place && m.place.trim()) ||
+    (m.medium && m.medium.trim()) ||
     (m.dimensions && m.dimensions.trim()) ||
-    (m.description && m.description.trim())
+    (m.creditLine && m.creditLine.trim()) ||
+    (m.identifier && m.identifier.trim()) ||
+    (m.taxonomy && m.taxonomy.trim()) ||
+    (m.annotations && m.annotations.trim()) ||
+    desc ||
+    (Array.isArray(m.details) && m.details.length > 0)
   );
 }
 
