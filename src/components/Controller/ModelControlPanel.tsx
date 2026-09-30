@@ -16,7 +16,7 @@ import {
   Layers,
   RotateCcw,
   Loader2,
-  Info
+  ChevronDown
 } from 'lucide-react';
 
 /**
@@ -197,8 +197,17 @@ export const ModelControlPanel: React.FC = () => {
         </div>
       )}
 
-      {/* Level 2: Secondary Configuration (Projection, Camera, & Metadata Toggle) */}
-      <div style={{ width: '100%', maxWidth: 420, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+      {/* Level 2: Secondary Configuration (Projection, Camera, & Round 'i' Metadata Toggle) */}
+      <div
+        style={{
+          width: '100%',
+          maxWidth: 420,
+          display: 'flex',
+          gap: 8,
+          alignItems: 'center',
+          flexWrap: 'nowrap'
+        }}
+      >
         <button
           type="button"
           className="btn btn-secondary"
@@ -206,18 +215,24 @@ export const ModelControlPanel: React.FC = () => {
           title="Change Projection Mode (2D / SBS / HOLO / FMAX)"
           style={{
             flex: 1,
-            minWidth: 115,
-            display: 'flex',
+            minWidth: 0,
+            height: 38,
+            display: 'inline-flex',
             alignItems: 'center',
             justifyContent: 'center',
             gap: 6,
-            padding: '7px 12px',
+            padding: '0 12px',
             fontSize: '0.78rem',
+            lineHeight: 1,
+            whiteSpace: 'nowrap',
             borderRadius: 'var(--radius-full, 9999px)'
           }}
         >
-          <Layers size={13} />
-          <span>Projection: {DisplayModeShortLabels[displayMode]} ▾</span>
+          <Layers size={14} style={{ flexShrink: 0 }} />
+          <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            Projection: {DisplayModeShortLabels[displayMode]}
+          </span>
+          <ChevronDown size={13} style={{ flexShrink: 0, opacity: 0.75 }} />
         </button>
 
         {isRotateOrPan && (
@@ -233,46 +248,65 @@ export const ModelControlPanel: React.FC = () => {
             }
             style={{
               flex: 1,
-              minWidth: 115,
-              display: 'flex',
+              minWidth: 0,
+              height: 38,
+              display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',
               gap: 6,
-              padding: '7px 12px',
+              padding: '0 12px',
               fontSize: '0.78rem',
+              lineHeight: 1,
+              whiteSpace: 'nowrap',
               borderRadius: 'var(--radius-full, 9999px)',
               opacity: stereoSettings.isStereo ? 0.6 : 1
             }}
           >
-            <Camera size={13} />
-            <span>Camera: {isOrthographic ? 'Ortho' : 'Persp'} ▾</span>
+            <Camera size={14} style={{ flexShrink: 0 }} />
+            <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              Camera: {isOrthographic ? 'Ortho' : 'Persp'}
+            </span>
+            <ChevronDown size={13} style={{ flexShrink: 0, opacity: 0.75 }} />
           </button>
         )}
 
-        {/* Mobile Metadata HUD Toggle - Automatically hidden when model has no metadata */}
+        {/* Round 'i' Metadata Toggle Button - Automatically hidden when model has no metadata */}
         {assetHasMetadata && (
           <button
             type="button"
             className="btn btn-secondary"
             onClick={toggleMetadataVisible}
-            title={isMetadataVisible ? 'Hide museum metadata on Stage & Controller' : 'Show museum metadata on Stage & Controller'}
+            title={isMetadataVisible ? 'Hide museum metadata' : 'Show museum metadata'}
+            aria-label={isMetadataVisible ? 'Hide museum metadata' : 'Show museum metadata'}
+            aria-pressed={isMetadataVisible}
             style={{
-              flex: 1,
-              minWidth: 115,
-              display: 'flex',
+              width: 38,
+              height: 38,
+              minWidth: 38,
+              flexShrink: 0,
+              display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: 6,
-              padding: '7px 12px',
-              fontSize: '0.78rem',
-              borderRadius: 'var(--radius-full, 9999px)',
+              padding: 0,
+              borderRadius: '50%',
               background: isMetadataVisible ? 'rgba(0, 229, 255, 0.16)' : undefined,
-              borderColor: isMetadataVisible ? 'rgba(0, 229, 255, 0.45)' : undefined,
-              color: isMetadataVisible ? '#00e5ff' : undefined
+              borderColor: isMetadataVisible ? 'rgba(0, 229, 255, 0.48)' : undefined,
+              color: isMetadataVisible ? '#00e5ff' : undefined,
+              boxShadow: isMetadataVisible ? '0 0 12px rgba(0, 229, 255, 0.2)' : undefined
             }}
           >
-            <Info size={13} />
-            <span>Metadata: {isMetadataVisible ? 'On' : 'Off'}</span>
+            <span
+              style={{
+                fontFamily: 'Georgia, "Times New Roman", serif',
+                fontStyle: 'italic',
+                fontWeight: 700,
+                fontSize: '0.95rem',
+                lineHeight: 1,
+                userSelect: 'none'
+              }}
+            >
+              i
+            </span>
           </button>
         )}
       </div>
@@ -329,60 +363,6 @@ export const ModelControlPanel: React.FC = () => {
           onCenterPress={resetModelTransform}
           centerTitle="Reset model rotation and position"
         />
-
-        {/* Metadata Plaque when in D-Pad mode */}
-        {isMetadataVisible && assetHasMetadata && activeAsset?.metadata && (
-          <div
-            style={{
-              width: '100%',
-              maxWidth: 420,
-              padding: '10px 12px',
-              borderRadius: 10,
-              background: 'rgba(7, 10, 19, 0.85)',
-              border: '1px solid rgba(100, 197, 190, 0.32)',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 4
-            }}
-          >
-            <div style={{ fontSize: '0.76rem', fontWeight: 700, color: '#f8fafc', whiteSpace: 'normal', wordBreak: 'break-word' }}>
-              {activeAsset.metadata.title || activeAsset.AssetName}
-            </div>
-            {activeAsset.metadata.museum && (
-              <div style={{ fontSize: '0.68rem', fontWeight: 600, color: '#64c5be', whiteSpace: 'normal', wordBreak: 'break-word' }}>
-                {activeAsset.metadata.museum}
-              </div>
-            )}
-            {activeAsset.metadata.creator &&
-              activeAsset.metadata.creator.trim().toLowerCase() !== (activeAsset.metadata.museum || '').trim().toLowerCase() && (
-                <div style={{ fontSize: '0.64rem', color: '#cbd5e1', whiteSpace: 'normal', wordBreak: 'break-word' }}>
-                  {activeAsset.metadata.creator}
-                </div>
-              )}
-            {activeAsset.metadata.date &&
-              activeAsset.metadata.date.trim().toLowerCase() !== 'smithsonian archive' && (
-                <div style={{ fontSize: '0.64rem', color: '#cbd5e1', whiteSpace: 'normal', wordBreak: 'break-word' }}>
-                  {activeAsset.metadata.date}
-                </div>
-              )}
-            {activeAsset.metadata.collection &&
-              activeAsset.metadata.collection.trim().toLowerCase() !== 'open access 3d collection' && (
-                <div style={{ fontSize: '0.64rem', color: '#cbd5e1', whiteSpace: 'normal', wordBreak: 'break-word' }}>
-                  {activeAsset.metadata.collection}
-                </div>
-              )}
-            {activeAsset.metadata.dimensions && (
-              <div style={{ fontSize: '0.64rem', color: '#cbd5e1', whiteSpace: 'normal', wordBreak: 'break-word' }}>
-                {activeAsset.metadata.dimensions}
-              </div>
-            )}
-            {activeAsset.metadata.description && (
-              <div style={{ fontSize: '0.64rem', color: '#94a3b8', lineHeight: 1.35, whiteSpace: 'normal', wordBreak: 'break-word' }}>
-                {activeAsset.metadata.description}
-              </div>
-            )}
-          </div>
-        )}
       </div>
 
       <ProjectionSheet isOpen={isProjectionOpen} onClose={() => setIsProjectionOpen(false)} />

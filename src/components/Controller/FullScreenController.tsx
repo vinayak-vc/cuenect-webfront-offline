@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useStage } from '../../context/StageContext';
-import { DataType, DisplayModeLabels, resolveCategory } from '../../types/protocol';
+import { DataType, DisplayModeLabels, resolveCategory, hasModelMetadata } from '../../types/protocol';
 import { ModelControlPanel } from './ModelControlPanel';
 import { VideoControlPanel } from './VideoControlPanel';
 import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
@@ -48,7 +48,8 @@ export const FullScreenController: React.FC = () => {
     setIsSettingsOpen,
     currentMovableMode,
     controlLock,
-    requestControl
+    requestControl,
+    isMetadataVisible
   } = useStage();
 
   const isDesktop = useIsDesktop();
@@ -220,6 +221,114 @@ export const FullScreenController: React.FC = () => {
     </div>
   );
 
+  const metadataCard =
+    isMetadataVisible && hasModelMetadata(activeAsset) && activeAsset.metadata ? (
+      <div
+        style={{
+          width: '100%',
+          maxWidth: isDesktop ? '100%' : 420,
+          padding: '12px 14px',
+          borderRadius: 'var(--radius-md, 12px)',
+          background: 'rgba(13, 19, 34, 0.85)',
+          border: '1px solid rgba(100, 197, 190, 0.28)',
+          boxShadow: '0 4px 18px rgba(0, 0, 0, 0.35)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 4
+        }}
+      >
+        <div
+          style={{
+            fontSize: '0.82rem',
+            fontWeight: 700,
+            color: '#f8fafc',
+            whiteSpace: 'normal',
+            wordBreak: 'break-word'
+          }}
+        >
+          {activeAsset.metadata.title || activeAsset.AssetName}
+        </div>
+        {activeAsset.metadata.museum && (
+          <div
+            style={{
+              fontSize: '0.73rem',
+              fontWeight: 600,
+              color: '#64c5be',
+              whiteSpace: 'normal',
+              wordBreak: 'break-word'
+            }}
+          >
+            {activeAsset.metadata.museum}
+          </div>
+        )}
+        {activeAsset.metadata.creator &&
+          activeAsset.metadata.creator.trim().toLowerCase() !==
+            (activeAsset.metadata.museum || '').trim().toLowerCase() && (
+            <div
+              style={{
+                fontSize: '0.7rem',
+                color: '#cbd5e1',
+                whiteSpace: 'normal',
+                wordBreak: 'break-word'
+              }}
+            >
+              {activeAsset.metadata.creator}
+            </div>
+          )}
+        {activeAsset.metadata.date &&
+          activeAsset.metadata.date.trim().toLowerCase() !== 'smithsonian archive' && (
+            <div
+              style={{
+                fontSize: '0.7rem',
+                color: '#cbd5e1',
+                whiteSpace: 'normal',
+                wordBreak: 'break-word'
+              }}
+            >
+              {activeAsset.metadata.date}
+            </div>
+          )}
+        {activeAsset.metadata.collection &&
+          activeAsset.metadata.collection.trim().toLowerCase() !== 'open access 3d collection' && (
+            <div
+              style={{
+                fontSize: '0.7rem',
+                color: '#cbd5e1',
+                whiteSpace: 'normal',
+                wordBreak: 'break-word'
+              }}
+            >
+              {activeAsset.metadata.collection}
+            </div>
+          )}
+        {activeAsset.metadata.dimensions && (
+          <div
+            style={{
+              fontSize: '0.7rem',
+              color: '#cbd5e1',
+              whiteSpace: 'normal',
+              wordBreak: 'break-word'
+            }}
+          >
+            {activeAsset.metadata.dimensions}
+          </div>
+        )}
+        {activeAsset.metadata.description && (
+          <div
+            style={{
+              fontSize: '0.69rem',
+              color: '#94a3b8',
+              lineHeight: 1.4,
+              whiteSpace: 'normal',
+              wordBreak: 'break-word'
+            }}
+          >
+            {activeAsset.metadata.description}
+          </div>
+        )}
+      </div>
+    ) : null;
+
   return (
     <div className="controller-modal">
       <div className="controller-header">
@@ -280,7 +389,10 @@ export const FullScreenController: React.FC = () => {
       <div className="controller-body">
         {isDesktop ? (
           <>
-            <div className="controller-col-side">{assetLine}</div>
+            <div className="controller-col-side">
+              {assetLine}
+              {metadataCard}
+            </div>
             <div className="controller-col-main">{controls}</div>
             <div className="controller-col-side">{desktopStatusPanel}</div>
           </>
@@ -289,6 +401,7 @@ export const FullScreenController: React.FC = () => {
             {assetLine}
             {controls}
             {statusStrip}
+            {metadataCard}
           </>
         )}
       </div>

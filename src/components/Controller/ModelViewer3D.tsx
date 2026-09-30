@@ -738,6 +738,8 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
     }
   };
 
+  const showingMetadataBelow = isMetadataVisible && hasModelMetadata(asset);
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', width: '100%', gap: 8, alignItems: 'center' }}>
       {/* 3D Canvas Viewport */}
@@ -746,7 +748,10 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
           position: 'relative',
           width: '100%',
           maxWidth: 420,
-          height: 320,
+          height: showingMetadataBelow
+            ? 'clamp(240px, calc(100dvh - 480px), 310px)'
+            : 'clamp(310px, calc(100dvh - 340px), 440px)',
+          transition: 'height 0.22s cubic-bezier(0.22, 1, 0.36, 1)',
           borderRadius: 'var(--radius-md, 12px)',
           background: 'radial-gradient(circle at 50% 50%, rgba(13, 27, 42, 0.9) 0%, rgba(7, 10, 19, 0.98) 100%)',
           border: '1px solid var(--border-glass, rgba(100, 197, 190, 0.25))',
@@ -929,7 +934,7 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
           </button>
         </div>
 
-        {/* Bottom-Left: Museum Metadata Plaque, Transient Gesture Hint, or Active Status */}
+        {/* Bottom-Left: Transient Gesture Hint or Active Status */}
         {activeGesture ? (
           <div
             style={{
@@ -953,115 +958,6 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
             {activeGesture === 'pan' && 'Panning Model...'}
             {activeGesture === 'zoom' && 'Scaling Model...'}
             {activeGesture === 'pan-zoom' && 'Panning & Scaling...'}
-          </div>
-        ) : isMetadataVisible && hasModelMetadata(asset) && asset.metadata ? (
-          <div
-            style={{
-              position: 'absolute',
-              bottom: 10,
-              left: 10,
-              right: 52,
-              padding: '10px 12px',
-              borderRadius: 10,
-              background: 'rgba(7, 10, 19, 0.88)',
-              border: '1px solid rgba(100, 197, 190, 0.32)',
-              backdropFilter: 'blur(8px)',
-              pointerEvents: 'none',
-              zIndex: 10,
-              boxShadow: '0 6px 20px rgba(0, 0, 0, 0.55)',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 3
-            }}
-          >
-            <div
-              style={{
-                fontSize: '0.74rem',
-                fontWeight: 700,
-                color: '#f8fafc',
-                whiteSpace: 'normal',
-                wordBreak: 'break-word'
-              }}
-            >
-              {asset.metadata.title || asset.AssetName}
-            </div>
-            {asset.metadata.museum && (
-              <div
-                style={{
-                  fontSize: '0.66rem',
-                  fontWeight: 600,
-                  color: '#64c5be',
-                  whiteSpace: 'normal',
-                  wordBreak: 'break-word'
-                }}
-              >
-                {asset.metadata.museum}
-              </div>
-            )}
-            {asset.metadata.creator &&
-              asset.metadata.creator.trim().toLowerCase() !== (asset.metadata.museum || '').trim().toLowerCase() && (
-                <div
-                  style={{
-                    fontSize: '0.62rem',
-                    color: '#cbd5e1',
-                    whiteSpace: 'normal',
-                    wordBreak: 'break-word'
-                  }}
-                >
-                  {asset.metadata.creator}
-                </div>
-              )}
-            {asset.metadata.date &&
-              asset.metadata.date.trim().toLowerCase() !== 'smithsonian archive' && (
-                <div
-                  style={{
-                    fontSize: '0.62rem',
-                    color: '#cbd5e1',
-                    whiteSpace: 'normal',
-                    wordBreak: 'break-word'
-                  }}
-                >
-                  {asset.metadata.date}
-                </div>
-              )}
-            {asset.metadata.collection &&
-              asset.metadata.collection.trim().toLowerCase() !== 'open access 3d collection' && (
-                <div
-                  style={{
-                    fontSize: '0.62rem',
-                    color: '#cbd5e1',
-                    whiteSpace: 'normal',
-                    wordBreak: 'break-word'
-                  }}
-                >
-                  {asset.metadata.collection}
-                </div>
-              )}
-            {asset.metadata.dimensions && (
-              <div
-                style={{
-                  fontSize: '0.62rem',
-                  color: '#cbd5e1',
-                  whiteSpace: 'normal',
-                  wordBreak: 'break-word'
-                }}
-              >
-                {asset.metadata.dimensions}
-              </div>
-            )}
-            {asset.metadata.description && (
-              <div
-                style={{
-                  fontSize: '0.61rem',
-                  color: '#94a3b8',
-                  lineHeight: 1.35,
-                  whiteSpace: 'normal',
-                  wordBreak: 'break-word'
-                }}
-              >
-                {asset.metadata.description}
-              </div>
-            )}
           </div>
         ) : showGestureHint ? (
           <div
