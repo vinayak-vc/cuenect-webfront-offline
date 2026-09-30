@@ -104,6 +104,7 @@ export const App: React.FC = () => {
         .filter(Boolean)
         .join(' ')}
     >
+      <style>{`.header-search-toggle, .header-expandable-search, .header-search { display: none !important; }`}</style>
       <Header
         onOpenConnection={() => setIsConnectionModalOpen(true)}
         onOpenPlaylistMaker={() => setIsPlaylistMakerOpen(true)}

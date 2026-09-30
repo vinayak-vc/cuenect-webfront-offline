@@ -303,7 +303,7 @@ export const AssetGrid: React.FC<AssetGridProps> = ({ onOpenConnection, query, o
           className="btn btn-secondary"
           disabled={isExploreLoading}
           onClick={() => fetchExploreCatalog(exploreQuery)}
-          style={{ minHeight: 36, fontSize: '0.78rem', gap: 6 }}
+          style={{ minHeight: 38, padding: '8px 16px', fontSize: '0.8rem', gap: 8 }}
           title="Fetch 10 new random CC0 models from Smithsonian 3D"
         >
           {isExploreLoading ? <Loader2 size={14} className="spin" /> : <Shuffle size={14} />}
@@ -315,6 +315,10 @@ export const AssetGrid: React.FC<AssetGridProps> = ({ onOpenConnection, query, o
 
   // ---------------- EXPLORE TAB VIEW ----------------
   if (catalogTab === 'explore') {
+    const cleanOfflineReason = exploreOfflineReason
+      ? exploreOfflineReason.replace(/\s*API\b/gi, '')
+      : 'Unable to reach Smithsonian 3D. Your downloaded models remain available offline.';
+
     return (
       <div className="catalog-container">
         <div className="catalog-toolbar">
@@ -343,7 +347,7 @@ export const AssetGrid: React.FC<AssetGridProps> = ({ onOpenConnection, query, o
               type="submit"
               className="btn btn-primary"
               disabled={isExploreLoading}
-              style={{ minHeight: 38, padding: '0 14px', fontSize: '0.8rem', flexShrink: 0 }}
+              style={{ minHeight: 38, padding: '8px 16px', fontSize: '0.8rem', flexShrink: 0 }}
             >
               Search
             </button>
@@ -352,7 +356,7 @@ export const AssetGrid: React.FC<AssetGridProps> = ({ onOpenConnection, query, o
           <div className="catalog-toolbar-row">
             <span className="catalog-count">
               {isExploreLoading
-                ? 'Discovering CC0 models from Smithsonian 3D API...'
+                ? 'Discovering CC0 models from Smithsonian 3D...'
                 : `Showing ${exploreModels.length} random CC0 models from Smithsonian Institution`}
             </span>
           </div>
@@ -365,15 +369,13 @@ export const AssetGrid: React.FC<AssetGridProps> = ({ onOpenConnection, query, o
             tone="default"
             icon={<WifiOff size={28} />}
             title="Smithsonian Explore Offline"
-            description={
-              exploreOfflineReason ||
-              'Unable to reach the Smithsonian 3D API. Your downloaded models remain available offline.'
-            }
+            description={cleanOfflineReason}
             actions={
               <>
                 <button
                   type="button"
                   className="btn btn-primary"
+                  style={{ minHeight: 38, padding: '8px 16px' }}
                   onClick={() => fetchExploreCatalog(exploreQuery)}
                 >
                   <RefreshCw size={14} />
@@ -382,6 +384,7 @@ export const AssetGrid: React.FC<AssetGridProps> = ({ onOpenConnection, query, o
                 <button
                   type="button"
                   className="btn btn-secondary"
+                  style={{ minHeight: 38, padding: '8px 16px' }}
                   onClick={() => setCatalogTab('downloaded')}
                 >
                   View Downloaded Models
@@ -398,6 +401,7 @@ export const AssetGrid: React.FC<AssetGridProps> = ({ onOpenConnection, query, o
               <button
                 type="button"
                 className="btn btn-primary"
+                style={{ minHeight: 38, padding: '8px 16px' }}
                 onClick={() => {
                   setExploreQuery('');
                   fetchExploreCatalog('');
@@ -432,7 +436,7 @@ export const AssetGrid: React.FC<AssetGridProps> = ({ onOpenConnection, query, o
               type="button"
               className="btn btn-secondary"
               onClick={refreshAssets}
-              style={{ minHeight: 38, fontSize: '0.78rem', gap: 6 }}
+              style={{ minHeight: 38, padding: '8px 16px', fontSize: '0.78rem', gap: 6 }}
             >
               <RefreshCw size={14} />
               Request Assets
@@ -449,7 +453,7 @@ export const AssetGrid: React.FC<AssetGridProps> = ({ onOpenConnection, query, o
       <div className="catalog-toolbar">
         {renderTabSwitcher()}
 
-        <div className="catalog-search-mobile">
+        <div style={{ width: '100%' }}>
           <SearchField value={query} onChange={onQueryChange} placeholder="Search downloaded models..." />
         </div>
 

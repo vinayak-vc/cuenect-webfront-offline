@@ -726,7 +726,8 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const data = await res.json();
       if (data.offline || data.ok === false) {
         setIsExploreOffline(true);
-        setExploreOfflineReason(data.message || data.error || 'Smithsonian 3D API is unreachable (offline).');
+        const rawMsg = data.message || data.error || 'Smithsonian 3D is unreachable (offline).';
+        setExploreOfflineReason(String(rawMsg).replace(/\s*API\b/gi, ''));
         setExploreModels([]);
       } else {
         setIsExploreOffline(false);
@@ -745,7 +746,8 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
     } catch (err: any) {
       setIsExploreOffline(true);
-      setExploreOfflineReason(err?.message || 'Unable to reach Node server or Smithsonian 3D API.');
+      const rawErr = err?.message || 'Unable to reach Node server or Smithsonian 3D.';
+      setExploreOfflineReason(String(rawErr).replace(/\s*API\b/gi, ''));
     } finally {
       setIsExploreLoading(false);
     }
