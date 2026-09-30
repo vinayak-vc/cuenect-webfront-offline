@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useStage } from '../../context/StageContext';
-import { MoveableAssetType, DisplayModeShortLabels } from '../../types/protocol';
+import { MoveableAssetType, DisplayModeShortLabels, hasModelMetadata } from '../../types/protocol';
 import { ProjectionSheet } from '../Stage/ProjectionSheet';
 import { DPad } from './DPad';
 import { ModelViewer3D } from './ModelViewer3D';
@@ -15,7 +15,8 @@ import {
   Camera,
   Layers,
   RotateCcw,
-  Loader2
+  Loader2,
+  Info
 } from 'lucide-react';
 
 /**
@@ -26,6 +27,7 @@ import {
  * - View Mode Changer (Projection: 2D, SBS, HOLO, FMAX) accessible in both views.
  * - Camera Toggle (Ortho / Perspective): visible when Rotate or Pan is selected;
  *   automatically hidden when Light or Magnifier is selected.
+ * - Metadata HUD Toggle: visible only when the active model has museum metadata.
  * - 3D Touch vs D-Pad switcher for eligible models.
  */
 export const ModelControlPanel: React.FC = () => {
@@ -40,7 +42,9 @@ export const ModelControlPanel: React.FC = () => {
     resetModelTransform,
     activeTransport,
     transportState,
-    stopAutoRotate
+    stopAutoRotate,
+    isMetadataVisible,
+    toggleMetadataVisible
   } = useStage();
 
   const [isProjectionOpen, setIsProjectionOpen] = useState(false);
@@ -54,6 +58,7 @@ export const ModelControlPanel: React.FC = () => {
 
   const isTunnel = activeTransport === 'ngrok';
   const isProbing = transportState === 'discovering' || transportState === 'probing';
+  const assetHasMetadata = hasModelMetadata(activeAsset);
 
   // Check whether the active model is eligible for web 3D rendering
   // If connected via cloud tunnel (ngrok) or probing LAN, auto-load is disabled to protect tunnel bandwidth limit
@@ -192,8 +197,8 @@ export const ModelControlPanel: React.FC = () => {
         </div>
       )}
 
-      {/* Level 2: Secondary Configuration (Projection & Camera) */}
-      <div style={{ width: '100%', maxWidth: 420, display: 'flex', gap: 8, alignItems: 'center' }}>
+      {/* Level 2: Secondary Configuration (Projection, Camera, & Metadata Toggle) */}
+      <div style={{ width: '100%', maxWidth: 420, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
         <button
           type="button"
           className="btn btn-secondary"
@@ -201,6 +206,7 @@ export const ModelControlPanel: React.FC = () => {
           title="Change Projection Mode (2D / SBS / HOLO / FMAX)"
           style={{
             flex: 1,
+            minWidth: 115,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -227,6 +233,7 @@ export const ModelControlPanel: React.FC = () => {
             }
             style={{
               flex: 1,
+              minWidth: 115,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -239,6 +246,33 @@ export const ModelControlPanel: React.FC = () => {
           >
             <Camera size={13} />
             <span>Camera: {isOrthographic ? 'Ortho' : 'Persp'} ▾</span>
+          </button>
+        )}
+
+        {/* Mobile Metadata HUD Toggle - Automatically hidden when model has no metadata */}
+        {assetHasMetadata && (
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={toggleMetadataVisible}
+            title={isMetadataVisible ? 'Hide museum metadata on Stage & Controller' : 'Show museum metadata on Stage & Controller'}
+            style={{
+              flex: 1,
+              minWidth: 115,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 6,
+              padding: '7px 12px',
+              fontSize: '0.78rem',
+              borderRadius: 'var(--radius-full, 9999px)',
+              background: isMetadataVisible ? 'rgba(0, 229, 255, 0.16)' : undefined,
+              borderColor: isMetadataVisible ? 'rgba(0, 229, 255, 0.45)' : undefined,
+              color: isMetadataVisible ? '#00e5ff' : undefined
+            }}
+          >
+            <Info size={13} />
+            <span>Metadata: {isMetadataVisible ? 'On' : 'Off'}</span>
           </button>
         )}
       </div>
@@ -295,6 +329,68 @@ export const ModelControlPanel: React.FC = () => {
           onCenterPress={resetModelTransform}
           centerTitle="Reset model rotation and position"
         />
+
+        {/* Metadata Plaque when in D-Pad mode */}
+        {isMetadataVisible && assetHasMetadata && activeAsset?.metadata && (
+          <div
+            style={{
+              width: '100%',
+              maxWidth: 420,
+              padding: '10px 12px',
+              borderRadius: 10,
+              background: 'rgba(7, 10, 19, 0.85)',
+              border: '1px solid rgba(100, 197, 190, 0.32)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 4
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+              <span style={{ fontSize: '0.76rem', fontWeight: 700, color: '#f8fafc' }}>
+                {activeAsset.metadata.title || activeAsset.AssetName}
+              </span>
+              <span
+                style={{
+                  flexShrink: 0,
+                  fontSize: '0.6rem',
+                  fontWeight: 700,
+                  padding: '1px 6px',
+                  borderRadius: 4,
+                  background: 'rgba(0, 229, 255, 0.16)',
+                  color: '#00e5ff',
+                  border: '1px solid rgba(0, 229, 255, 0.3)'
+                }}
+              >
+                CC0
+              </span>
+            </div>
+            {activeAsset.metadata.museum && (
+              <div style={{ fontSize: '0.68rem', fontWeight: 600, color: '#64c5be' }}>
+                {activeAsset.metadata.museum}
+              </div>
+            )}
+            {(activeAsset.metadata.creator ||
+              activeAsset.metadata.date ||
+              activeAsset.metadata.collection ||
+              activeAsset.metadata.dimensions) && (
+              <div style={{ fontSize: '0.64rem', color: '#cbd5e1' }}>
+                {[
+                  activeAsset.metadata.creator,
+                  activeAsset.metadata.date,
+                  activeAsset.metadata.collection,
+                  activeAsset.metadata.dimensions
+                ]
+                  .filter(Boolean)
+                  .join(' • ')}
+              </div>
+            )}
+            {activeAsset.metadata.description && (
+              <div style={{ fontSize: '0.64rem', color: '#94a3b8', lineHeight: 1.35 }}>
+                {activeAsset.metadata.description}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <ProjectionSheet isOpen={isProjectionOpen} onClose={() => setIsProjectionOpen(false)} />

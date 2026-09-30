@@ -6,6 +6,47 @@ export enum DataType {
   Video = 2
 }
 
+export interface ModelMetadata {
+  title?: string;
+  museum?: string;
+  creator?: string;
+  date?: string;
+  collection?: string;
+  dimensions?: string;
+  description?: string;
+  license?: string;
+}
+
+export interface SmithsonianExploreModel {
+  smithsonianId: string;
+  packageUuid: string;
+  title: string;
+  thumbnailUrl: string;
+  modelUrl: string;
+  fileSizeBytes: number;
+  fileSizeMB: number;
+  dracoCompressed: boolean;
+  isDownloaded: boolean;
+  downloadedAssetId?: string | null;
+  metadata: ModelMetadata;
+}
+
+export interface ExploreDownloadProgress {
+  smithsonianId: string;
+  title: string;
+  status: 'downloading' | 'completed' | 'error';
+  progress: number;
+  downloadedBytes: number;
+  totalBytes: number;
+  error?: string | null;
+}
+
+export interface MetadataActionPayload {
+  visible: boolean;
+  assetId?: string;
+  metadata?: ModelMetadata | null;
+}
+
 export interface AssetInformation {
   AssetID: string;
   AssetName: string;
@@ -23,6 +64,21 @@ export interface AssetInformation {
   dimensions?: { x: number; y: number; z: number } | null;
   isWebPreviewable?: boolean;
   rejectionReason?: string | null;
+  smithsonianId?: string;
+  metadata?: ModelMetadata | null;
+}
+
+export function hasModelMetadata(asset?: Partial<AssetInformation> | null): boolean {
+  if (!asset || !asset.metadata) return false;
+  const m = asset.metadata;
+  return Boolean(
+    (m.museum && m.museum.trim()) ||
+    (m.creator && m.creator.trim()) ||
+    (m.date && m.date.trim()) ||
+    (m.collection && m.collection.trim()) ||
+    (m.dimensions && m.dimensions.trim()) ||
+    (m.description && m.description.trim())
+  );
 }
 
 export interface AssetInformationS {
@@ -320,6 +376,7 @@ export const StaticStrings = {
   DefaultDisplayModeActionKey: 'hologram-default-display-mode-action',
   EnvironmentActionKey: 'hologram-environment-action',
   ModelTransformActionKey: 'hologram-model-transform',
+  MetadataActionKey: 'hologram-metadata-action',
   ControlLockState: 'control-lock-state',
   ControlRequest: 'control-request',
   ControlRelease: 'control-release',

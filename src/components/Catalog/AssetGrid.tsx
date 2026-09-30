@@ -1,10 +1,21 @@
 import React, { useMemo } from 'react';
 import { useStage } from '../../context/StageContext';
 import { AssetCard } from './AssetCard';
+import { ExploreCard } from './ExploreCard';
 import { SearchField } from '../Common/SearchField';
 import { StateView, SkeletonGrid } from '../Common/StateView';
 import { DataType, resolveCategory } from '../../types/protocol';
-import { Layers, WifiOff, Loader2, RefreshCw, AlertCircle, SearchX } from 'lucide-react';
+import {
+  Layers,
+  WifiOff,
+  Loader2,
+  RefreshCw,
+  AlertCircle,
+  SearchX,
+  Compass,
+  HardDrive,
+  Shuffle
+} from 'lucide-react';
 
 interface AssetGridProps {
   onOpenConnection: () => void;
@@ -24,11 +35,10 @@ const TYPE_FILTERS: Array<{ id: TypeFilter; label: string }> = [
 ];
 
 /**
- * Asset browser: search, type + playlist filters, responsive grid.
- *
- * Filters are derived from the real data model (Category + PlaylistName) - no
- * invented taxonomy such as favourites or tags, which the stage catalog does
- * not provide.
+ * Asset browser:
+ * - "Downloaded" tab: shows locally downloaded models from CuenectDatabase.json
+ * - "Explore" tab: shows 10 random CC0 models from the Smithsonian 3D API with search,
+ *   shuffle, and background download progress.
  */
 export const AssetGrid: React.FC<AssetGridProps> = ({ onOpenConnection, query, onQueryChange }) => {
   const {
@@ -40,10 +50,22 @@ export const AssetGrid: React.FC<AssetGridProps> = ({ onOpenConnection, query, o
     refreshAssets,
     config,
     recentAssetIds,
-    favouriteAssetIds
+    favouriteAssetIds,
+    catalogTab,
+    setCatalogTab,
+    exploreModels,
+    isExploreLoading,
+    isExploreOffline,
+    exploreOfflineReason,
+    exploreQuery,
+    setExploreQuery,
+    fetchExploreCatalog,
+    activeDownloads
   } = useStage();
 
   const [typeFilter, setTypeFilter] = React.useState<TypeFilter>('all');
+
+  const activeDownloadCount = Object.keys(activeDownloads).length;
 
   const typeCounts = useMemo(() => {
     let models = 0;
@@ -152,11 +174,258 @@ export const AssetGrid: React.FC<AssetGridProps> = ({ onOpenConnection, query, o
     );
   }
 
+  const renderTabSwitcher = () => (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 10,
+        flexWrap: 'wrap',
+        marginBottom: 4
+      }}
+    >
+      <div
+        role="tablist"
+        aria-label="Catalog Source"
+        style={{
+          display: 'inline-flex',
+          background: 'rgba(15, 23, 42, 0.75)',
+          border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.1))',
+          borderRadius: 'var(--radius-full, 9999px)',
+          padding: 3,
+          gap: 4
+        }}
+      >
+        <button
+          type="button"
+          role="tab"
+          aria-selected={catalogTab === 'downloaded'}
+          onClick={() => setCatalogTab('downloaded')}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 7,
+            padding: '7px 16px',
+            borderRadius: 'var(--radius-full, 9999px)',
+            border: 'none',
+            fontSize: '0.82rem',
+            fontWeight: 600,
+            cursor: 'pointer',
+            background:
+              catalogTab === 'downloaded'
+                ? 'var(--color-primary, #0ea5e9)'
+                : 'transparent',
+            color: catalogTab === 'downloaded' ? '#fff' : 'var(--text-secondary, #94a3b8)',
+            transition: 'all 0.15s ease'
+          }}
+        >
+          <HardDrive size={14} />
+          <span>Downloaded</span>
+          <span
+            style={{
+              fontSize: '0.7rem',
+              padding: '1px 6px',
+              borderRadius: 999,
+              background:
+                catalogTab === 'downloaded'
+                  ? 'rgba(255, 255, 255, 0.22)'
+                  : 'rgba(255, 255, 255, 0.08)'
+            }}
+          >
+            {assets.length}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          role="tab"
+          aria-selected={catalogTab === 'explore'}
+          onClick={() => setCatalogTab('explore')}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 7,
+            padding: '7px 16px',
+            borderRadius: 'var(--radius-full, 9999px)',
+            border: 'none',
+            fontSize: '0.82rem',
+            fontWeight: 600,
+            cursor: 'pointer',
+            background:
+              catalogTab === 'explore'
+                ? 'var(--color-primary, #0ea5e9)'
+                : 'transparent',
+            color: catalogTab === 'explore' ? '#fff' : 'var(--text-secondary, #94a3b8)',
+            transition: 'all 0.15s ease'
+          }}
+        >
+          <Compass size={14} />
+          <span>Explore</span>
+          <span
+            style={{
+              fontSize: '0.66rem',
+              fontWeight: 700,
+              padding: '1px 6px',
+              borderRadius: 999,
+              background:
+                catalogTab === 'explore'
+                  ? 'rgba(255, 255, 255, 0.22)'
+                  : 'rgba(0, 229, 255, 0.15)',
+              color: catalogTab === 'explore' ? '#fff' : '#00e5ff'
+            }}
+          >
+            CC0
+          </span>
+          {activeDownloadCount > 0 && (
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 4,
+                fontSize: '0.68rem',
+                padding: '1px 6px',
+                borderRadius: 999,
+                background: 'rgba(34, 197, 94, 0.22)',
+                color: '#4ade80'
+              }}
+            >
+              <Loader2 size={11} className="spin" />
+              {activeDownloadCount}
+            </span>
+          )}
+        </button>
+      </div>
+
+      {catalogTab === 'explore' && (
+        <button
+          type="button"
+          className="btn btn-secondary"
+          disabled={isExploreLoading}
+          onClick={() => fetchExploreCatalog(exploreQuery)}
+          style={{ minHeight: 36, fontSize: '0.78rem', gap: 6 }}
+          title="Fetch 10 new random CC0 models from Smithsonian 3D"
+        >
+          {isExploreLoading ? <Loader2 size={14} className="spin" /> : <Shuffle size={14} />}
+          <span>Shuffle 10 Models</span>
+        </button>
+      )}
+    </div>
+  );
+
+  // ---------------- EXPLORE TAB VIEW ----------------
+  if (catalogTab === 'explore') {
+    return (
+      <div className="catalog-container">
+        <div className="catalog-toolbar">
+          {renderTabSwitcher()}
+
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              fetchExploreCatalog(exploreQuery);
+            }}
+            style={{ display: 'flex', gap: 8, width: '100%', alignItems: 'center' }}
+          >
+            <div style={{ flex: 1 }}>
+              <SearchField
+                value={exploreQuery}
+                onChange={(val) => {
+                  setExploreQuery(val);
+                  if (val === '' && exploreQuery !== '') {
+                    fetchExploreCatalog('');
+                  }
+                }}
+                placeholder="Search Smithsonian 3D Open Access (e.g. Apollo, fossil, skull, statue)..."
+              />
+            </div>
+            <button
+              type="submit"
+              className="btn btn-primary"
+              disabled={isExploreLoading}
+              style={{ minHeight: 38, padding: '0 14px', fontSize: '0.8rem', flexShrink: 0 }}
+            >
+              Search
+            </button>
+          </form>
+
+          <div className="catalog-toolbar-row">
+            <span className="catalog-count">
+              {isExploreLoading
+                ? 'Discovering CC0 models from Smithsonian 3D API...'
+                : `Showing ${exploreModels.length} random CC0 models from Smithsonian Institution`}
+            </span>
+          </div>
+        </div>
+
+        {isExploreLoading ? (
+          <SkeletonGrid count={10} />
+        ) : isExploreOffline ? (
+          <StateView
+            tone="default"
+            icon={<WifiOff size={28} />}
+            title="Smithsonian Explore Offline"
+            description={
+              exploreOfflineReason ||
+              'Unable to reach the Smithsonian 3D API. Your downloaded models remain available offline.'
+            }
+            actions={
+              <>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={() => fetchExploreCatalog(exploreQuery)}
+                >
+                  <RefreshCw size={14} />
+                  Retry
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setCatalogTab('downloaded')}
+                >
+                  View Downloaded Models
+                </button>
+              </>
+            }
+          />
+        ) : exploreModels.length === 0 ? (
+          <StateView
+            icon={<SearchX size={26} />}
+            title={exploreQuery ? `No CC0 models found for "${exploreQuery}"` : 'No models returned'}
+            description="Try a different search term or shuffle to sample another 10 random Smithsonian 3D models."
+            actions={
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => {
+                  setExploreQuery('');
+                  fetchExploreCatalog('');
+                }}
+              >
+                <Shuffle size={14} />
+                Shuffle 10 Random Models
+              </button>
+            }
+          />
+        ) : (
+          <div className="asset-grid">
+            {exploreModels.map((model) => (
+              <ExploreCard key={model.smithsonianId} model={model} />
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // ---------------- DOWNLOADED TAB VIEW ----------------
   // Connected, catalog still arriving: skeletons reflect the real sync state.
   if (assets.length === 0) {
     return (
       <div className="catalog-container">
         <div className="catalog-toolbar">
+          {renderTabSwitcher()}
           <div className="catalog-toolbar-row">
             <span className="u-section-label">Syncing catalog</span>
             <button
@@ -178,8 +447,10 @@ export const AssetGrid: React.FC<AssetGridProps> = ({ onOpenConnection, query, o
   return (
     <div className="catalog-container">
       <div className="catalog-toolbar">
+        {renderTabSwitcher()}
+
         <div className="catalog-search-mobile">
-          <SearchField value={query} onChange={onQueryChange} placeholder="Search models..." />
+          <SearchField value={query} onChange={onQueryChange} placeholder="Search downloaded models..." />
         </div>
 
         <div className="filter-rail" role="group" aria-label="Filter by type">
@@ -213,7 +484,7 @@ export const AssetGrid: React.FC<AssetGridProps> = ({ onOpenConnection, query, o
 
         <div className="catalog-toolbar-row">
           <span className="catalog-count">
-            {filtered.length} of {assets.length} assets
+            {filtered.length} of {assets.length} downloaded assets
           </span>
         </div>
       </div>

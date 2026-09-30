@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { AssetInformation, JoyStickDirection } from '../../types/protocol';
+import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
+import { AssetInformation, JoyStickDirection, hasModelMetadata } from '../../types/protocol';
 import { useStage } from '../../context/StageContext';
 import { stageSocket } from '../../services/socketService';
 import {
@@ -27,7 +28,8 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
     syncModelTransform,
     stopAutoRotate,
     stageModelTransform,
-    sendModelJoystick
+    sendModelJoystick,
+    isMetadataVisible
   } = useStage();
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -354,7 +356,11 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
     const forceParam = forceLoad ? '&force=true' : '';
     const modelUrl = `${baseUrl}/api/model?file=${encodeURIComponent(modelParam)}${forceParam}&ngrok-skip-browser-warning=true`;
 
+    const dracoLoader = new DRACOLoader();
+    dracoLoader.setDecoderPath('/draco/');
+
     const loader = new GLTFLoader();
+    loader.setDRACOLoader(dracoLoader);
     loader.setRequestHeader({
       'ngrok-skip-browser-warning': 'true'
     });
@@ -494,6 +500,7 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
       if (renderer.domElement && renderer.domElement.parentElement) {
         renderer.domElement.parentElement.removeChild(renderer.domElement);
       }
+      dracoLoader.dispose();
       renderer.dispose();
       scene.clear();
     };
@@ -922,7 +929,7 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
           </button>
         </div>
 
-        {/* Bottom-Left: Transient Gesture Hint or Active Status */}
+        {/* Bottom-Left: Museum Metadata Plaque, Transient Gesture Hint, or Active Status */}
         {activeGesture ? (
           <div
             style={{
@@ -946,6 +953,99 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
             {activeGesture === 'pan' && 'Panning Model...'}
             {activeGesture === 'zoom' && 'Scaling Model...'}
             {activeGesture === 'pan-zoom' && 'Panning & Scaling...'}
+          </div>
+        ) : isMetadataVisible && hasModelMetadata(asset) && asset.metadata ? (
+          <div
+            style={{
+              position: 'absolute',
+              bottom: 10,
+              left: 10,
+              right: 52,
+              padding: '8px 11px',
+              borderRadius: 10,
+              background: 'rgba(7, 10, 19, 0.86)',
+              border: '1px solid rgba(100, 197, 190, 0.32)',
+              backdropFilter: 'blur(8px)',
+              pointerEvents: 'none',
+              zIndex: 10,
+              boxShadow: '0 6px 20px rgba(0, 0, 0, 0.55)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 3
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+              <span
+                style={{
+                  fontSize: '0.72rem',
+                  fontWeight: 700,
+                  color: '#f8fafc',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                {asset.metadata.title || asset.AssetName}
+              </span>
+              <span
+                style={{
+                  flexShrink: 0,
+                  fontSize: '0.58rem',
+                  fontWeight: 700,
+                  padding: '1px 5px',
+                  borderRadius: 4,
+                  background: 'rgba(0, 229, 255, 0.16)',
+                  color: '#00e5ff',
+                  border: '1px solid rgba(0, 229, 255, 0.3)'
+                }}
+              >
+                CC0
+              </span>
+            </div>
+            {asset.metadata.museum && (
+              <div
+                style={{
+                  fontSize: '0.64rem',
+                  fontWeight: 600,
+                  color: '#64c5be',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                {asset.metadata.museum}
+              </div>
+            )}
+            {(asset.metadata.creator || asset.metadata.date || asset.metadata.collection || asset.metadata.dimensions) && (
+              <div
+                style={{
+                  fontSize: '0.61rem',
+                  color: '#cbd5e1',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                {[asset.metadata.creator, asset.metadata.date, asset.metadata.collection, asset.metadata.dimensions]
+                  .filter(Boolean)
+                  .join(' • ')}
+              </div>
+            )}
+            {asset.metadata.description && (
+              <div
+                style={{
+                  fontSize: '0.6rem',
+                  color: '#94a3b8',
+                  lineHeight: 1.3,
+                  display: '-webkit-box',
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: 'vertical',
+                  overflow: 'hidden'
+                }}
+              >
+                {asset.metadata.description}
+              </div>
+            )}
           </div>
         ) : showGestureHint ? (
           <div

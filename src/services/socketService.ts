@@ -14,6 +14,8 @@ import {
   EnvironmentPreset,
   EnvironmentPresetPayload,
   EnvironmentPresetNames,
+  MetadataActionPayload,
+  SmithsonianExploreModel,
   StaticStrings
 } from '../types/protocol';
 
@@ -518,7 +520,8 @@ export class StageSocketService {
     'hologram-camera-orthographic-action',
     'StereoSettingsActionKey',
     'hologram-display-mode-action',
-    'hologram-model-transform'
+    'hologram-model-transform',
+    'hologram-metadata-action'
   ]);
 
   /**
@@ -563,6 +566,14 @@ export class StageSocketService {
   // Unified Stage Actions
   public sendLoadAsset(asset: any): void {
     this.emitEvent('hologram-asset-action', asset);
+  }
+
+  public sendMetadataAction(payload: MetadataActionPayload): void {
+    this.emitEvent(StaticStrings.MetadataActionKey, payload);
+  }
+
+  public startExploreDownload(model: SmithsonianExploreModel): void {
+    this.emitEvent('explore-download-start', model);
   }
 
   public sendModelControl(control: ModelControl | any): void {
