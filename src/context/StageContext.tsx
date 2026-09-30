@@ -511,12 +511,13 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         return;
       }
 
-      if (eventName === 'explore-download-progress' && data && data.smithsonianId) {
+      if (eventName === 'explore-download-progress' && data && (data.smithsonianId || data.id)) {
+        const sid = data.smithsonianId || data.id;
         setActiveDownloads((prev) => ({
           ...prev,
-          [data.smithsonianId]: {
-            smithsonianId: data.smithsonianId,
-            title: data.title || prev[data.smithsonianId]?.title || 'Smithsonian 3D Model',
+          [sid]: {
+            smithsonianId: sid,
+            title: data.title || prev[sid]?.title || 'Smithsonian 3D Model',
             status: 'downloading',
             progress: typeof data.progress === 'number' ? data.progress : 0,
             downloadedBytes: data.downloadedBytes || 0,
@@ -527,7 +528,7 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
 
       if (eventName === 'explore-download-complete' && data && data.asset) {
-        const sid = data.smithsonianId || data.asset.smithsonianId;
+        const sid = data.smithsonianId || data.id || data.asset.smithsonianId;
         const completedAsset: AssetInformation = {
           ...data.asset,
           Category: resolveCategory(data.asset)
@@ -574,7 +575,7 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
 
       if (eventName === 'explore-download-error' && data) {
-        const sid = data.smithsonianId;
+        const sid = data.smithsonianId || data.id;
         if (sid) {
           setActiveDownloads((prev) => {
             const next = { ...prev };
@@ -723,14 +724,24 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         throw new Error(`HTTP ${res.status}`);
       }
       const data = await res.json();
-      if (data.offline || !data.ok) {
+      if (data.offline || data.ok === false) {
         setIsExploreOffline(true);
-        setExploreOfflineReason(data.message || 'Smithsonian 3D API is unreachable (offline).');
+        setExploreOfflineReason(data.message || data.error || 'Smithsonian 3D API is unreachable (offline).');
         setExploreModels([]);
       } else {
         setIsExploreOffline(false);
         setExploreOfflineReason(null);
-        setExploreModels(Array.isArray(data.models) ? data.models : []);
+        const rawModels = Array.isArray(data.models) ? data.models : [];
+        const normalizedModels: SmithsonianExploreModel[] = rawModels.map((m: any) => {
+          const sid = m.smithsonianId || m.id || '';
+          return {
+            ...m,
+            smithsonianId: sid,
+            packageUuid: m.packageUuid || String(sid).replace(/^3d_package:/i, ''),
+            downloadedAssetId: m.downloadedAssetId || m.localAssetId || m.assetId || null
+          };
+        });
+        setExploreModels(normalizedModels);
       }
     } catch (err: any) {
       setIsExploreOffline(true);
@@ -751,16 +762,23 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // Trigger a background model download on the Node server
   const startExploreDownload = useCallback(async (model: SmithsonianExploreModel) => {
-    if (!model || !model.smithsonianId) return;
+    const sid = model?.smithsonianId || (model as any)?.id;
+    if (!model || !sid) return;
+
+    const payloadModel = {
+      ...model,
+      id: sid,
+      smithsonianId: sid
+    };
 
     setActiveDownloads((prev) => ({
       ...prev,
-      [model.smithsonianId]: {
-        smithsonianId: model.smithsonianId,
+      [sid]: {
+        smithsonianId: sid,
         title: model.title,
         status: 'downloading',
-        progress: prev[model.smithsonianId]?.progress || 0,
-        downloadedBytes: prev[model.smithsonianId]?.downloadedBytes || 0,
+        progress: prev[sid]?.progress || 0,
+        downloadedBytes: prev[sid]?.downloadedBytes || 0,
         totalBytes: model.fileSizeBytes || 0
       }
     }));
@@ -773,7 +791,7 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           'Content-Type': 'application/json',
           'ngrok-skip-browser-warning': 'true'
         },
-        body: JSON.stringify(model)
+        body: JSON.stringify(payloadModel)
       });
       if (!res.ok) {
         throw new Error(`HTTP ${res.status}`);
@@ -781,7 +799,7 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       addToast('Downloading', `Downloading "${model.title}" in background...`, 'info');
     } catch {
       // Fallback to Socket.IO event if HTTP POST fails
-      stageSocket.startExploreDownload(model);
+      stageSocket.startExploreDownload(payloadModel as SmithsonianExploreModel);
       addToast('Downloading', `Downloading "${model.title}" in background...`, 'info');
     }
   }, [addToast]);
