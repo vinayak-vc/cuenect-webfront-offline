@@ -24,7 +24,8 @@ import {
   ModelTransformPayload,
   SmithsonianExploreModel,
   ExploreDownloadProgress,
-  hasModelMetadata
+  hasModelMetadata,
+  StageNode
 } from '../types/protocol';
 import {
   stageSocket,
@@ -153,6 +154,17 @@ interface StageContextValue {
   toasts: ToastMessage[];
   addToast: (title: string, message: string, type?: 'info' | 'success' | 'warning' | 'error') => void;
   removeToast: (id: string) => void;
+
+  // Multi-Stage Orchestration
+  stages: StageNode[];
+  selectedStageIds: Set<string>;
+  setSelectedStageIds: (ids: string[] | Set<string>) => void;
+  toggleStageSelection: (stageId: string) => void;
+  selectAllStages: () => void;
+  clearStageSelection: () => void;
+  selectStageGroup: (groupName: string) => void;
+  isStageDirectorOpen: boolean;
+  setIsStageDirectorOpen: (open: boolean) => void;
 }
 
 const StageContext = createContext<StageContextValue | null>(null);
@@ -219,6 +231,41 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [slideDuration, setSlideDurationState] = useState<number>(StorageService.getSlideDuration());
   const slideshowTimerRef = useRef<number | null>(null);
   
+  // Multi-Stage Orchestration state
+  const [stages, setStages] = useState<StageNode[]>(stageSocket.getStages());
+  const [selectedStageIds, setSelectedStageIdsState] = useState<Set<string>>(stageSocket.getSelectedStageIds());
+  const [isStageDirectorOpen, setIsStageDirectorOpen] = useState<boolean>(false);
+
+  useEffect(() => {
+    const unsubStages = stageSocket.onStagesChange((newStages, newSelected) => {
+      setStages([...newStages]);
+      setSelectedStageIdsState(new Set(newSelected));
+    });
+    return () => {
+      unsubStages();
+    };
+  }, []);
+
+  const toggleStageSelection = useCallback((stageId: string) => {
+    stageSocket.toggleStageSelection(stageId);
+  }, []);
+
+  const selectAllStages = useCallback(() => {
+    stageSocket.selectAllStages();
+  }, []);
+
+  const clearStageSelection = useCallback(() => {
+    stageSocket.clearStageSelection();
+  }, []);
+
+  const selectStageGroup = useCallback((groupName: string) => {
+    stageSocket.selectStageGroup(groupName);
+  }, []);
+
+  const setSelectedStageIds = useCallback((ids: string[] | Set<string>) => {
+    stageSocket.setSelectedStageIds(ids);
+  }, []);
+
   // Notifications
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
@@ -1222,7 +1269,16 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     refreshAssets,
     toasts,
     addToast,
-    removeToast
+    removeToast,
+    stages,
+    selectedStageIds,
+    setSelectedStageIds,
+    toggleStageSelection,
+    selectAllStages,
+    clearStageSelection,
+    selectStageGroup,
+    isStageDirectorOpen,
+    setIsStageDirectorOpen
   };
 
   return <StageContext.Provider value={value}>{children}</StageContext.Provider>;

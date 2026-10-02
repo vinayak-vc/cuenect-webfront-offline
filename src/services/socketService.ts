@@ -16,12 +16,14 @@ import {
   EnvironmentPresetNames,
   MetadataActionPayload,
   SmithsonianExploreModel,
-  StaticStrings
+  StaticStrings,
+  StageNode
 } from '../types/protocol';
 
 export type SocketMessageHandler = (event: string, data: any) => void;
 export type SocketStateChangeHandler = (state: ConnectionState, detail?: string, isInitial?: boolean) => void;
 export type SocketUsersChangeHandler = (users: User[]) => void;
+export type SocketStagesChangeHandler = (stages: StageNode[], selected: Set<string>) => void;
 export type ConnectionTransport = 'ngrok' | 'lan';
 export type TransportPromotionState = 'idle' | 'discovering' | 'probing' | 'promoted' | 'fallback';
 export type TransportChangeHandler = (transport: ConnectionTransport, state: TransportPromotionState) => void;
@@ -34,10 +36,13 @@ export class StageSocketService {
   private transportState: TransportPromotionState = 'idle';
   private hasAttemptedLanPromotion: boolean = false;
   private users: User[] = [];
+  private stages: StageNode[] = [];
+  private selectedStageIds: Set<string> = new Set();
   private clientName: string = '';
   private messageHandlers: Set<SocketMessageHandler> = new Set();
   private stateHandlers: Set<SocketStateChangeHandler> = new Set();
   private usersHandlers: Set<SocketUsersChangeHandler> = new Set();
+  private stagesHandlers: Set<SocketStagesChangeHandler> = new Set();
   private transportHandlers: Set<TransportChangeHandler> = new Set();
 
   public getState(): ConnectionState {
@@ -173,6 +178,84 @@ export class StageSocketService {
     };
   }
 
+  // ── Multi-Stage Orchestration ───────────────────────────────────────
+  public getStages(): StageNode[] {
+    return this.stages;
+  }
+
+  public getSelectedStageIds(): Set<string> {
+    return this.selectedStageIds;
+  }
+
+  public onStagesChange(handler: SocketStagesChangeHandler): () => void {
+    this.stagesHandlers.add(handler);
+    handler(this.stages, this.selectedStageIds);
+    return () => {
+      this.stagesHandlers.delete(handler);
+    };
+  }
+
+  public setStages(stages: StageNode[]): void {
+    this.stages = stages;
+
+    // Prune IDs that no longer exist
+    const existingIds = new Set(stages.map((s) => s.stageId));
+    const nextSelected = new Set<string>();
+    this.selectedStageIds.forEach((id) => {
+      if (existingIds.has(id)) nextSelected.add(id);
+    });
+
+    // If no previous selection, select all online stages by default
+    if (nextSelected.size === 0 && stages.length > 0) {
+      stages.filter((s) => s.online).forEach((s) => nextSelected.add(s.stageId));
+    }
+
+    this.selectedStageIds = nextSelected;
+    this.notifyStagesChange();
+  }
+
+  public setSelectedStageIds(ids: string[] | Set<string>): void {
+    this.selectedStageIds = new Set(ids);
+    this.notifyStagesChange();
+  }
+
+  public toggleStageSelection(stageId: string): void {
+    const next = new Set(this.selectedStageIds);
+    if (next.has(stageId)) {
+      next.delete(stageId);
+    } else {
+      next.add(stageId);
+    }
+    this.selectedStageIds = next;
+    this.notifyStagesChange();
+  }
+
+  public selectAllStages(): void {
+    this.selectedStageIds = new Set(this.stages.filter((s) => s.online).map((s) => s.stageId));
+    this.notifyStagesChange();
+  }
+
+  public clearStageSelection(): void {
+    this.selectedStageIds = new Set();
+    this.notifyStagesChange();
+  }
+
+  public selectStageGroup(groupName: string): void {
+    const matching = this.stages.filter((s) => s.group === groupName && s.online).map((s) => s.stageId);
+    this.selectedStageIds = new Set(matching);
+    this.notifyStagesChange();
+  }
+
+  public isAllStagesSelected(): boolean {
+    const onlineStages = this.stages.filter((s) => s.online).map((s) => s.stageId);
+    return onlineStages.length > 0 && onlineStages.every((id) => this.selectedStageIds.has(id));
+  }
+
+  private notifyStagesChange(): void {
+    this.stagesHandlers.forEach((handler) => handler(this.stages, this.selectedStageIds));
+  }
+  // ────────────────────────────────────────────────────────────────────
+
   private setState(state: ConnectionState, detail?: string): void {
     this.state = state;
     this.stateHandlers.forEach((h) => h(state, detail));
@@ -284,10 +367,15 @@ export class StageSocketService {
           localUrl?: string;
           isTunnel?: boolean;
         };
+        stages?: StageNode[];
       }) => {
         if (resp && resp.users) {
           const userList: User[] = resp.users.map((name, idx) => ({ name, id: idx + 1 }));
           this.setUsers(userList);
+        }
+
+        if (resp && Array.isArray(resp.stages)) {
+          this.setStages(resp.stages);
         }
 
         // Fast path: server already reported its local network coordinates over the socket
@@ -316,6 +404,12 @@ export class StageSocketService {
         if (data && data.users) {
           const userList: User[] = data.users.map((name, idx) => ({ name, id: idx + 1 }));
           this.setUsers(userList);
+        }
+      });
+
+      this.socket.on('stage-roster-update', (data: { stages: StageNode[] }) => {
+        if (data && Array.isArray(data.stages)) {
+          this.setStages(data.stages);
         }
       });
 
@@ -557,6 +651,22 @@ export class StageSocketService {
     if (!this.hasStageControl && StageSocketService.STAGE_MUTATING_EVENTS.has(eventName)) {
       // Silent drops look like a broken app; tell the UI so it can say why.
       this.blockedHandler?.(eventName);
+      return;
+    }
+
+    // Targeted multi-stage routing: wrap mutating events in dispatch-command
+    if (StageSocketService.STAGE_MUTATING_EVENTS.has(eventName)) {
+      let targets: string[] | string = '*';
+      if (this.selectedStageIds.size > 0) {
+        const onlineStages = this.stages.filter((s) => s.online).map((s) => s.stageId);
+        const isAll = onlineStages.length > 0 && onlineStages.every((id) => this.selectedStageIds.has(id));
+        targets = isAll ? '*' : Array.from(this.selectedStageIds);
+      }
+      this.socket.emit('dispatch-command', {
+        targets,
+        targetEvent: eventName,
+        data
+      });
       return;
     }
 

@@ -410,8 +410,35 @@ export const StaticStrings = {
   ControlLockState: 'control-lock-state',
   ControlRequest: 'control-request',
   ControlRelease: 'control-release',
-  DeleteAsset: 'DeleteAsset'
+  DeleteAsset: 'DeleteAsset',
+  StageRegister: 'stage-register',
+  StageRegistered: 'stage-registered',
+  StageStateUpdate: 'stage-state-update',
+  StageRosterUpdate: 'stage-roster-update',
+  DispatchCommand: 'dispatch-command',
+  GetStagesRoster: 'get-stages-roster'
 } as const;
+
+export interface StageNode {
+  stageId: string;
+  displayName: string;
+  group: string;
+  online: boolean;
+  currentModel?: string | null;
+  displayMode?: string;
+  lastSeen?: number;
+}
+
+export interface StageRosterPayload {
+  stages: StageNode[];
+}
+
+export interface DispatchEnvelope {
+  targets: string[] | string;
+  targetEvent?: string;
+  event?: string;
+  data: any;
+}
 
 export interface ModelTransformPayload {
   yaw: number;

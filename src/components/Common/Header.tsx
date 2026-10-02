@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useStage } from '../../context/StageContext';
-import { RefreshCw, ListPlus, Sliders, Layers, Camera, Maximize, Download, Search, X } from 'lucide-react';
+import { RefreshCw, ListPlus, Sliders, Layers, Camera, Maximize, Download, Search, X, Monitor } from 'lucide-react';
 import { usePWAInstall } from '../../services/pwaService';
 import { ConnectionStatus } from './ConnectionStatus';
 import { ProjectionSelector } from './ProjectionSelector';
@@ -36,7 +36,10 @@ export const Header: React.FC<HeaderProps> = ({
     setIsSettingsOpen,
     isOrthographic,
     toggleOrthographic,
-    triggerFullscreen
+    triggerFullscreen,
+    stages,
+    selectedStageIds,
+    setIsStageDirectorOpen
   } = useStage();
 
   const [logoError, setLogoError] = useState<boolean>(false);
@@ -134,6 +137,40 @@ export const Header: React.FC<HeaderProps> = ({
         <EnvironmentSelector />
 
         <ConnectionStatus onClick={onOpenConnection} />
+
+        {stages.length > 0 && (
+          <button
+            type="button"
+            className="btn-icon"
+            onClick={() => setIsStageDirectorOpen(true)}
+            title={`Stage Director: ${selectedStageIds.size} of ${stages.filter((s) => s.online).length} targeted`}
+            style={{
+              position: 'relative',
+              borderColor: selectedStageIds.size > 0 ? 'rgba(0, 229, 255, 0.5)' : undefined,
+              color: selectedStageIds.size > 0 ? '#00e5ff' : '#94a3b8'
+            }}
+          >
+            <Monitor size={18} />
+            <span
+              style={{
+                position: 'absolute',
+                top: -4,
+                right: -4,
+                background: '#00e5ff',
+                color: '#000',
+                fontSize: '0.62rem',
+                fontWeight: 700,
+                borderRadius: 8,
+                padding: '0 4px',
+                lineHeight: '14px',
+                minWidth: 14,
+                textAlign: 'center'
+              }}
+            >
+              {selectedStageIds.size}
+            </span>
+          </button>
+        )}
 
         <button
           className="btn-icon hide-on-mobile"

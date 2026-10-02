@@ -14,6 +14,8 @@ import { BottomSheet } from './components/Common/BottomSheet';
 import { StateView } from './components/Common/StateView';
 import { MoreSheet } from './components/Stage/MoreSheet';
 import { ProjectionSheet } from './components/Stage/ProjectionSheet';
+import { StageDirectorBar } from './components/Stage/StageDirectorBar';
+import { StageDirectorModal } from './components/Stage/StageDirectorModal';
 import { ConfirmDialog } from './components/Common/ConfirmDialog';
 import { Gamepad2, Loader2 } from 'lucide-react';
 import { useStage } from './context/StageContext';
@@ -111,6 +113,8 @@ export const App: React.FC = () => {
         query={query}
         onQueryChange={setQuery}
       />
+
+      <StageDirectorBar />
 
       <main className="app-main">
         <AssetGrid
@@ -229,6 +233,7 @@ export const App: React.FC = () => {
       />
 
       <StageSettingsModal />
+      <StageDirectorModal />
 
       <FullScreenController />
 
