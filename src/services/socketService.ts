@@ -614,6 +614,8 @@ export class StageSocketService {
     'hologram-camera-orthographic-action',
     'StereoSettingsActionKey',
     'hologram-display-mode-action',
+    'hologram-default-display-mode-action',
+    'hologram-environment-action',
     'hologram-model-transform',
     'hologram-metadata-action'
   ]);
@@ -657,7 +659,11 @@ export class StageSocketService {
     // Targeted multi-stage routing: wrap mutating events in dispatch-command
     if (StageSocketService.STAGE_MUTATING_EVENTS.has(eventName)) {
       let targets: string[] | string = '*';
-      if (this.selectedStageIds.size > 0) {
+      if (this.stages.length > 0) {
+        if (this.selectedStageIds.size === 0) {
+          // Explicitly deselected all stages: do not command any stage
+          return;
+        }
         const onlineStages = this.stages.filter((s) => s.online).map((s) => s.stageId);
         const isAll = onlineStages.length > 0 && onlineStages.every((id) => this.selectedStageIds.has(id));
         targets = isAll ? '*' : Array.from(this.selectedStageIds);
