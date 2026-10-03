@@ -138,7 +138,7 @@ export const FullScreenController: React.FC = () => {
   const statusStrip = (
     <button type="button" className="status-strip" onClick={() => setIsStatusOpen(true)}>
       <span className={`status-strip-dot ${connectionState === 'connected' ? 'ok' : 'bad'}`} />
-      <span className="status-strip-value">{connectionState === 'connected' ? 'Ready' : 'Offline'}</span>
+      <span className="status-strip-value">{connectionState === 'connected' ? 'Connected' : 'Offline'}</span>
       <span className="status-strip-sep">·</span>
       <span className="status-strip-value">{SHORT_MODE[displayMode] ?? '2D'}</span>
       <span className="status-strip-sep">·</span>
@@ -157,12 +157,12 @@ export const FullScreenController: React.FC = () => {
   const statusDetail = (
     <>
       <div className="stage-readout">
-        <span style={{ color: 'var(--text-secondary)' }}>Link</span>
+        <span style={{ color: 'var(--text-secondary)' }}>Stage Link</span>
         <span
           className="stage-readout-value"
           style={{ color: connectionState === 'connected' ? 'var(--color-success)' : 'var(--color-danger)' }}
         >
-          {connectionState === 'connected' ? 'Ready' : connectionState}
+          {connectionState === 'connected' ? 'Connected' : connectionState}
         </span>
       </div>
       <div className="stage-readout">
@@ -174,17 +174,22 @@ export const FullScreenController: React.FC = () => {
         <span className="stage-readout-value">{isOrthographic ? 'Orthographic' : 'Perspective'}</span>
       </div>
       <div className="stage-readout">
-        <span style={{ color: 'var(--text-secondary)' }}>Control mode</span>
+        <span style={{ color: 'var(--text-secondary)' }}>Control Mode</span>
         <span className="stage-readout-value">{modeLabel}</span>
       </div>
       <div className="stage-readout">
-        <span style={{ color: 'var(--text-secondary)' }}>Control</span>
+        <span style={{ color: 'var(--text-secondary)' }}>Operator</span>
         <span className="stage-readout-value">
           {hasControl ? 'You have control' : controlLock.holderName || 'Another operator'}
         </span>
       </div>
       {!hasControl && (
-        <button type="button" className="btn btn-primary" onClick={requestControl} style={{ gap: 6 }}>
+        <button
+          type="button"
+          className="btn btn-primary"
+          onClick={requestControl}
+          style={{ gap: 6, marginTop: 8, width: '100%', justifyContent: 'center' }}
+        >
           <Unlock size={15} />
           Request Control
         </button>
@@ -209,25 +214,8 @@ export const FullScreenController: React.FC = () => {
 
   const desktopStatusPanel = (
     <div className="controller-panel">
-      <span className="u-section-label">Status</span>
+      <span className="u-section-label">Stage Telemetry</span>
       {statusDetail}
-      <span className="u-section-label" style={{ marginTop: 4 }}>
-        Quick Actions
-      </span>
-      <div className="quick-grid">
-        <button type="button" className="quick-btn" onClick={resetModelTransform} disabled={!hasControl}>
-          <RotateCcw size={14} />
-          Reset
-        </button>
-        <button type="button" className="quick-btn" onClick={() => setIsSettingsOpen(true)}>
-          <Sliders size={14} />
-          Calibrate
-        </button>
-        <button type="button" className="quick-btn danger" onClick={() => setIsClearConfirmOpen(true)}>
-          <Square size={14} />
-          Clear
-        </button>
-      </div>
     </div>
   );
 
@@ -497,18 +485,33 @@ export const FullScreenController: React.FC = () => {
       <div className="controller-header">
         <button
           type="button"
-          className="btn-icon"
+          className="btn-ghost"
           onClick={() => setIsControllerOpen(false)}
-          title="Back to assets"
-          aria-label="Back to assets"
+          title="Back to Catalog"
+          aria-label="Back to Catalog"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+            padding: '6px 12px',
+            borderRadius: 'var(--radius-pill)',
+            color: 'var(--text-secondary)'
+          }}
         >
-          <ArrowLeft size={20} />
+          <ArrowLeft size={16} />
+          {isDesktop && <span style={{ fontSize: '0.84rem', fontWeight: 600 }}>Catalog</span>}
         </button>
 
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-          <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>Controller</div>
-          <div className="u-meta">
-            {connectionState === 'connected' ? 'Live control' : 'Offline'}
+          <div style={{ fontWeight: 700, fontSize: '0.92rem', color: 'var(--text-primary)' }}>
+            Stage Controller
+          </div>
+          <div className="u-meta" style={{ fontSize: '0.72rem', display: 'flex', alignItems: 'center', gap: 4 }}>
+            <span
+              className={`status-strip-dot ${connectionState === 'connected' ? 'ok' : 'bad'}`}
+              style={{ width: 6, height: 6 }}
+            />
+            {connectionState === 'connected' ? 'Live Telemetry' : 'Offline'}
           </div>
         </div>
 

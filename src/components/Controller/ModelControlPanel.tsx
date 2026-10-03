@@ -1,7 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useStage } from '../../context/StageContext';
-import { MoveableAssetType, DisplayModeShortLabels, hasModelMetadata } from '../../types/protocol';
-import { ProjectionSheet } from '../Stage/ProjectionSheet';
+import {
+  MoveableAssetType,
+  DisplayModeShortLabels,
+  EnvironmentPresetShortLabels,
+  hasModelMetadata
+} from '../../types/protocol';
+import { PresentationPanel } from '../Presentation/PresentationPanel';
 import { DPad } from './DPad';
 import { ModelViewer3D } from './ModelViewer3D';
 import { SegmentedControl, SegmentedOption } from '../Common/SegmentedControl';
@@ -12,7 +17,6 @@ import {
   Globe,
   Eye,
   Grid,
-  Camera,
   Layers,
   RotateCcw,
   Loader2,
@@ -20,25 +24,21 @@ import {
 } from 'lucide-react';
 
 /**
- * Model-only controls: adaptive 3D interactive gesture viewport or classic D-Pad.
- *
- * Features:
- * - Persistent Control Mode Selector (Rotate, Pan, Light, Magnifier) for both Live View & D-Pad.
- * - View Mode Changer (Projection: 2D, SBS, HOLO, FMAX) accessible in both views.
- * - Camera Toggle (Ortho / Perspective): visible when Rotate or Pan is selected;
- *   automatically hidden when Light or Magnifier is selected.
- * - Metadata HUD Toggle: visible only when the active model has museum metadata.
- * - 3D Touch vs D-Pad switcher for eligible models.
+ * Model Control Cockpit:
+ * Focused object manipulation interface.
+ * - Input method selector: [ Touch ] [ D-Pad ]
+ * - Unified presentation summary: Presentation: [ 2D · Space ▾ ] (triggers PresentationPanel)
+ * - Standardized manipulation vocabulary: Rotate, Pan, Zoom, Reset
+ * - Single canonical [ ↻ Reset Transform ] button beneath active manipulation surface
+ * - Museum metadata 'i' toggle button
  */
 export const ModelControlPanel: React.FC = () => {
   const {
     currentMovableMode,
     setMovableMode,
     displayMode,
+    environmentPreset,
     activeAsset,
-    isOrthographic,
-    toggleOrthographic,
-    stereoSettings,
     resetModelTransform,
     activeTransport,
     transportState,
@@ -47,7 +47,7 @@ export const ModelControlPanel: React.FC = () => {
     toggleMetadataVisible
   } = useStage();
 
-  const [isProjectionOpen, setIsProjectionOpen] = useState(false);
+  const [isPresentationOpen, setIsPresentationOpen] = useState(false);
   const [userSurfacePreference, setUserSurfacePreference] = useState<'3d' | 'dpad'>('3d');
   const [forceLoadAnyway, setForceLoadAnyway] = useState(false);
 
@@ -60,8 +60,7 @@ export const ModelControlPanel: React.FC = () => {
   const isProbing = transportState === 'discovering' || transportState === 'probing';
   const assetHasMetadata = hasModelMetadata(activeAsset);
 
-  // Check whether the active model is eligible for web 3D rendering
-  // If connected via cloud tunnel (ngrok) or probing LAN, auto-load is disabled to protect tunnel bandwidth limit
+  // Check whether active model is eligible for web 3D rendering
   const isWithinThreshold = Boolean(
     activeAsset &&
       activeAsset.isWebPreviewable !== false &&
@@ -72,17 +71,13 @@ export const ModelControlPanel: React.FC = () => {
   const isEligible = isWithinThreshold && !isTunnel && !isProbing;
   const canPreview = (isEligible || forceLoadAnyway) && Boolean(activeAsset);
 
-  // Show Camera toggle ONLY when Rotate or Pan is selected; hide for Light or Magnifier
   const isRotateOrPan =
     currentMovableMode === MoveableAssetType.Rotate || currentMovableMode === MoveableAssetType.Pan;
 
-  // 3D View is shown ONLY when model can be previewed, mode is Rotate/Pan, and user preferred '3d'
   const show3DViewer = canPreview && isRotateOrPan && userSurfacePreference === '3d';
 
   const handleModeChange = (mode: MoveableAssetType) => {
     setMovableMode(mode);
-    // Preserves userSurfacePreference: if user chose 'dpad', they remain in 'dpad' when switching between Rotate and Pan.
-    // If they preferred '3d', switching back from Light/Magnifier to Rotate/Pan naturally restores '3d'.
   };
 
   const handleSurfaceChange = (surface: '3d' | 'dpad') => {
@@ -102,12 +97,12 @@ export const ModelControlPanel: React.FC = () => {
   ];
 
   const surfaceOptions: SegmentedOption<'3d' | 'dpad'>[] = [
-    { value: '3d', label: '3D View', icon: <Eye size={14} /> },
+    { value: '3d', label: 'Touch', icon: <Eye size={14} /> },
     { value: 'dpad', label: 'D-Pad', icon: <Grid size={14} /> }
   ];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%', gap: 14 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%', gap: 12 }}>
       {/* High-Poly / Oversized Model / Tunnel / Probing Notice */}
       {activeAsset && (!isEligible || isProbing) && (
         <div
@@ -119,7 +114,7 @@ export const ModelControlPanel: React.FC = () => {
             justifyContent: 'space-between',
             gap: 8,
             padding: '5px 10px 5px 12px',
-            borderRadius: 'var(--radius-full, 9999px)',
+            borderRadius: 'var(--radius-full)',
             background: isProbing
               ? 'rgba(99, 102, 241, 0.12)'
               : isTunnel
@@ -130,7 +125,7 @@ export const ModelControlPanel: React.FC = () => {
               : isTunnel
               ? '1px solid rgba(59, 130, 246, 0.35)'
               : '1px solid rgba(245, 158, 11, 0.3)',
-            color: isProbing ? '#818cf8' : isTunnel ? '#60a5fa' : 'var(--color-warning, #f59e0b)',
+            color: isProbing ? '#818cf8' : isTunnel ? '#60a5fa' : 'var(--status-warning)',
             fontSize: '0.72rem',
             lineHeight: 1.2
           }}
@@ -147,8 +142,8 @@ export const ModelControlPanel: React.FC = () => {
               {isProbing
                 ? 'Checking local network connectivity...'
                 : isTunnel
-                ? 'Cloud tunnel (ngrok) · 3D download paused to save data'
-                : `Direct control · Model exceeds web preview ${activeAsset.fileSizeMB ? `(${activeAsset.fileSizeMB} MB)` : ''}`}
+                ? 'Cloud tunnel · 3D download paused to save data'
+                : `Direct mode · Model exceeds web preview ${activeAsset.fileSizeMB ? `(${activeAsset.fileSizeMB} MB)` : ''}`}
             </span>
           </div>
           {!isProbing && !forceLoadAnyway ? (
@@ -163,41 +158,44 @@ export const ModelControlPanel: React.FC = () => {
                 background: isTunnel ? 'rgba(59, 130, 246, 0.25)' : 'rgba(245, 158, 11, 0.25)',
                 border: isTunnel ? '1px solid rgba(59, 130, 246, 0.5)' : '1px solid rgba(245, 158, 11, 0.5)',
                 color: isTunnel ? '#93c5fd' : '#fbbf24',
-                borderRadius: '9999px',
+                borderRadius: 'var(--radius-full)',
                 padding: '2px 8px',
                 fontSize: '0.68rem',
                 fontWeight: 600,
                 cursor: 'pointer',
-                whiteSpace: 'nowrap',
-                transition: 'all 0.15s ease'
+                whiteSpace: 'nowrap'
               }}
-              title={isTunnel ? 'Load 3D preview over cloud tunnel anyway' : 'Force load 3D preview in browser anyway'}
             >
               Load Anyway
             </button>
           ) : (
             <span style={{ flexShrink: 0, fontSize: '0.65rem', opacity: 0.8, fontStyle: 'italic' }}>
-              {isProbing ? 'Checking...' : isTunnel ? 'Tunnel preview active' : 'Preview forced'}
+              {isProbing ? 'Checking...' : isTunnel ? 'Tunnel active' : 'Preview forced'}
             </span>
           )}
         </div>
       )}
 
-      {/* Level 1: Control Surface Selector (3D View vs D-Pad) */}
+      {/* Control Method Selector (Touch vs D-Pad) */}
       {canPreview && (
         <div style={{ width: '100%', maxWidth: 420, display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <span className="u-section-label">Control Surface</span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span className="u-section-label">Input Method</span>
+            <span style={{ fontSize: '0.68rem', color: 'var(--text-secondary)' }}>
+              {show3DViewer ? 'Direct 3D Gestures' : 'Directional D-Pad'}
+            </span>
+          </div>
           <SegmentedControl
             options={surfaceOptions}
             value={show3DViewer ? '3d' : 'dpad'}
             onChange={handleSurfaceChange}
             compact
-            ariaLabel="Control surface mode"
+            ariaLabel="Input method"
           />
         </div>
       )}
 
-      {/* Level 2: Secondary Configuration (Projection, Camera, & Round 'i' Metadata Toggle) */}
+      {/* Contextual Presentation Summary Bar & Metadata Toggle */}
       <div
         style={{
           width: '100%',
@@ -211,8 +209,8 @@ export const ModelControlPanel: React.FC = () => {
         <button
           type="button"
           className="btn btn-secondary"
-          onClick={() => setIsProjectionOpen(true)}
-          title="Change Projection Mode (2D / SBS / HOLO / FMAX)"
+          onClick={() => setIsPresentationOpen(true)}
+          title="Open Presentation Controls (Projection, Environment, Camera)"
           style={{
             flex: 1,
             minWidth: 0,
@@ -220,57 +218,22 @@ export const ModelControlPanel: React.FC = () => {
             display: 'inline-flex',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: 6,
-            padding: '0 12px',
+            gap: 8,
+            padding: '0 14px',
             fontSize: '0.78rem',
             lineHeight: 1,
             whiteSpace: 'nowrap',
-            borderRadius: 'var(--radius-full, 9999px)'
+            borderRadius: 'var(--radius-full)'
           }}
         >
-          <Layers size={14} style={{ flexShrink: 0 }} />
+          <Layers size={14} style={{ color: 'var(--accent-signature)', flexShrink: 0 }} />
           <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            Projection: {DisplayModeShortLabels[displayMode]}
+            Presentation: <strong style={{ color: 'var(--accent-signature)' }}>{DisplayModeShortLabels[displayMode]}</strong> · {EnvironmentPresetShortLabels[environmentPreset]}
           </span>
-          <ChevronDown size={13} style={{ flexShrink: 0, opacity: 0.75 }} />
+          <ChevronDown size={13} style={{ flexShrink: 0, opacity: 0.7 }} />
         </button>
 
-        {isRotateOrPan && (
-          <button
-            type="button"
-            className="btn btn-secondary"
-            onClick={toggleOrthographic}
-            disabled={stereoSettings.isStereo}
-            title={
-              stereoSettings.isStereo
-                ? 'Camera is locked to Perspective in SBS'
-                : `Switch to ${isOrthographic ? 'Perspective' : 'Orthographic'} camera`
-            }
-            style={{
-              flex: 1,
-              minWidth: 0,
-              height: 38,
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 6,
-              padding: '0 12px',
-              fontSize: '0.78rem',
-              lineHeight: 1,
-              whiteSpace: 'nowrap',
-              borderRadius: 'var(--radius-full, 9999px)',
-              opacity: stereoSettings.isStereo ? 0.6 : 1
-            }}
-          >
-            <Camera size={14} style={{ flexShrink: 0 }} />
-            <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              Camera: {isOrthographic ? 'Ortho' : 'Persp'}
-            </span>
-            <ChevronDown size={13} style={{ flexShrink: 0, opacity: 0.75 }} />
-          </button>
-        )}
-
-        {/* Round 'i' Metadata Toggle Button - Automatically hidden when model has no metadata */}
+        {/* Round 'i' Metadata Toggle Button (if curatorial metadata exists) */}
         {assetHasMetadata && (
           <button
             type="button"
@@ -289,10 +252,9 @@ export const ModelControlPanel: React.FC = () => {
               justifyContent: 'center',
               padding: 0,
               borderRadius: '50%',
-              background: isMetadataVisible ? 'rgba(0, 229, 255, 0.16)' : undefined,
-              borderColor: isMetadataVisible ? 'rgba(0, 229, 255, 0.48)' : undefined,
-              color: isMetadataVisible ? '#00e5ff' : undefined,
-              boxShadow: isMetadataVisible ? '0 0 12px rgba(0, 229, 255, 0.2)' : undefined
+              background: isMetadataVisible ? 'var(--accent-signature-dim)' : undefined,
+              borderColor: isMetadataVisible ? 'var(--accent-signature)' : undefined,
+              color: isMetadataVisible ? 'var(--accent-signature)' : undefined
             }}
           >
             <span
@@ -311,8 +273,7 @@ export const ModelControlPanel: React.FC = () => {
         )}
       </div>
 
-      {/* Level 3: Active Control Surface */}
-      {/* 3D Viewport (Kept mounted in DOM when previewable so model is never destroyed or reloaded) */}
+      {/* Manipulation Surface: 3D Touch Viewport */}
       {canPreview && activeAsset && (
         <div
           style={{
@@ -332,40 +293,58 @@ export const ModelControlPanel: React.FC = () => {
         </div>
       )}
 
-      {/* Classic D-Pad */}
+      {/* Manipulation Surface: Classic D-Pad */}
       <div
         style={{
           display: !show3DViewer ? 'flex' : 'none',
           flexDirection: 'column',
           alignItems: 'center',
           width: '100%',
-          gap: 14
+          gap: 12
         }}
       >
-        {/* D-Pad Direction Mode Selector (Rotate vs Pan) */}
+        {/* D-Pad Direction Mode (Rotate vs Pan) */}
         <div style={{ width: '100%', maxWidth: 420, display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <span className="u-section-label">D-Pad Direction Mode</span>
+          <span className="u-section-label">Direction Mode</span>
           <SegmentedControl
             options={modes}
             value={currentMovableMode}
             onChange={handleModeChange}
-            ariaLabel="D-Pad control mode"
+            ariaLabel="D-Pad mode"
           />
         </div>
 
-        <DPad
-          centerLabel={
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-              <RotateCcw size={18} />
-              <span style={{ fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.04em' }}>RESET</span>
-            </div>
-          }
-          onCenterPress={resetModelTransform}
-          centerTitle="Reset model rotation and position"
-        />
+        {/* Directional Pad without duplicate center reset */}
+        <DPad />
       </div>
 
-      <ProjectionSheet isOpen={isProjectionOpen} onClose={() => setIsProjectionOpen(false)} />
+      {/* Single Canonical Reset Button beneath active manipulation surface */}
+      <div style={{ display: 'flex', justifyContent: 'center', width: '100%', marginTop: 2 }}>
+        <button
+          type="button"
+          className="btn btn-secondary"
+          onClick={resetModelTransform}
+          title="Reset model rotation, pan, and zoom to starting defaults"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+            padding: '7px 18px',
+            borderRadius: 'var(--radius-full)',
+            fontSize: '0.78rem',
+            fontWeight: 700
+          }}
+        >
+          <RotateCcw size={14} style={{ color: 'var(--accent-signature)' }} />
+          <span>Reset Transform</span>
+        </button>
+      </div>
+
+      {/* Canonical Presentation Panel Modal / Sheet */}
+      <PresentationPanel
+        isOpen={isPresentationOpen}
+        onClose={() => setIsPresentationOpen(false)}
+      />
     </div>
   );
 };

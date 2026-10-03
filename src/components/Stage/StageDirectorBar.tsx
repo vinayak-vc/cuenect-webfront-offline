@@ -23,10 +23,11 @@ export const StageDirectorBar: React.FC = () => {
   return (
     <div
       style={{
-        background: 'rgba(10, 15, 29, 0.95)',
-        borderBottom: '1px solid rgba(0, 229, 255, 0.2)',
-        backdropFilter: 'blur(12px)',
-        padding: '8px 16px',
+        background: 'var(--surface-nav)',
+        borderBottom: '1px solid var(--line-subtle)',
+        backdropFilter: 'blur(16px)',
+        WebkitBackdropFilter: 'blur(16px)',
+        padding: '6px 16px',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
@@ -38,8 +39,18 @@ export const StageDirectorBar: React.FC = () => {
     >
       {/* Left: Summary Title and All button */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#00e5ff', fontSize: '0.82rem', fontWeight: 700, letterSpacing: '0.05em' }}>
-          <Monitor size={16} />
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            color: 'var(--color-primary)',
+            fontSize: '0.78rem',
+            fontWeight: 800,
+            letterSpacing: '0.08em'
+          }}
+        >
+          <Monitor size={15} />
           <span>STAGES</span>
         </div>
 
@@ -53,12 +64,12 @@ export const StageDirectorBar: React.FC = () => {
             }
           }}
           style={{
-            background: isAllSelected ? 'rgba(0, 229, 255, 0.2)' : 'rgba(255, 255, 255, 0.05)',
-            border: isAllSelected ? '1px solid #00e5ff' : '1px solid rgba(255, 255, 255, 0.15)',
-            color: isAllSelected ? '#00e5ff' : '#94a3b8',
-            borderRadius: 6,
-            padding: '4px 10px',
-            fontSize: '0.78rem',
+            background: isAllSelected ? 'rgba(100, 197, 190, 0.15)' : 'var(--surface-2)',
+            border: isAllSelected ? '1px solid var(--line-interactive)' : '1px solid var(--line-subtle)',
+            color: isAllSelected ? 'var(--color-primary)' : 'var(--text-secondary)',
+            borderRadius: 'var(--radius-pill)',
+            padding: '3px 10px',
+            fontSize: '0.74rem',
             fontWeight: 600,
             cursor: 'pointer',
             display: 'flex',
@@ -94,22 +105,22 @@ export const StageDirectorBar: React.FC = () => {
               onClick={() => toggleStageSelection(stage.stageId)}
               style={{
                 background: isSelected
-                  ? 'linear-gradient(135deg, rgba(0, 229, 255, 0.18), rgba(15, 23, 42, 0.9))'
-                  : 'rgba(15, 23, 42, 0.6)',
+                  ? 'rgba(100, 197, 190, 0.14)'
+                  : 'var(--surface-1)',
                 border: isSelected
-                  ? '1px solid rgba(0, 229, 255, 0.75)'
-                  : '1px solid rgba(255, 255, 255, 0.08)',
-                color: isSelected ? '#ffffff' : '#94a3b8',
-                borderRadius: 8,
-                padding: '4px 10px',
-                fontSize: '0.78rem',
-                fontWeight: 500,
+                  ? '1px solid var(--line-interactive)'
+                  : '1px solid var(--line-subtle)',
+                color: isSelected ? 'var(--text-primary)' : 'var(--text-secondary)',
+                borderRadius: 'var(--radius-pill)',
+                padding: '3px 10px',
+                fontSize: '0.74rem',
+                fontWeight: 600,
                 cursor: 'pointer',
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: 6,
                 flexShrink: 0,
-                boxShadow: isSelected ? '0 0 10px rgba(0, 229, 255, 0.25)' : 'none',
+                boxShadow: isSelected ? '0 0 10px rgba(100, 197, 190, 0.2)' : 'none',
                 opacity: stage.online ? 1 : 0.45,
                 transition: 'all 0.15s ease'
               }}
@@ -117,19 +128,19 @@ export const StageDirectorBar: React.FC = () => {
             >
               <span
                 style={{
-                  width: 7,
-                  height: 7,
+                  width: 6,
+                  height: 6,
                   borderRadius: '50%',
-                  background: stage.online ? '#22c55e' : '#64748b',
-                  boxShadow: stage.online ? '0 0 6px #22c55e' : 'none'
+                  background: stage.online ? 'var(--color-live)' : 'var(--text-muted)',
+                  boxShadow: stage.online ? '0 0 6px var(--color-live)' : 'none'
                 }}
               />
               <span style={{ fontWeight: 600 }}>{stage.displayName || stage.stageId}</span>
               {stage.currentModel && (
                 <span
                   style={{
-                    background: 'rgba(0, 229, 255, 0.15)',
-                    color: '#00e5ff',
+                    background: 'rgba(100, 197, 190, 0.12)',
+                    color: 'var(--color-primary)',
                     padding: '1px 5px',
                     borderRadius: 4,
                     fontSize: '0.68rem',
@@ -152,12 +163,12 @@ export const StageDirectorBar: React.FC = () => {
         type="button"
         onClick={() => setIsStageDirectorOpen(true)}
         style={{
-          background: 'rgba(255, 255, 255, 0.06)',
-          border: '1px solid rgba(255, 255, 255, 0.12)',
-          color: '#cbd5e1',
-          borderRadius: 6,
-          padding: '4px 10px',
-          fontSize: '0.78rem',
+          background: 'var(--surface-2)',
+          border: '1px solid var(--line-subtle)',
+          color: 'var(--text-secondary)',
+          borderRadius: 'var(--radius-pill)',
+          padding: '3px 10px',
+          fontSize: '0.74rem',
           fontWeight: 600,
           cursor: 'pointer',
           display: 'flex',
@@ -167,15 +178,16 @@ export const StageDirectorBar: React.FC = () => {
         }}
         title="Open Stage Director Matrix"
       >
-        <SlidersHorizontal size={14} />
+        <SlidersHorizontal size={13} />
         <span className="hide-on-mobile">Matrix</span>
         <span
           style={{
-            background: 'rgba(0, 229, 255, 0.25)',
-            color: '#00e5ff',
-            padding: '0 5px',
-            borderRadius: 10,
-            fontSize: '0.72rem'
+            background: 'rgba(100, 197, 190, 0.2)',
+            color: 'var(--color-primary)',
+            padding: '1px 6px',
+            borderRadius: 'var(--radius-pill)',
+            fontSize: '0.7rem',
+            fontWeight: 700
           }}
         >
           {selectedStageIds.size}/{onlineStages.length}

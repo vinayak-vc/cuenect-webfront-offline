@@ -11,49 +11,86 @@
    ========================================================================= */
 
 :root {
-  /* --- Surfaces: ascending elevation ------------------------------------ */
-  --surface-app: #05070e;
-  --surface-sunken: #04060b;
-  --surface-1: rgba(16, 23, 39, 0.72);
-  --surface-2: rgba(22, 31, 51, 0.82);
-  --surface-3: rgba(30, 41, 66, 0.9);
-  --surface-nav: rgba(9, 14, 26, 0.88);
-  --surface-sheet: rgba(13, 19, 34, 0.96);
-  --surface-modal: rgba(15, 22, 38, 0.97);
-  --surface-input: rgba(9, 14, 25, 0.75);
+  /* --- Obsidian Exhibition Console: Palette & Surfaces ------------------ */
+  --obsidian-canvas: #06090F;
+  --obsidian-surface: #0C111A;
+  --obsidian-elevated: #111824;
+  --obsidian-sunken: #04060A;
+
+  --surface-app: var(--obsidian-canvas);
+  --surface-sunken: var(--obsidian-sunken);
+  --surface-1: rgba(12, 17, 26, 0.88);
+  --surface-2: rgba(17, 24, 36, 0.92);
+  --surface-3: rgba(24, 33, 49, 0.95);
+  --surface-nav: rgba(6, 9, 15, 0.94);
+  --surface-sheet: rgba(12, 17, 26, 0.98);
+  --surface-modal: rgba(17, 24, 36, 0.98);
+  --surface-input: rgba(4, 6, 10, 0.85);
+
+  /* --- Text & Readability ----------------------------------------------- */
+  --text-primary: #F3F5F7;
+  --text-secondary: #8E9AAA;
+  --text-tertiary: #576477;
+  --text-muted: #627084;
+  --text-disabled: rgba(142, 154, 170, 0.4);
+
+  /* --- Refined Semantic Accents (Restrained) ---------------------------- */
+  --accent-signature: #68D9D0;
+  --accent-signature-dim: rgba(104, 217, 208, 0.12);
+  --status-live: #37D17F;
+  --status-live-dim: rgba(55, 209, 127, 0.14);
+  --status-warning: #E7B75D;
+  --status-warning-dim: rgba(231, 183, 93, 0.14);
+  --status-danger: #F06F78;
+  --status-danger-dim: rgba(240, 111, 120, 0.14);
+
+  /* Preserving index.css compatibility variables */
+  --color-primary: var(--accent-signature);
+  --color-primary-bright: #68D9D0;
+  --color-primary-glow: rgba(104, 217, 208, 0.2);
+  --color-success: var(--status-live);
+  --color-warning: var(--status-warning);
+  --color-danger: var(--status-danger);
 
   /* --- Borders ---------------------------------------------------------- */
-  --line-subtle: rgba(255, 255, 255, 0.07);
-  --line-elevated: rgba(255, 255, 255, 0.12);
-  --line-interactive: rgba(100, 197, 190, 0.28);
-  --line-focus: rgba(0, 229, 255, 0.75);
-
-  /* --- Text ------------------------------------------------------------- */
-  --text-disabled: rgba(148, 163, 184, 0.45);
+  --line-subtle: rgba(255, 255, 255, 0.06);
+  --line-elevated: rgba(255, 255, 255, 0.11);
+  --line-interactive: rgba(104, 217, 208, 0.28);
+  --line-focus: rgba(104, 217, 208, 0.75);
 
   /* --- Radius ----------------------------------------------------------- */
-  --radius-xl: 24px;
-  --radius-sheet: 26px;
+  --radius-xs: 4px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-sheet: 24px;
+  --radius-full: 9999px;
 
-  /* --- Elevation -------------------------------------------------------- */
-  --elev-soft: 0 1px 2px rgba(0, 0, 0, 0.4), 0 2px 6px rgba(0, 0, 0, 0.25);
-  --elev-raised: 0 2px 4px rgba(0, 0, 0, 0.4), 0 8px 20px rgba(0, 0, 0, 0.35);
-  --elev-floating: 0 8px 16px rgba(0, 0, 0, 0.45), 0 20px 48px rgba(0, 0, 0, 0.4);
-  --elev-modal: 0 24px 64px rgba(0, 0, 0, 0.62);
-  /* Restrained accent ring - used on active/primary states only. */
-  --ring-accent: 0 0 0 1px rgba(100, 197, 190, 0.5), 0 4px 18px rgba(100, 197, 190, 0.16);
+  /* --- Elevation & Stage Light ------------------------------------------ */
+  --elev-soft: 0 1px 3px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(0, 0, 0, 0.3);
+  --elev-raised: 0 2px 6px rgba(0, 0, 0, 0.5), 0 8px 24px rgba(0, 0, 0, 0.45);
+  --elev-floating: 0 8px 20px rgba(0, 0, 0, 0.6), 0 20px 48px rgba(0, 0, 0, 0.55);
+  --elev-modal: 0 24px 64px rgba(0, 0, 0, 0.75);
+  --ring-accent: 0 0 0 1px rgba(104, 217, 208, 0.45), 0 2px 12px rgba(104, 217, 208, 0.12);
+  --stage-light-glow: 0 0 24px rgba(55, 209, 127, 0.18);
 
   /* --- Motion ----------------------------------------------------------- */
-  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --motion-micro: 150ms cubic-bezier(0.2, 0, 0, 1);
+  --motion-panel: 260ms cubic-bezier(0.16, 1, 0.3, 1);
+  --motion-workspace: 380ms cubic-bezier(0.16, 1, 0.3, 1);
+  --motion-ambient: 12s ease-in-out infinite;
+
+  --ease-out: cubic-bezier(0.2, 0, 0, 1);
   --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
   --ease-emphasis: cubic-bezier(0.16, 1, 0.3, 1);
 
-  --dur-micro: 120ms;
-  --dur-button: 150ms;
-  --dur-card: 220ms;
-  --dur-panel: 280ms;
+  --dur-micro: 140ms;
+  --dur-button: 160ms;
+  --dur-card: 200ms;
+  --dur-panel: 260ms;
   --dur-modal: 260ms;
-  --dur-sheet: 320ms;
+  --dur-sheet: 280ms;
 
   /* --- Typography scale ------------------------------------------------- */
   --type-display: 700 1.6rem/1.15 var(--font-sans);

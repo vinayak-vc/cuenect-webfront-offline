@@ -19,7 +19,8 @@ export const ExploreCard: React.FC<ExploreCardProps> = ({ model }) => {
     loadAsset,
     setIsControllerOpen,
     activeDownloads,
-    startExploreDownload
+    startExploreDownload,
+    setInspectedAsset
   } = useStage();
 
   const downloadState = activeDownloads[model.smithsonianId];
@@ -44,7 +45,12 @@ export const ExploreCard: React.FC<ExploreCardProps> = ({ model }) => {
       ? `${model.fileSizeMB.toFixed(1)} MB`
       : '';
 
-  const handleAction = () => {
+  const handleCardClick = () => {
+    setInspectedAsset(model);
+  };
+
+  const handleAction = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     if (isDownloading) return;
 
     if (isDownloaded) {
@@ -76,14 +82,14 @@ export const ExploreCard: React.FC<ExploreCardProps> = ({ model }) => {
   return (
     <div
       className={`asset-card ${isActive ? 'active-stage' : ''}`}
-      onClick={handleAction}
+      onClick={handleCardClick}
       style={{ cursor: isDownloading ? 'progress' : 'pointer' }}
       role="button"
       tabIndex={0}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
-          handleAction();
+          handleCardClick();
         }
       }}
     >
@@ -154,10 +160,7 @@ export const ExploreCard: React.FC<ExploreCardProps> = ({ model }) => {
             type="button"
             disabled={isDownloading}
             className={`btn btn-card-load ${isActive ? 'btn-secondary' : 'btn-primary'}`}
-            onClick={(e) => {
-              e.stopPropagation();
-              handleAction();
-            }}
+            onClick={handleAction}
             style={{
               width: '100%',
               position: 'relative',

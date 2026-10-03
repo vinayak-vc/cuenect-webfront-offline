@@ -66,6 +66,8 @@ interface StageContextValue {
   setIsControllerOpen: (open: boolean) => void;
   isSettingsOpen: boolean;
   setIsSettingsOpen: (open: boolean) => void;
+  inspectedAsset: AssetInformation | SmithsonianExploreModel | null;
+  setInspectedAsset: (asset: AssetInformation | SmithsonianExploreModel | null) => void;
 
   // Smithsonian 3D Explore & Background Downloads
   catalogTab: 'downloaded' | 'explore';
@@ -182,6 +184,7 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [activeAsset, setActiveAsset] = useState<AssetInformation | null>(null);
   const [isControllerOpen, setIsControllerOpen] = useState<boolean>(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
+  const [inspectedAsset, setInspectedAsset] = useState<AssetInformation | SmithsonianExploreModel | null>(null);
 
   // Smithsonian Explore & Background Downloads state
   const [catalogTab, setCatalogTab] = useState<'downloaded' | 'explore'>('downloaded');
@@ -1202,6 +1205,8 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setIsControllerOpen,
     isSettingsOpen,
     setIsSettingsOpen,
+    inspectedAsset,
+    setInspectedAsset,
     catalogTab,
     setCatalogTab,
     exploreModels,

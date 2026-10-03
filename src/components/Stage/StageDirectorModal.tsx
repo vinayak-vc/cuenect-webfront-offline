@@ -74,12 +74,12 @@ export const StageDirectorModal: React.FC = () => {
       maxWidth="720px"
       footer={
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-          <div style={{ fontSize: '0.85rem', color: '#94a3b8' }}>
-            Targeting <strong style={{ color: '#00e5ff' }}>{selectedStageIds.size}</strong> of {onlineCount} online stages
+          <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+            Targeting <strong style={{ color: 'var(--color-primary)' }}>{selectedStageIds.size}</strong> of {onlineCount} online stages
           </div>
           <button
             className="btn btn-primary"
-            style={{ padding: '8px 20px', borderRadius: 8 }}
+            style={{ padding: '8px 20px', borderRadius: 'var(--radius-pill)' }}
             onClick={() => setIsStageDirectorOpen(false)}
           >
             Apply & Close
@@ -94,15 +94,15 @@ export const StageDirectorModal: React.FC = () => {
             style={{
               display: 'flex',
               alignItems: 'center',
-              background: 'rgba(15, 23, 42, 0.7)',
-              border: '1px solid rgba(255, 255, 255, 0.1)',
-              borderRadius: 8,
+              background: 'var(--surface-sunken)',
+              border: '1px solid var(--line-subtle)',
+              borderRadius: 'var(--radius-md)',
               padding: '6px 12px',
               gap: 8,
               flex: '1 1 200px'
             }}
           >
-            <Search size={16} color="#64748b" />
+            <Search size={16} color="var(--text-muted)" />
             <input
               type="text"
               placeholder="Search stage or model..."
@@ -112,7 +112,7 @@ export const StageDirectorModal: React.FC = () => {
                 background: 'transparent',
                 border: 'none',
                 outline: 'none',
-                color: '#fff',
+                color: 'var(--text-primary)',
                 fontSize: '0.85rem',
                 width: '100%'
               }}
@@ -166,10 +166,10 @@ export const StageDirectorModal: React.FC = () => {
                     }
                   }}
                   style={{
-                    background: isActive ? 'rgba(0, 229, 255, 0.2)' : 'rgba(255, 255, 255, 0.05)',
-                    border: isActive ? '1px solid #00e5ff' : '1px solid rgba(255, 255, 255, 0.1)',
-                    color: isActive ? '#00e5ff' : '#94a3b8',
-                    borderRadius: 6,
+                    background: isActive ? 'rgba(100, 197, 190, 0.18)' : 'var(--surface-1)',
+                    border: isActive ? '1px solid var(--line-interactive)' : '1px solid var(--line-subtle)',
+                    color: isActive ? 'var(--color-primary)' : 'var(--text-secondary)',
+                    borderRadius: 'var(--radius-pill)',
                     padding: '4px 12px',
                     fontSize: '0.75rem',
                     fontWeight: 600,
@@ -203,12 +203,12 @@ export const StageDirectorModal: React.FC = () => {
                 onClick={() => toggleStageSelection(stage.stageId)}
                 style={{
                   background: isSelected
-                    ? 'linear-gradient(135deg, rgba(0, 229, 255, 0.12), rgba(15, 23, 42, 0.85))'
-                    : 'rgba(15, 23, 42, 0.65)',
+                    ? 'rgba(100, 197, 190, 0.1)'
+                    : 'var(--surface-1)',
                   border: isSelected
-                    ? '1px solid rgba(0, 229, 255, 0.65)'
-                    : '1px solid rgba(255, 255, 255, 0.08)',
-                  borderRadius: 10,
+                    ? '1px solid var(--line-interactive)'
+                    : '1px solid var(--line-subtle)',
+                  borderRadius: 'var(--radius-md)',
                   padding: 12,
                   display: 'flex',
                   flexDirection: 'column',
@@ -216,7 +216,7 @@ export const StageDirectorModal: React.FC = () => {
                   cursor: 'pointer',
                   position: 'relative',
                   opacity: stage.online ? 1 : 0.5,
-                  boxShadow: isSelected ? '0 0 12px rgba(0, 229, 255, 0.2)' : 'none',
+                  boxShadow: isSelected ? '0 0 12px rgba(100, 197, 190, 0.2)' : 'none',
                   transition: 'all 0.15s ease'
                 }}
               >
@@ -228,16 +228,16 @@ export const StageDirectorModal: React.FC = () => {
                         width: 18,
                         height: 18,
                         borderRadius: 4,
-                        border: isSelected ? '1px solid #00e5ff' : '1px solid rgba(255, 255, 255, 0.3)',
-                        background: isSelected ? '#00e5ff' : 'transparent',
+                        border: isSelected ? '1px solid var(--color-primary)' : '1px solid var(--line-subtle)',
+                        background: isSelected ? 'var(--color-primary)' : 'transparent',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center'
                       }}
                     >
-                      {isSelected && <Check size={12} color="#000" strokeWidth={3} />}
+                      {isSelected && <Check size={12} color="#041017" strokeWidth={3} />}
                     </div>
-                    <div style={{ fontWeight: 600, fontSize: '0.88rem', color: '#fff' }}>
+                    <div style={{ fontWeight: 600, fontSize: '0.88rem', color: 'var(--text-primary)' }}>
                       {stage.displayName || stage.stageId}
                     </div>
                   </div>
@@ -247,15 +247,15 @@ export const StageDirectorModal: React.FC = () => {
                       width: 8,
                       height: 8,
                       borderRadius: '50%',
-                      background: stage.online ? '#22c55e' : '#64748b',
-                      boxShadow: stage.online ? '0 0 6px #22c55e' : 'none'
+                      background: stage.online ? 'var(--color-live)' : 'var(--text-muted)',
+                      boxShadow: stage.online ? '0 0 6px var(--color-live)' : 'none'
                     }}
                     title={stage.online ? 'Online' : 'Offline'}
                   />
                 </div>
 
                 {/* Subtitle / ID & Group */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: '#64748b' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
                   <span>ID: {stage.stageId}</span>
                   {stage.group && <span>Group: {stage.group}</span>}
                 </div>
@@ -263,14 +263,14 @@ export const StageDirectorModal: React.FC = () => {
                 {/* Current Active Model */}
                 <div
                   style={{
-                    background: 'rgba(0, 0, 0, 0.3)',
-                    borderRadius: 6,
+                    background: 'var(--surface-sunken)',
+                    borderRadius: 'var(--radius-sm)',
                     padding: '6px 8px',
                     display: 'flex',
                     alignItems: 'center',
                     gap: 6,
                     fontSize: '0.75rem',
-                    color: stage.currentModel ? '#00e5ff' : '#64748b'
+                    color: stage.currentModel ? 'var(--color-primary)' : 'var(--text-muted)'
                   }}
                 >
                   <Box size={14} />
@@ -284,10 +284,10 @@ export const StageDirectorModal: React.FC = () => {
                   <span
                     style={{
                       fontSize: '0.68rem',
-                      background: 'rgba(255, 255, 255, 0.06)',
+                      background: 'var(--surface-2)',
                       padding: '2px 6px',
                       borderRadius: 4,
-                      color: '#94a3b8'
+                      color: 'var(--text-secondary)'
                     }}
                   >
                     Mode: {stage.displayMode || '2D'}
@@ -300,9 +300,9 @@ export const StageDirectorModal: React.FC = () => {
                       handleSolo(stage.stageId);
                     }}
                     style={{
-                      background: 'rgba(0, 229, 255, 0.1)',
-                      border: '1px solid rgba(0, 229, 255, 0.3)',
-                      color: '#00e5ff',
+                      background: 'rgba(100, 197, 190, 0.1)',
+                      border: '1px solid rgba(100, 197, 190, 0.3)',
+                      color: 'var(--color-primary)',
                       borderRadius: 4,
                       padding: '2px 8px',
                       fontSize: '0.7rem',

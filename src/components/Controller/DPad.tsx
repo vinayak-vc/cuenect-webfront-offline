@@ -3,15 +3,7 @@ import { useStage } from '../../context/StageContext';
 import { JoyStickDirection } from '../../types/protocol';
 import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from 'lucide-react';
 
-interface DPadProps {
-  /** Content for the pad's centre button. */
-  centerLabel?: React.ReactNode;
-  /** Centre button action. Omit to render no centre control. */
-  onCenterPress?: () => void;
-  centerTitle?: string;
-}
-
-export const DPad: React.FC<DPadProps> = ({ centerLabel, onCenterPress, centerTitle }) => {
+export const DPad: React.FC = () => {
   const { sendModelJoystick } = useStage();
   const [activeBtn, setActiveBtn] = useState<string | null>(null);
 
@@ -149,17 +141,35 @@ export const DPad: React.FC<DPadProps> = ({ centerLabel, onCenterPress, centerTi
         >
           <ChevronRight size={30} />
         </button>
-
-        {onCenterPress && (
-          <button
-            type="button"
-            className="dpad-center-action"
-            onClick={onCenterPress}
-            title={centerTitle}
-          >
-            {centerLabel}
-          </button>
-        )}
+        {/* Center tactile pivot core */}
+        <div
+          className="dpad-center-pivot"
+          style={{
+            position: 'absolute',
+            width: 44,
+            height: 44,
+            borderRadius: '50%',
+            background: 'radial-gradient(circle at center, rgba(104, 217, 208, 0.2) 0%, rgba(12, 17, 26, 0.95) 75%)',
+            border: '1px solid var(--border-subtle)',
+            boxShadow: 'inset 0 0 10px rgba(0, 0, 0, 0.8)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            pointerEvents: 'none',
+            zIndex: 2
+          }}
+        >
+          <span
+            style={{
+              width: 8,
+              height: 8,
+              borderRadius: '50%',
+              background: 'var(--accent-signature)',
+              opacity: 0.7,
+              boxShadow: '0 0 8px var(--accent-signature)'
+            }}
+          />
+        </div>
       </div>
 
       {/* Zoom Controls */}

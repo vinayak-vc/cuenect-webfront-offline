@@ -10,6 +10,7 @@ interface BottomSheetProps {
   subtitle?: string;
   children: React.ReactNode;
   footer?: React.ReactNode;
+  variant?: 'default' | 'side-drawer';
 }
 
 /**
@@ -27,7 +28,8 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
   title,
   subtitle,
   children,
-  footer
+  footer,
+  variant = 'default'
 }) => {
   const sheetRef = useRef<HTMLDivElement>(null);
   const dragStartY = useRef<number | null>(null);
@@ -76,10 +78,13 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
   // containing block for fixed-position descendants. Rendering in place put the
   // sheet inside the header and pushed it off screen on mobile.
   return createPortal(
-    <div className="sheet-backdrop" onClick={onClose}>
+    <div
+      className={`sheet-backdrop ${variant === 'side-drawer' ? 'is-side-drawer' : ''}`}
+      onClick={onClose}
+    >
       <div
         ref={sheetRef}
-        className="sheet"
+        className={`sheet ${variant === 'side-drawer' ? 'is-side-drawer' : ''}`}
         role="dialog"
         aria-modal="true"
         aria-label={title}

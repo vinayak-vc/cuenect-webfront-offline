@@ -56,6 +56,7 @@ export const PlaylistMakerModal: React.FC<PlaylistMakerModalProps> = ({ isOpen, 
     <BottomSheet
       isOpen={isOpen}
       onClose={onClose}
+      variant="side-drawer"
       title="Playlist"
       subtitle={
         playlistAssets.length > 0
