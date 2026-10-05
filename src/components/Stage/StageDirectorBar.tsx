@@ -17,8 +17,9 @@ export const StageDirectorBar: React.FC = () => {
   }
 
   const onlineStages = stages.filter((s) => s.online);
+  const selectedOnlineCount = onlineStages.filter((s) => selectedStageIds.has(s.stageId)).length;
   const isAllSelected =
-    onlineStages.length > 0 && onlineStages.every((s) => selectedStageIds.has(s.stageId));
+    onlineStages.length > 0 && selectedOnlineCount === onlineStages.length;
 
   return (
     <div
@@ -84,7 +85,7 @@ export const StageDirectorBar: React.FC = () => {
         </button>
       </div>
 
-      {/* Center: Scrollable Stage Chips */}
+      {/* Center: Scrollable Online Stage Chips */}
       <div
         style={{
           display: 'flex',
@@ -96,66 +97,72 @@ export const StageDirectorBar: React.FC = () => {
           flex: 1
         }}
       >
-        {stages.map((stage) => {
-          const isSelected = selectedStageIds.has(stage.stageId);
-          return (
-            <button
-              key={stage.stageId}
-              type="button"
-              onClick={() => toggleStageSelection(stage.stageId)}
-              style={{
-                background: isSelected
-                  ? 'rgba(100, 197, 190, 0.14)'
-                  : 'var(--surface-1)',
-                border: isSelected
-                  ? '1px solid var(--line-interactive)'
-                  : '1px solid var(--line-subtle)',
-                color: isSelected ? 'var(--text-primary)' : 'var(--text-secondary)',
-                borderRadius: 'var(--radius-pill)',
-                padding: '3px 10px',
-                fontSize: '0.74rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 6,
-                flexShrink: 0,
-                boxShadow: isSelected ? '0 0 10px rgba(100, 197, 190, 0.2)' : 'none',
-                opacity: stage.online ? 1 : 0.45,
-                transition: 'all 0.15s ease'
-              }}
-              title={`${stage.displayName} (${stage.stageId}) - ${stage.online ? 'Online' : 'Offline'}${stage.currentModel ? ` | Model: ${stage.currentModel}` : ''}`}
-            >
-              <span
+        {onlineStages.length === 0 ? (
+          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+            No online stages connected
+          </span>
+        ) : (
+          onlineStages.map((stage) => {
+            const isSelected = selectedStageIds.has(stage.stageId);
+            return (
+              <button
+                key={stage.stageId}
+                type="button"
+                onClick={() => toggleStageSelection(stage.stageId)}
                 style={{
-                  width: 6,
-                  height: 6,
-                  borderRadius: '50%',
-                  background: stage.online ? 'var(--color-live)' : 'var(--text-muted)',
-                  boxShadow: stage.online ? '0 0 6px var(--color-live)' : 'none'
+                  background: isSelected
+                    ? 'rgba(100, 197, 190, 0.14)'
+                    : 'var(--surface-1)',
+                  border: isSelected
+                    ? '1px solid var(--line-interactive)'
+                    : '1px solid var(--line-subtle)',
+                  color: isSelected ? 'var(--text-primary)' : 'var(--text-secondary)',
+                  borderRadius: 'var(--radius-pill)',
+                  padding: '3px 10px',
+                  fontSize: '0.74rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  flexShrink: 0,
+                  boxShadow: isSelected ? '0 0 10px rgba(100, 197, 190, 0.2)' : 'none',
+                  opacity: 1,
+                  transition: 'all 0.15s ease'
                 }}
-              />
-              <span style={{ fontWeight: 600 }}>{stage.displayName || stage.stageId}</span>
-              {stage.currentModel && (
+                title={`${stage.displayName} (${stage.stageId}) - Online${stage.currentModel ? ` | Model: ${stage.currentModel}` : ''}`}
+              >
                 <span
                   style={{
-                    background: 'rgba(100, 197, 190, 0.12)',
-                    color: 'var(--color-primary)',
-                    padding: '1px 5px',
-                    borderRadius: 4,
-                    fontSize: '0.68rem',
-                    maxWidth: 90,
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap'
+                    width: 6,
+                    height: 6,
+                    borderRadius: '50%',
+                    background: 'var(--color-live)',
+                    boxShadow: '0 0 6px var(--color-live)'
                   }}
-                >
-                  {stage.currentModel}
-                </span>
-              )}
-            </button>
-          );
-        })}
+                />
+                <span style={{ fontWeight: 600 }}>{stage.displayName || stage.stageId}</span>
+                {stage.currentModel && (
+                  <span
+                    style={{
+                      background: 'rgba(100, 197, 190, 0.12)',
+                      color: 'var(--color-primary)',
+                      padding: '1px 5px',
+                      borderRadius: 4,
+                      fontSize: '0.68rem',
+                      maxWidth: 90,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap'
+                    }}
+                  >
+                    {stage.currentModel}
+                  </span>
+                )}
+              </button>
+            );
+          })
+        )}
       </div>
 
       {/* Right: Full Director Button */}
@@ -190,7 +197,7 @@ export const StageDirectorBar: React.FC = () => {
             fontWeight: 700
           }}
         >
-          {selectedStageIds.size}/{onlineStages.length}
+          {selectedOnlineCount}/{onlineStages.length}
         </span>
       </button>
     </div>

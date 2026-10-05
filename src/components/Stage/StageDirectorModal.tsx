@@ -7,7 +7,8 @@ import {
   Box,
   CheckSquare,
   Square,
-  RefreshCw
+  RefreshCw,
+  Trash2
 } from 'lucide-react';
 
 export const StageDirectorModal: React.FC = () => {
@@ -19,6 +20,7 @@ export const StageDirectorModal: React.FC = () => {
     clearStageSelection,
     setSelectedStageIds,
     selectStageGroup,
+    purgeOfflineStages,
     isStageDirectorOpen,
     setIsStageDirectorOpen
   } = useStage();
@@ -51,6 +53,7 @@ export const StageDirectorModal: React.FC = () => {
   }, [stages, searchQuery, selectedGroup]);
 
   const onlineCount = stages.filter((s) => s.online).length;
+  const selectedOnlineCount = stages.filter((s) => s.online && selectedStageIds.has(s.stageId)).length;
 
   const handleInvert = () => {
     const next = new Set<string>();
@@ -75,7 +78,7 @@ export const StageDirectorModal: React.FC = () => {
       footer={
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
           <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
-            Targeting <strong style={{ color: 'var(--color-primary)' }}>{selectedStageIds.size}</strong> of {onlineCount} online stages
+            Targeting <strong style={{ color: 'var(--color-primary)' }}>{selectedOnlineCount}</strong> of {onlineCount} online stages
           </div>
           <button
             className="btn btn-primary"
@@ -147,6 +150,26 @@ export const StageDirectorModal: React.FC = () => {
               <RefreshCw size={14} />
               <span>Invert</span>
             </button>
+            {stages.some((s) => !s.online) && (
+              <button
+                type="button"
+                className="btn btn-secondary"
+                style={{
+                  padding: '6px 12px',
+                  fontSize: '0.8rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  color: 'var(--color-danger, #ef4444)',
+                  borderColor: 'rgba(239, 68, 68, 0.25)'
+                }}
+                onClick={purgeOfflineStages}
+                title="Remove inactive stages that are currently offline"
+              >
+                <Trash2 size={14} />
+                <span>Purge Offline</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -242,16 +265,34 @@ export const StageDirectorModal: React.FC = () => {
                     </div>
                   </div>
 
-                  <span
-                    style={{
-                      width: 8,
-                      height: 8,
-                      borderRadius: '50%',
-                      background: stage.online ? 'var(--color-live)' : 'var(--text-muted)',
-                      boxShadow: stage.online ? '0 0 6px var(--color-live)' : 'none'
-                    }}
-                    title={stage.online ? 'Online' : 'Offline'}
-                  />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    {!stage.online && (
+                      <span
+                        style={{
+                          fontSize: '0.68rem',
+                          padding: '1px 5px',
+                          borderRadius: 3,
+                          background: 'rgba(255, 255, 255, 0.08)',
+                          color: 'var(--text-muted)',
+                          textTransform: 'uppercase',
+                          fontWeight: 600,
+                          letterSpacing: '0.04em'
+                        }}
+                      >
+                        Offline
+                      </span>
+                    )}
+                    <span
+                      style={{
+                        width: 8,
+                        height: 8,
+                        borderRadius: '50%',
+                        background: stage.online ? 'var(--color-live)' : 'var(--text-muted)',
+                        boxShadow: stage.online ? '0 0 6px var(--color-live)' : 'none'
+                      }}
+                      title={stage.online ? 'Online' : 'Offline'}
+                    />
+                  </div>
                 </div>
 
                 {/* Subtitle / ID & Group */}

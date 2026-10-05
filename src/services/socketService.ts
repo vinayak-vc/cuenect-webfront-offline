@@ -201,20 +201,26 @@ export class StageSocketService {
   public setStages(stages: StageNode[]): void {
     this.stages = stages;
 
-    // Prune IDs that no longer exist
-    const existingIds = new Set(stages.map((s) => s.stageId));
+    // Prune IDs that no longer exist or are offline
+    const onlineIds = new Set(stages.filter((s) => s.online).map((s) => s.stageId));
     const nextSelected = new Set<string>();
     this.selectedStageIds.forEach((id) => {
-      if (existingIds.has(id)) nextSelected.add(id);
+      if (onlineIds.has(id)) nextSelected.add(id);
     });
 
     // If no previous selection, select all online stages by default
-    if (nextSelected.size === 0 && stages.length > 0) {
-      stages.filter((s) => s.online).forEach((s) => nextSelected.add(s.stageId));
+    if (nextSelected.size === 0 && onlineIds.size > 0) {
+      onlineIds.forEach((id) => nextSelected.add(id));
     }
 
     this.selectedStageIds = nextSelected;
     this.notifyStagesChange();
+  }
+
+  public purgeOfflineStages(): void {
+    if (this.socket && this.socket.connected) {
+      this.socket.emit('stage-purge-offline');
+    }
   }
 
   public setSelectedStageIds(ids: string[] | Set<string>): void {

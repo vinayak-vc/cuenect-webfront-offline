@@ -169,6 +169,7 @@ interface StageContextValue {
   selectAllStages: () => void;
   clearStageSelection: () => void;
   selectStageGroup: (groupName: string) => void;
+  purgeOfflineStages: () => void;
   isStageDirectorOpen: boolean;
   setIsStageDirectorOpen: (open: boolean) => void;
 }
@@ -268,6 +269,10 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const selectStageGroup = useCallback((groupName: string) => {
     stageSocket.selectStageGroup(groupName);
+  }, []);
+
+  const purgeOfflineStages = useCallback(() => {
+    stageSocket.purgeOfflineStages();
   }, []);
 
   const setSelectedStageIds = useCallback((ids: string[] | Set<string>) => {
@@ -1309,6 +1314,7 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     selectAllStages,
     clearStageSelection,
     selectStageGroup,
+    purgeOfflineStages,
     isStageDirectorOpen,
     setIsStageDirectorOpen
   };
