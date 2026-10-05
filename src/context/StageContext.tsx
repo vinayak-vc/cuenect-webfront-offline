@@ -19,6 +19,8 @@ import {
   parseDisplayMode,
   EnvironmentPreset,
   parseEnvironmentPreset,
+  QualityTier,
+  parseQualityTier,
   ControlLockState,
   DEFAULT_CONTROL_LOCK,
   ModelTransformPayload,
@@ -120,6 +122,8 @@ interface StageContextValue {
   setDefaultDisplayMode: (mode: DisplayMode) => void;
   environmentPreset: EnvironmentPreset;
   setEnvironmentPreset: (preset: EnvironmentPreset) => void;
+  qualityTier: QualityTier;
+  setQualityTier: (tier: QualityTier) => void;
 
   // Stereoscopic & Stage Calibration Settings
   stereoSettings: StereoAdjustSettings;
@@ -215,6 +219,7 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [displayMode, setDisplayModeState] = useState<DisplayMode>(StorageService.getDisplayMode());
   const [defaultDisplayMode, setDefaultDisplayModeState] = useState<DisplayMode>(StorageService.getDefaultDisplayMode());
   const [environmentPreset, setEnvironmentPresetState] = useState<EnvironmentPreset>(StorageService.getEnvironmentPreset());
+  const [qualityTier, setQualityTierState] = useState<QualityTier>(StorageService.getQualityTier());
   const [recentAssetIds, setRecentAssetIds] = useState<string[]>(StorageService.getRecentAssets());
   const [favouriteAssetIds, setFavouriteAssetIds] = useState<string[]>(StorageService.getFavouriteAssets());
   const [controlLock, setControlLock] = useState<ControlLockState>(DEFAULT_CONTROL_LOCK);
@@ -532,6 +537,16 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         if (reported !== null) {
           setEnvironmentPresetState(reported);
           StorageService.saveEnvironmentPreset(reported);
+        }
+        return;
+      }
+
+      // Quality tier is authoritative from the stage (e.g. DetectDefault on start, or Kiosk F10 menu changes)
+      if (eventName === StaticStrings.QualityTierActionKey) {
+        const reported = parseQualityTier(data);
+        if (reported !== null) {
+          setQualityTierState(reported);
+          StorageService.saveQualityTier(reported);
         }
         return;
       }
@@ -981,6 +996,16 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     stageSocket.sendEnvironmentPreset(preset);
   }, []);
 
+  /**
+   * Set the graphics quality tier on the stage.
+   * Optimistic locally, then confirmed by Unity's echo.
+   */
+  const setQualityTier = useCallback((tier: QualityTier) => {
+    setQualityTierState(tier);
+    StorageService.saveQualityTier(tier);
+    stageSocket.sendQualityTier(tier);
+  }, []);
+
   const toggleStereoscopic = useCallback(() => {
     const nextStereo = !stereoSettings.isStereo;
     const updated = { ...stereoSettings, isStereo: nextStereo };
@@ -1241,6 +1266,8 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setDefaultDisplayMode,
     environmentPreset,
     setEnvironmentPreset,
+    qualityTier,
+    setQualityTier,
     recentAssetIds,
     favouriteAssetIds,
     toggleFavourite,

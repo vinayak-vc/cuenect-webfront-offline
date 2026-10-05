@@ -4,7 +4,8 @@ import { ConfirmDialog } from '../Common/ConfirmDialog';
 import { useStage } from '../../context/StageContext';
 import {
   DisplayModeLabels,
-  EnvironmentPresetLabels
+  EnvironmentPresetLabels,
+  QualityTierLabels
 } from '../../types/protocol';
 import { PresentationPanel } from '../Presentation/PresentationPanel';
 import {
@@ -53,6 +54,7 @@ export const MoreSheet: React.FC<MoreSheetProps> = ({
     setIsSettingsOpen,
     displayMode,
     environmentPreset,
+    qualityTier,
     isOrthographic,
     controlLock,
     requestControl,
@@ -167,6 +169,18 @@ export const MoreSheet: React.FC<MoreSheetProps> = ({
                 <span>
                   <strong>Environment Dressing</strong>
                   <em>{EnvironmentPresetLabels[environmentPreset]}</em>
+                </span>
+              </button>
+
+              <button
+                type="button"
+                className="sheet-action"
+                onClick={() => setIsPresentationOpen(true)}
+              >
+                <Sliders size={17} style={{ color: 'var(--accent-signature)' }} />
+                <span>
+                  <strong>Graphics Quality</strong>
+                  <em>{QualityTierLabels[qualityTier]}</em>
                 </span>
               </button>
 

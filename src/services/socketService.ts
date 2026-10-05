@@ -14,6 +14,9 @@ import {
   EnvironmentPreset,
   EnvironmentPresetPayload,
   EnvironmentPresetNames,
+  QualityTier,
+  QualityTierPayload,
+  QualityTierNames,
   MetadataActionPayload,
   SmithsonianExploreModel,
   StaticStrings,
@@ -616,6 +619,7 @@ export class StageSocketService {
     'hologram-display-mode-action',
     'hologram-default-display-mode-action',
     'hologram-environment-action',
+    'hologram-quality-tier-action',
     'hologram-model-transform',
     'hologram-metadata-action'
   ]);
@@ -815,6 +819,18 @@ export class StageSocketService {
       presetName: EnvironmentPresetNames[preset]
     };
     this.emitEvent(StaticStrings.EnvironmentActionKey, payload);
+  }
+
+  /**
+   * Set the graphics quality tier on the hologram stage viewer.
+   * Both `tier` and `tierName` are sent to ensure Unity's parser resolves either field.
+   */
+  public sendQualityTier(tier: QualityTier): void {
+    const payload: QualityTierPayload = {
+      tier,
+      tierName: QualityTierNames[tier]
+    };
+    this.emitEvent(StaticStrings.QualityTierActionKey, payload);
   }
 
   /** Ask the bridge for exclusive control of the stage. */

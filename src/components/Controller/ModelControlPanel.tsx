@@ -4,6 +4,7 @@ import {
   MoveableAssetType,
   DisplayModeShortLabels,
   EnvironmentPresetShortLabels,
+  QualityTierShortLabels,
   hasModelMetadata
 } from '../../types/protocol';
 import { PresentationPanel } from '../Presentation/PresentationPanel';
@@ -40,6 +41,7 @@ export const ModelControlPanel: React.FC = () => {
     setMovableMode,
     displayMode,
     environmentPreset,
+    qualityTier,
     activeAsset,
     resetModelTransform,
     activeTransport,
@@ -230,7 +232,7 @@ export const ModelControlPanel: React.FC = () => {
         >
           <Layers size={14} style={{ color: 'var(--accent-signature)', flexShrink: 0 }} />
           <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            Presentation: <strong style={{ color: 'var(--accent-signature)' }}>{DisplayModeShortLabels[displayMode]}</strong> · {EnvironmentPresetShortLabels[environmentPreset]}
+            Presentation: <strong style={{ color: 'var(--accent-signature)' }}>{DisplayModeShortLabels[displayMode]}</strong> · {EnvironmentPresetShortLabels[environmentPreset]} · {QualityTierShortLabels[qualityTier]}
           </span>
           <ChevronDown size={13} style={{ flexShrink: 0, opacity: 0.7 }} />
         </button>

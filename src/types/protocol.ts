@@ -348,6 +348,88 @@ export interface EnvironmentPresetPayload {
 
 export const DEFAULT_ENVIRONMENT_PRESET: EnvironmentPreset = EnvironmentPreset.Space;
 
+/**
+ * Hologram stage graphics quality tier.
+ * Mirrors HeavyEnvQualityTier in Scripts/HeavyEnvironment/HeavyEnvQuality.cs.
+ * Persisted ordinals; do not renumber.
+ */
+export enum QualityTier {
+  VeryLow = 0,
+  Low = 1,
+  Medium = 2,
+  High = 3,
+  Ultra = 4,
+  Custom = 5
+}
+
+export const QualityTierNames: Record<QualityTier, string> = {
+  [QualityTier.VeryLow]: 'verylow',
+  [QualityTier.Low]: 'low',
+  [QualityTier.Medium]: 'medium',
+  [QualityTier.High]: 'high',
+  [QualityTier.Ultra]: 'ultra',
+  [QualityTier.Custom]: 'custom'
+};
+
+export const QualityTierShortLabels: Record<QualityTier, string> = {
+  [QualityTier.VeryLow]: 'Very Low',
+  [QualityTier.Low]: 'Low',
+  [QualityTier.Medium]: 'Medium',
+  [QualityTier.High]: 'High',
+  [QualityTier.Ultra]: 'Ultra',
+  [QualityTier.Custom]: 'Custom'
+};
+
+export const QualityTierLabels: Record<QualityTier, string> = {
+  [QualityTier.VeryLow]: 'Very Low',
+  [QualityTier.Low]: 'Low',
+  [QualityTier.Medium]: 'Medium',
+  [QualityTier.High]: 'High',
+  [QualityTier.Ultra]: 'Ultra',
+  [QualityTier.Custom]: 'Custom'
+};
+
+export const QualityTierDescriptions: Record<QualityTier, string> = {
+  [QualityTier.VeryLow]: 'Bare stage, flat black, zero environment lighting. Fastest, byte-identical to 2D off.',
+  [QualityTier.Low]: 'Nebula backdrop and caustic floor. Low-power PCs and integrated graphics.',
+  [QualityTier.Medium]: 'Probe volume and reflection probe added. Baseline for budget dedicated GPUs.',
+  [QualityTier.High]: 'Hero materials, motes, and point-cloud reveal on. Balanced for standard 60 fps kiosks.',
+  [QualityTier.Ultra]: 'Full volumetric shafts, 6,000 motes, and HDR output. Max immersion on high-end GPUs.',
+  [QualityTier.Custom]: 'Custom profile configured on the kiosk display settings.'
+};
+
+export interface QualityTierPayload {
+  tier: QualityTier;
+  tierName: string;
+}
+
+export const DEFAULT_QUALITY_TIER: QualityTier = QualityTier.High;
+
+/**
+ * Resolve a quality tier from whatever the stage reports. The stage echoes both the
+ * numeric tier and the wire name; either is accepted, and anything
+ * unrecognised returns null so a bad payload cannot silently flip the UI.
+ */
+export function parseQualityTier(
+  payload: { tier?: unknown; tierName?: unknown } | null | undefined
+): QualityTier | null {
+  if (!payload) return null;
+
+  if (typeof payload.tier === 'number' && QualityTierNames[payload.tier as QualityTier] !== undefined) {
+    return payload.tier as QualityTier;
+  }
+
+  if (typeof payload.tierName === 'string') {
+    const name = payload.tierName.trim().toLowerCase();
+    const match = (Object.keys(QualityTierNames) as unknown as QualityTier[])
+      .find((key) => QualityTierNames[key].toLowerCase() === name);
+    if (match !== undefined) return Number(match) as QualityTier;
+  }
+
+  return null;
+}
+
+
 export const DEFAULT_STEREO_SETTINGS: StereoAdjustSettings = {
   ipd: 0.065,
   zeroParallax: 3.0,
@@ -405,6 +487,7 @@ export const StaticStrings = {
   DisplayModeActionKey: 'hologram-display-mode-action',
   DefaultDisplayModeActionKey: 'hologram-default-display-mode-action',
   EnvironmentActionKey: 'hologram-environment-action',
+  QualityTierActionKey: 'hologram-quality-tier-action',
   ModelTransformActionKey: 'hologram-model-transform',
   MetadataActionKey: 'hologram-metadata-action',
   ControlLockState: 'control-lock-state',
