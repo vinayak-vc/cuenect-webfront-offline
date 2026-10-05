@@ -659,20 +659,22 @@ export class StageSocketService {
     // Targeted multi-stage routing: wrap mutating events in dispatch-command
     if (StageSocketService.STAGE_MUTATING_EVENTS.has(eventName)) {
       let targets: string[] | string = '*';
-      if (this.stages.length > 0) {
-        if (this.selectedStageIds.size === 0) {
-          // Explicitly deselected all stages: do not command any stage
-          return;
-        }
+      if (this.stages.length > 0 && this.selectedStageIds.size > 0) {
         const onlineStages = this.stages.filter((s) => s.online).map((s) => s.stageId);
         const isAll = onlineStages.length > 0 && onlineStages.every((id) => this.selectedStageIds.has(id));
         targets = isAll ? '*' : Array.from(this.selectedStageIds);
       }
+
       this.socket.emit('dispatch-command', {
         targets,
         targetEvent: eventName,
         data
       });
+
+      // Direct broadcast for standard Unity stage viewers listening to direct events
+      if (targets === '*' || (Array.isArray(targets) && targets.includes('*'))) {
+        this.socket.emit(eventName, data);
+      }
       return;
     }
 

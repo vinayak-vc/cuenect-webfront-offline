@@ -10,6 +10,7 @@ import { PresentationPanel } from '../Presentation/PresentationPanel';
 import { DPad } from './DPad';
 import { ModelViewer3D } from './ModelViewer3D';
 import { SegmentedControl, SegmentedOption } from '../Common/SegmentedControl';
+import { useIsDesktop } from '../../hooks/useMediaQuery';
 import {
   Box,
   Move,
@@ -33,6 +34,7 @@ import {
  * - Museum metadata 'i' toggle button
  */
 export const ModelControlPanel: React.FC = () => {
+  const isDesktop = useIsDesktop();
   const {
     currentMovableMode,
     setMovableMode,
@@ -178,7 +180,7 @@ export const ModelControlPanel: React.FC = () => {
 
       {/* Control Method Selector (Touch vs D-Pad) */}
       {canPreview && (
-        <div style={{ width: '100%', maxWidth: 420, display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <div style={{ width: '100%', maxWidth: isDesktop ? 520 : 420, display: 'flex', flexDirection: 'column', gap: 6 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span className="u-section-label">Input Method</span>
             <span style={{ fontSize: '0.68rem', color: 'var(--text-secondary)' }}>
@@ -199,7 +201,7 @@ export const ModelControlPanel: React.FC = () => {
       <div
         style={{
           width: '100%',
-          maxWidth: 420,
+          maxWidth: isDesktop ? 520 : 420,
           display: 'flex',
           gap: 8,
           alignItems: 'center',
@@ -273,15 +275,16 @@ export const ModelControlPanel: React.FC = () => {
         )}
       </div>
 
-      {/* Manipulation Surface: 3D Touch Viewport */}
+      {/* Manipulation Surface: 3D Touch Viewport (Hero Viewport) */}
       {canPreview && activeAsset && (
         <div
           style={{
             width: '100%',
-            maxWidth: 420,
+            maxWidth: isDesktop ? '100%' : 420,
             display: show3DViewer ? 'flex' : 'none',
             flexDirection: 'column',
-            gap: 8
+            gap: 8,
+            alignItems: 'center'
           }}
         >
           <ModelViewer3D

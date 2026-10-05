@@ -5,6 +5,7 @@ import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import { AssetInformation, JoyStickDirection, hasModelMetadata } from '../../types/protocol';
 import { useStage } from '../../context/StageContext';
 import { stageSocket } from '../../services/socketService';
+import { useIsDesktop } from '../../hooks/useMediaQuery';
 import {
   AlertCircle,
   Loader2,
@@ -22,6 +23,7 @@ interface ModelViewer3DProps {
 }
 
 export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible = true, forceLoad = false, onSwitchToDpad }) => {
+  const isDesktop = useIsDesktop();
   const {
     syncModelTransform,
     stopAutoRotate,
@@ -719,8 +721,10 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
         style={{
           position: 'relative',
           width: '100%',
-          maxWidth: 420,
-          height: showingMetadataBelow
+          maxWidth: isDesktop ? '100%' : 420,
+          height: isDesktop
+            ? 'clamp(460px, 58vh, 620px)'
+            : showingMetadataBelow
             ? 'clamp(240px, calc(100dvh - 480px), 310px)'
             : 'clamp(310px, calc(100dvh - 340px), 440px)',
           transition: 'height 0.22s cubic-bezier(0.22, 1, 0.36, 1)',

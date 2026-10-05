@@ -518,17 +518,31 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 8px;
+  min-height: 42px;
+  padding: 10px 18px;
   border-radius: var(--radius-md);
   font-family: inherit;
+  font-size: 0.86rem;
+  font-weight: 600;
+  line-height: 1.2;
   cursor: pointer;
-  transition: var(--transition);
+  transition: all var(--dur-button, 160ms) var(--ease-out, ease-out);
   border: 1px solid transparent;
   outline: none;
+  box-sizing: border-box;
+  text-decoration: none;
+  white-space: nowrap;
 }
 
 .btn:active {
   transform: scale(0.97);
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
 }
 
 .btn-primary {
@@ -561,18 +575,51 @@ body {
   color: var(--color-primary);
 }
 
-.btn-icon {
-  width: 36px;
-  height: 36px;
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 8px 16px;
   border-radius: var(--radius-md);
-  display: flex;
+  background: rgba(17, 24, 36, 0.9);
+  border: 1px solid var(--line-subtle, rgba(255, 255, 255, 0.08));
+  color: var(--text-secondary, #8E9AAA);
+  font-family: inherit;
+  font-size: 0.84rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--dur-button, 160ms) var(--ease-out, ease-out);
+  box-sizing: border-box;
+}
+
+.btn-ghost:hover {
+  background: rgba(24, 33, 49, 0.95);
+  color: var(--text-primary, #F3F5F7);
+  border-color: var(--line-elevated, rgba(255, 255, 255, 0.15));
+}
+
+.btn-ghost:active {
+  transform: scale(0.97);
+}
+
+.btn-icon {
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  min-height: 40px;
+  padding: 0;
+  border-radius: var(--radius-md);
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   background: rgba(30, 41, 59, 0.6);
   border: 1px solid var(--border-glass);
   color: var(--text-secondary);
   cursor: pointer;
-  transition: var(--transition);
+  transition: all var(--dur-button, 160ms) var(--ease-out, ease-out);
+  box-sizing: border-box;
 }
 
 .btn-icon:hover {

@@ -66,6 +66,7 @@
   --radius-xl: 20px;
   --radius-sheet: 24px;
   --radius-full: 9999px;
+  --radius-pill: 9999px;
 
   /* --- Elevation & Stage Light ------------------------------------------ */
   --elev-soft: 0 1px 3px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(0, 0, 0, 0.3);

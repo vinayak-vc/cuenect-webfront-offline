@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useStage } from '../../context/StageContext';
 import {
   AssetInformation,
@@ -20,7 +20,10 @@ import {
   Image as ImageIcon,
   Loader2,
   Calendar,
-  Building2
+  Building2,
+  ChevronDown,
+  ChevronUp,
+  FileText
 } from 'lucide-react';
 
 export const AssetInspector: React.FC = () => {
@@ -40,6 +43,12 @@ export const AssetInspector: React.FC = () => {
     activeDownloads,
     startExploreDownload
   } = useStage();
+
+  const [showAllDetails, setShowAllDetails] = useState(false);
+
+  useEffect(() => {
+    setShowAllDetails(false);
+  }, [inspectedAsset]);
 
   if (!inspectedAsset) return null;
 
@@ -109,6 +118,25 @@ export const AssetInspector: React.FC = () => {
   const rawDescription = metadata?.description || '';
   const cleanedDesc = cleanMetadataDescription(rawDescription);
 
+  const topics: string[] = [];
+  if (metadata?.details) {
+    for (const item of metadata.details) {
+      if (!item || !item.value) continue;
+      const lbl = (item.label || '').toLowerCase();
+      if (
+        lbl.includes('see more items') ||
+        lbl.includes('topic') ||
+        lbl.includes('category') ||
+        lbl.includes('subject')
+      ) {
+        const val = item.value.trim();
+        if (val && !topics.includes(val)) {
+          topics.push(val);
+        }
+      }
+    }
+  }
+
   const handlePrimaryAction = () => {
     if (isDownloading) return;
 
@@ -120,6 +148,25 @@ export const AssetInspector: React.FC = () => {
 
     if (currentAsset) {
       loadAsset(currentAsset);
+      setIsControllerOpen(true);
+      setInspectedAsset(null);
+      return;
+    }
+
+    if (exploreModel && exploreModel.isDownloaded) {
+      loadAsset({
+        AssetID: exploreModel.downloadedAssetId || exploreModel.smithsonianId,
+        AssetName: exploreModel.title,
+        ThumbnailImagePath: exploreModel.thumbnailUrl || '',
+        ModelPath: '',
+        PlaylistName: 'Smithsonian 3D',
+        Category: DataType.Model,
+        fileSizeBytes: exploreModel.fileSizeBytes,
+        fileSizeMB: exploreModel.fileSizeMB,
+        smithsonianId: exploreModel.smithsonianId,
+        metadata: exploreModel.metadata
+      });
+      setIsControllerOpen(true);
       setInspectedAsset(null);
       return;
     }
@@ -134,12 +181,12 @@ export const AssetInspector: React.FC = () => {
       style={{
         display: 'flex',
         alignItems: 'center',
-        gap: 8,
+        gap: 12,
         width: '100%',
         justifyContent: 'space-between'
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <button
           type="button"
           className={`btn-icon ${isFavourite ? 'on' : ''}`}
@@ -147,8 +194,10 @@ export const AssetInspector: React.FC = () => {
           title={isFavourite ? 'Remove from favourites' : 'Add to favourites'}
           aria-label={isFavourite ? 'Remove from favourites' : 'Add to favourites'}
           style={{
-            width: 38,
-            height: 38,
+            width: 40,
+            height: 40,
+            minWidth: 40,
+            minHeight: 40,
             borderRadius: 'var(--radius-md)',
             background: isFavourite ? 'rgba(239, 68, 68, 0.15)' : 'var(--surface-2)',
             color: isFavourite ? '#ef4444' : 'var(--text-secondary)',
@@ -173,9 +222,10 @@ export const AssetInspector: React.FC = () => {
             display: 'inline-flex',
             alignItems: 'center',
             gap: 6,
-            height: 38,
-            padding: '0 12px',
-            fontSize: '0.8rem',
+            minHeight: 40,
+            padding: '0 14px',
+            fontSize: '0.82rem',
+            fontWeight: 600,
             borderRadius: 'var(--radius-md)',
             background: isInPlaylist ? 'rgba(100, 197, 190, 0.15)' : 'var(--surface-2)',
             color: isInPlaylist ? 'var(--color-primary)' : 'var(--text-secondary)',
@@ -187,54 +237,43 @@ export const AssetInspector: React.FC = () => {
         </button>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <button
-          type="button"
-          className="btn-ghost"
-          onClick={() => setInspectedAsset(null)}
-          style={{ height: 38, padding: '0 14px', fontSize: '0.82rem' }}
-        >
-          Close
-        </button>
-
-        <button
-          type="button"
-          className="btn btn-primary"
-          onClick={handlePrimaryAction}
-          disabled={isDownloading}
-          style={{
-            height: 38,
-            padding: '0 18px',
-            fontSize: '0.84rem',
-            fontWeight: 700,
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 7
-          }}
-        >
-          {isDownloading ? (
-            <>
-              <Loader2 size={15} className="spin" />
-              <span>Downloading {downloadProgress}%</span>
-            </>
-          ) : isActive ? (
-            <>
-              <Sliders size={15} />
-              <span>Control Live Stage</span>
-            </>
-          ) : currentAsset ? (
-            <>
-              <Play size={15} fill="currentColor" />
-              <span>Load to Stage</span>
-            </>
-          ) : (
-            <>
-              <Download size={15} />
-              <span>Download Model</span>
-            </>
-          )}
-        </button>
-      </div>
+      <button
+        type="button"
+        className="btn btn-primary"
+        onClick={handlePrimaryAction}
+        disabled={isDownloading}
+        style={{
+          minHeight: 42,
+          padding: '0 20px',
+          fontSize: '0.86rem',
+          fontWeight: 700,
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 8
+        }}
+      >
+        {isDownloading ? (
+          <>
+            <Loader2 size={16} className="spin" />
+            <span>Downloading {downloadProgress}%</span>
+          </>
+        ) : isActive ? (
+          <>
+            <Sliders size={16} />
+            <span>Control Live Stage</span>
+          </>
+        ) : currentAsset ? (
+          <>
+            <Play size={16} fill="currentColor" />
+            <span>Load to Stage & Control</span>
+          </>
+        ) : (
+          <>
+            <Download size={16} />
+            <span>Download Model</span>
+          </>
+        )}
+      </button>
     </div>
   );
 
@@ -440,34 +479,109 @@ export const AssetInspector: React.FC = () => {
             </div>
           )}
 
-          {taxonomy && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <span className="u-section-label" style={{ fontSize: '0.68rem' }}>Taxonomy</span>
-              <span style={{ fontSize: '0.8rem', color: 'var(--text-primary)' }}>{taxonomy}</span>
-            </div>
-          )}
-
-          {identifier && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <span className="u-section-label" style={{ fontSize: '0.68rem' }}>Identifier</span>
-              <span style={{ fontSize: '0.8rem', color: 'var(--text-primary)' }}>{identifier}</span>
-            </div>
-          )}
-
-          {annotations && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 2, gridColumn: '1 / -1' }}>
-              <span className="u-section-label" style={{ fontSize: '0.68rem' }}>Annotations</span>
-              <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>{annotations}</span>
-            </div>
-          )}
-
-          {creditLine && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 2, gridColumn: '1 / -1' }}>
-              <span className="u-section-label" style={{ fontSize: '0.68rem' }}>Credit Line</span>
-              <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>{creditLine}</span>
-            </div>
-          )}
         </div>
+
+        {/* Extended Curatorial Details (Progressive Disclosure) */}
+        {(taxonomy || identifier || annotations || creditLine || topics.length > 0 || (metadata?.details && metadata.details.length > 0)) && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <button
+              type="button"
+              onClick={() => setShowAllDetails(v => !v)}
+              className="btn-ghost"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8,
+                width: '100%',
+                padding: '10px 14px',
+                borderRadius: 'var(--radius-md)',
+                fontSize: '0.8rem',
+                fontWeight: 600,
+                color: 'var(--color-primary)',
+                background: 'rgba(104, 217, 208, 0.08)',
+                border: '1px solid rgba(104, 217, 208, 0.25)',
+                cursor: 'pointer'
+              }}
+            >
+              <FileText size={14} />
+              <span>{showAllDetails ? 'Hide Curatorial Specifications' : 'View Full Curatorial Specifications'}</span>
+              {showAllDetails ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            </button>
+
+            {showAllDetails && (
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 12,
+                  background: 'var(--surface-1)',
+                  padding: 14,
+                  borderRadius: 'var(--radius-md)',
+                  border: '1px solid var(--line-subtle)'
+                }}
+              >
+                {taxonomy && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    <span className="u-section-label" style={{ fontSize: '0.68rem' }}>Taxonomy</span>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--text-primary)' }}>{taxonomy}</span>
+                  </div>
+                )}
+
+                {identifier && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    <span className="u-section-label" style={{ fontSize: '0.68rem' }}>Identifier</span>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--text-primary)' }}>{identifier}</span>
+                  </div>
+                )}
+
+                {annotations && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    <span className="u-section-label" style={{ fontSize: '0.68rem' }}>Annotations</span>
+                    <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>{annotations}</span>
+                  </div>
+                )}
+
+                {creditLine && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    <span className="u-section-label" style={{ fontSize: '0.68rem' }}>Credit Line</span>
+                    <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>{creditLine}</span>
+                  </div>
+                )}
+
+                {topics.length > 0 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    <span className="u-section-label" style={{ fontSize: '0.68rem' }}>Topics & Categories</span>
+                    <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>{topics.join(' · ')}</span>
+                  </div>
+                )}
+
+                {metadata?.details && metadata.details.length > 0 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 4 }}>
+                    <span className="u-section-label" style={{ fontSize: '0.68rem' }}>Smithsonian Archive Fields</span>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      {metadata.details.map((item, idx) => (
+                        <div
+                          key={idx}
+                          style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            fontSize: '0.76rem',
+                            borderBottom: '1px solid var(--line-subtle)',
+                            paddingBottom: 4
+                          }}
+                        >
+                          <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>{item.label}</span>
+                          <span style={{ color: 'var(--text-primary)' }}>{item.value}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </BottomSheet>
   );
