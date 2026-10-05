@@ -3,6 +3,7 @@ import { useStage } from '../../context/StageContext';
 import { ListMusic, Download, Monitor, MoreVertical, Layers } from 'lucide-react';
 import { usePWAInstall } from '../../services/pwaService';
 import { ConnectionStatus } from './ConnectionStatus';
+import StageStatusTrigger from '../Stage/StageStatusTrigger';
 import { ProjectionSelector } from './ProjectionSelector';
 
 interface HeaderProps {
@@ -64,39 +65,8 @@ export const Header: React.FC<HeaderProps> = ({
         <ProjectionSelector />
 
         {/* Stage Director Matrix Badge (conditional if stages exist) */}
-        {stages.length > 0 && (
-          <button
-            type="button"
-            className="btn-icon"
-            onClick={() => setIsStageDirectorOpen(true)}
-            title={`Stage Director: ${selectedStageIds.size} of ${onlineStages.length} targeted`}
-            style={{
-              position: 'relative',
-              borderColor: selectedStageIds.size > 0 ? 'var(--accent-signature)' : undefined,
-              color: selectedStageIds.size > 0 ? 'var(--accent-signature)' : 'var(--text-muted)'
-            }}
-          >
-            <Monitor size={17} />
-            <span
-              style={{
-                position: 'absolute',
-                top: -4,
-                right: -4,
-                background: 'var(--accent-signature)',
-                color: '#06090F',
-                fontSize: '0.62rem',
-                fontWeight: 800,
-                borderRadius: 8,
-                padding: '0 4px',
-                lineHeight: '14px',
-                minWidth: 14,
-                textAlign: 'center'
-              }}
-            >
-              {selectedStageIds.size}
-            </span>
-          </button>
-        )}
+                {/* Compact Stage status trigger */}
+        <StageStatusTrigger />
 
         {/* Stage Link / Operator Pill */}
         <ConnectionStatus onClick={onOpenConnection} />
