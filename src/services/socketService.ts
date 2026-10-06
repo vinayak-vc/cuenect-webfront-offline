@@ -675,15 +675,19 @@ export class StageSocketService {
         targets = isAll ? '*' : Array.from(this.selectedStageIds);
       }
 
-      this.socket.emit('dispatch-command', {
-        targets,
-        targetEvent: eventName,
-        data
-      });
-
-      // Direct broadcast for standard Unity stage viewers listening to direct events
-      if (targets === '*' || (Array.isArray(targets) && targets.includes('*'))) {
+      // One delivery per command. The relay re-broadcasts a direct event to every other socket (signalingServer.js
+      // onAny) and also routes dispatch-command to the `stages:all` room, which holds every registered stage, so
+      // sending both delivered each command to a registered stage twice. A direct event still reaches stages that
+      // never registered; dispatch-command is only needed to address specific stages.
+      const broadcast: boolean = targets === '*' || (Array.isArray(targets) && targets.includes('*'));
+      if (broadcast) {
         this.socket.emit(eventName, data);
+      } else {
+        this.socket.emit('dispatch-command', {
+          targets,
+          targetEvent: eventName,
+          data
+        });
       }
       return;
     }

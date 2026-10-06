@@ -100,7 +100,62 @@
 - `docs/decisions.md` (MODIFIED)
 - `docs/ai_handoff.md` (MODIFIED)
 
-## 4. Next Recommended Task
-- Open the Web Controller on desktop and tablet, test switching between assets, and verify that tapping `[ Stage View ]` triggers the editorial exhibition graphic on the left of the Unity screen while the 3D hologram rotates freely on the right.
+## 3. Session 2026-10-06: Header Stage Status & Targeting Redesign (Eliminate Floating Strip)
+- **Eliminated Floating Strip (`src/App.tsx` & `src/components/Stage/StageDirectorBar.tsx`)**:
+  - Removed `<StageDirectorBar />` and its import from `src/App.tsx`.
+  - Replaced `StageDirectorBar` with a no-op deprecated stub returning `null` so no lingering sticky/floating bar can ever render or collide with header or model controls.
+  - Eliminated the persistent sticky horizontal strip that previously occluded the header brand and blocked the model controller toolbar.
+- **Integrated Compact Header Control (`src/components/Stage/StageStatusTrigger.tsx` & `Header.tsx`)**:
+  - Added `<StageStatusTrigger />` directly into `Header.tsx` action bar as an Obsidian pill control (`status-pill`, 36px height, 44px min-touch target, rounded full).
+  - Displays live online status dot (green `var(--color-live)`), Monitor icon, and target ratio (e.g. `1/1` or `0` when none).
+  - Highlights with cyan accent (`var(--accent-signature)`) when one or more stages are targeted.
+- **Lightweight Stage Status Popover (`src/components/Stage/StageStatusPopover.tsx`)**:
+  - Clicking the header stage pill triggers a non-blocking floating Obsidian popover anchored directly beneath the trigger.
+  - Features quick target toggles for online stages, model-on-stage indicators, and a clean "Manage Stage Matrix →" link opening the full `StageDirectorModal`.
+  - Supports full keyboard accessibility (Escape to dismiss, tab navigation) and click-outside dismissal.
+- **Tokens & Build Verification (`src/styles/tokens.css`)**:
+  - Added `.stage-trigger` and animated `.stage-popover` rules.
+  - `npm run build` succeeds cleanly with 0 TypeScript errors.
+
+## 4. Session 2026-10-06: Custom Context Menu (Obsidian Right-Click System)
+- **Global Context Menu Interceptor (`src/components/Common/ContextMenu.tsx`)**:
+  - Intercepts all browser `contextmenu` events globally (`e.preventDefault()`), completely replacing the default browser right-click menu.
+  - Automatically identifies target element context via DOM hierarchy (`closest('[data-asset-id]')`, `closest('[data-explore-id]')`, `closest('[data-model-viewport]')`, `closest('[data-controller-surface]')`).
+- **Contextual Menu Scenarios**:
+  - **Asset Cards**:
+    - Header with thumbnail icon, title, and asset type.
+    - Actions: `Load to Stage & Control` (or `Open Controller Cockpit` if active), `Curatorial Specifications`, `Add/Remove from Playlist Queue`, `Toggle Favorite`.
+    - Utilities: `Copy Asset ID` with toast confirmation.
+  - **Smithsonian 3D Explore Cards**:
+    - Header with 3D cube badge, model title, and file size.
+    - Actions: `Download & Load to Stage`, `View Curatorial Record`, `Open in Smithsonian 3D`.
+    - Utilities: `Copy Smithsonian ID`.
+  - **3D Model Viewport / Controller**:
+    - Transform: `Reset Transform (Center & Frame)`, `Stop Auto-Rotate`.
+    - Mode Switching: `Orbit / Rotate`, `Pan / Translate`, `Spotlight / Lighting`, `Magnifier Lens` with active checkmarks.
+    - Camera & Stage Display: `Switch to Orthographic / Perspective`, `Toggle Unity Stage Overlay`, `Toggle Unity Hologram Fullscreen`.
+    - Right-drag panning is preserved in `ModelViewer3D.tsx` without triggering context menu on gesture completion; context menu triggers cleanly on stationary right-click.
+  - **Global / Workspace (Header, Background, Catalog Grid)**:
+    - Projection Modes: `2D Flat`, `Side-by-Side 3D (SBS)`, `Hologram Stage (HOLO)`, `Fullscreen Max (FMAX)` with active mode checkmark.
+    - Navigation: `Stage Director & Matrix`, `Playlist Queue & Slideshow`, `Stage Link & Telemetry`.
+    - System: `Settings & Calibration`, `Browser Fullscreen` toggle.
+- **Obsidian Visual Language & Accessibility (`src/styles/tokens.css`)**:
+  - Dark glassmorphism (`rgba(12, 17, 26, 0.96)`, `backdrop-filter: blur(20px)`, subtle cyan borders).
+  - Clamped viewport positioning preventing any off-screen clipping.
+  - Dismisses on click-outside, Escape key, window blur, resize, and scroll.
+
+## 5. Modified & New Files
+- `src/components/Common/ContextMenu.tsx` (NEW)
+- `src/App.tsx` (MODIFIED)
+- `src/components/Catalog/AssetCard.tsx` (MODIFIED)
+- `src/components/Catalog/ExploreCard.tsx` (MODIFIED)
+- `src/components/Controller/FullScreenController.tsx` (MODIFIED)
+- `src/components/Controller/ModelViewer3D.tsx` (MODIFIED)
+- `src/styles/tokens.css` (MODIFIED)
+- `docs/tasks.md` (MODIFIED)
+- `docs/ai_handoff.md` (MODIFIED)
+
+## 6. Next Recommended Task
+- Open http://localhost:3000/ and right-click on any asset card, Smithsonian explore card, 3D model viewport, and page background to test all customized options.
 
 

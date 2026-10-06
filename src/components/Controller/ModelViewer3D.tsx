@@ -174,6 +174,8 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
   const isDoubleTapPanRef = useRef<boolean>(false);
   const syncThrottleRef = useRef<number>(0);
   const zoomHoldIntervalRef = useRef<number | null>(null);
+  const rightClickStartPosRef = useRef<{ x: number; y: number } | null>(null);
+  const hasRightDraggedRef = useRef<boolean>(false);
 
 
 
@@ -493,6 +495,11 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
       stopAutoRotate();
     }
 
+    if (e.button === 2) {
+      rightClickStartPosRef.current = { x: e.clientX, y: e.clientY };
+      hasRightDraggedRef.current = false;
+    }
+
     // Double tap detection for Pan mode
     const now = Date.now();
     const isDoubleTap = pointersRef.current.size === 1 && now - lastTapTimeRef.current < 300;
@@ -608,6 +615,13 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
     const dx = e.clientX - prevPos.x;
     const dy = e.clientY - prevPos.y;
     pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+    if (rightClickStartPosRef.current && (e.buttons === 2)) {
+      const dist = Math.hypot(e.clientX - rightClickStartPosRef.current.x, e.clientY - rightClickStartPosRef.current.y);
+      if (dist > 5) {
+        hasRightDraggedRef.current = true;
+      }
+    }
 
     const isPanMode = viewDragMode === 'pan' || isDoubleTapPanRef.current || e.buttons === 2 || e.shiftKey;
 
@@ -738,11 +752,19 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
       >
         <div
           ref={containerRef}
+          data-model-viewport="true"
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
           onPointerCancel={handlePointerUp}
-          onContextMenu={(e) => e.preventDefault()}
+          onContextMenu={(e) => {
+            e.preventDefault();
+            if (hasRightDraggedRef.current) {
+              e.stopPropagation();
+              hasRightDraggedRef.current = false;
+            }
+            rightClickStartPosRef.current = null;
+          }}
           style={{
             width: '100%',
             height: '100%',

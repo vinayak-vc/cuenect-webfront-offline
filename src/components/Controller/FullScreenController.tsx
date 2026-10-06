@@ -607,7 +607,7 @@ export const FullScreenController: React.FC = () => {
   })();
 
   return (
-    <div className="controller-modal">
+    <div className="controller-modal" data-controller-surface="true">
       <div className="controller-header">
         <button
           type="button"

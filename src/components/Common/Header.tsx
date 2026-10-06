@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useStage } from '../../context/StageContext';
-import { ListMusic, Download, Monitor, MoreVertical, Layers } from 'lucide-react';
+import { ListMusic, Download, MoreVertical, Layers } from 'lucide-react';
 import { usePWAInstall } from '../../services/pwaService';
 import { ConnectionStatus } from './ConnectionStatus';
 import StageStatusTrigger from '../Stage/StageStatusTrigger';
@@ -26,16 +26,11 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const {
     selectedPlaylist,
-    customPlaylistIds,
-    stages,
-    selectedStageIds,
-    setIsStageDirectorOpen
+    customPlaylistIds
   } = useStage();
 
   const [logoError, setLogoError] = useState<boolean>(false);
   const { canInstall, triggerInstall } = usePWAInstall();
-
-  const onlineStages = stages.filter((s) => s.online);
 
   return (
     <header className="app-header">

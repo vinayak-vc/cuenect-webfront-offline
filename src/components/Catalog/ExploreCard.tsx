@@ -81,6 +81,7 @@ export const ExploreCard: React.FC<ExploreCardProps> = ({ model }) => {
 
   return (
     <div
+      data-explore-id={model.smithsonianId}
       className={`asset-card ${isActive ? 'active-stage' : ''}`}
       onClick={handleCardClick}
       style={{ cursor: isDownloading ? 'progress' : 'pointer' }}

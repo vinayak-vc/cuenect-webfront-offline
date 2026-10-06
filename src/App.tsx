@@ -15,9 +15,9 @@ import { StateView } from './components/Common/StateView';
 import { AssetInspector } from './components/Inspector/AssetInspector';
 import { MoreSheet } from './components/Stage/MoreSheet';
 import { ProjectionSheet } from './components/Stage/ProjectionSheet';
-import { StageDirectorBar } from './components/Stage/StageDirectorBar';
 import { StageDirectorModal } from './components/Stage/StageDirectorModal';
 import { ConfirmDialog } from './components/Common/ConfirmDialog';
+import { ContextMenu } from './components/Common/ContextMenu';
 import { Gamepad2, Loader2 } from 'lucide-react';
 import { EnvironmentPreset } from './types/protocol';
 import { useStage } from './context/StageContext';
@@ -116,8 +116,6 @@ export const App: React.FC = () => {
         onOpenPlaylistMaker={() => setIsPlaylistMakerOpen(true)}
         onOpenMore={() => setIsMoreSheetOpen(true)}
       />
-
-      <StageDirectorBar />
 
       <main className="app-main">
         <AssetGrid
@@ -278,6 +276,12 @@ export const App: React.FC = () => {
       />
 
       <ToastContainer />
+
+      <ContextMenu
+        onOpenConnection={() => setIsConnectionModalOpen(true)}
+        onOpenPlaylistMaker={() => setIsPlaylistMakerOpen(true)}
+        onOpenSettings={() => setIsSettingsOpen(true)}
+      />
 
       {isMobile && <BottomNav active={activeSection} onSelect={handleNavSelect} />}
     </div>

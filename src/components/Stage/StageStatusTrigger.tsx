@@ -4,84 +4,105 @@ import { Monitor } from 'lucide-react';
 import StageStatusPopover from './StageStatusPopover';
 
 /**
- * Compact stage status trigger displayed in the header.
- * Shows a summary of online / targeted stages and opens a lightweight pop‑over
- * with detailed stage controls.
+ * Compact Stage Status & Targeting Trigger in the Header.
+ * Replaces the old permanent full-width Stage Director strip per UX-219.
  */
-const StageStatusTrigger: React.FC = () => {
-  const {
-    stages,
-    selectedStageIds,
-    toggleStageSelection,
-    selectAllStages,
-    clearStageSelection,
-    setIsStageDirectorOpen,
-  } = useStage();
+export const StageStatusTrigger: React.FC = () => {
+  const { stages, selectedStageIds } = useStage();
 
   const onlineStages = stages.filter((s) => s.online);
   const selectedOnlineCount = onlineStages.filter((s) => selectedStageIds.has(s.stageId)).length;
+  const isTargeted = selectedOnlineCount > 0;
 
-  const [open, setOpen] = useState(false);
-  const buttonRef = useRef<HTMLButtonElement>(null);
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   // Close on outside click or Escape
   useEffect(() => {
-    if (!open) return;
-    const handleClick = (e: MouseEvent) => {
-      if (buttonRef.current && !buttonRef.current.contains(e.target as Node)) {
-        setOpen(false);
+    if (!isOpen) return;
+
+    const handleClickOutside = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
       }
     };
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false);
-    };
-    document.addEventListener('mousedown', handleClick);
-    document.addEventListener('keydown', handleKey);
-    return () => {
-      document.removeEventListener('mousedown', handleClick);
-      document.removeEventListener('keydown', handleKey);
-    };
-  }, [open]);
 
-  const toggleOpen = () => setOpen((prev) => !prev);
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen]);
+
+  const toggleOpen = () => setIsOpen((prev) => !prev);
 
   return (
-    <>
+    <div ref={containerRef} style={{ position: 'relative', display: 'inline-flex' }}>
       <button
         type="button"
-        ref={buttonRef}
-        className="stage-trigger btn-icon"
+        className="stage-trigger"
         onClick={toggleOpen}
-        aria-haspopup="true"
-        aria-expanded={open}
-        title={`Stage status – ${selectedOnlineCount}/${onlineStages.length} targeted`}
+        aria-haspopup="dialog"
+        aria-expanded={isOpen}
+        title={`Stage Status: ${selectedOnlineCount} of ${onlineStages.length} targeted (${stages.length} total)`}
         style={{
-          position: 'relative',
-          background: 'var(--surface-2)',
-          border: '1px solid var(--line-subtle)',
-          color: selectedOnlineCount > 0 ? 'var(--accent-signature)' : 'var(--text-muted)',
-          borderRadius: 'var(--radius-pill)',
-          padding: '3px 10px',
-          fontSize: '0.74rem',
-          fontWeight: 600,
-          cursor: 'pointer',
-          display: 'flex',
+          display: 'inline-flex',
           alignItems: 'center',
-          gap: 5,
+          gap: 6,
+          height: 36,
           minWidth: 44,
-          height: 44,
+          padding: '0 12px',
+          borderRadius: 'var(--radius-full)',
+          background: isTargeted ? 'rgba(100, 197, 190, 0.12)' : 'var(--surface-1)',
+          border: isTargeted ? '1px solid var(--accent-signature)' : '1px solid var(--line-subtle)',
+          color: isTargeted ? 'var(--text-primary)' : 'var(--text-secondary)',
+          cursor: 'pointer',
+          transition: 'all 0.15s ease'
         }}
       >
-        <Monitor size={17} />
-        <span>{selectedOnlineCount}/{onlineStages.length}</span>
-      </button>
-      {open && (
-        <StageStatusPopover
-          anchorEl={buttonRef.current}
-          onClose={() => setOpen(false)}
+        <span
+          style={{
+            width: 7,
+            height: 7,
+            borderRadius: '50%',
+            background: onlineStages.length > 0 ? 'var(--color-live)' : 'var(--text-muted)',
+            boxShadow: onlineStages.length > 0 ? '0 0 6px var(--color-live)' : 'none',
+            flexShrink: 0
+          }}
         />
-      )}
-    </>
+        <Monitor size={15} style={{ color: isTargeted ? 'var(--accent-signature)' : 'inherit' }} />
+        <span
+          style={{
+            fontSize: '0.66rem',
+            letterSpacing: '0.06em',
+            textTransform: 'uppercase',
+            color: 'var(--text-muted)',
+            fontWeight: 600
+          }}
+        >
+          Stages
+        </span>
+        <span
+          style={{
+            fontSize: '0.78rem',
+            fontWeight: 700,
+            color: isTargeted ? 'var(--accent-signature)' : 'var(--text-primary)'
+          }}
+        >
+          {onlineStages.length === 0 ? '0' : `${selectedOnlineCount}/${onlineStages.length}`}
+        </span>
+      </button>
+
+      {isOpen && <StageStatusPopover onClose={() => setIsOpen(false)} />}
+    </div>
   );
 };
 

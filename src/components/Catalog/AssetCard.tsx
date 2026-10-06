@@ -112,6 +112,7 @@ export const AssetCard: React.FC<AssetCardProps> = ({ asset }) => {
   return (
     <div
       ref={cardRef}
+      data-asset-id={asset.AssetID}
       className={`asset-card ${isActive ? 'active-stage' : ''}`}
       onClick={handleCardClick}
       style={{ cursor: 'pointer' }}
