@@ -1,57 +1,36 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useStage } from '../../context/StageContext';
-import { RefreshCw, ListPlus, Sliders, Layers, Camera, Maximize, Download, Search, X, Monitor } from 'lucide-react';
+import { ListMusic, Download, MoreVertical, Layers } from 'lucide-react';
 import { usePWAInstall } from '../../services/pwaService';
 import { ConnectionStatus } from './ConnectionStatus';
+import StageStatusTrigger from '../Stage/StageStatusTrigger';
 import { ProjectionSelector } from './ProjectionSelector';
-import { EnvironmentSelector } from './EnvironmentSelector';
-import { SearchField } from './SearchField';
 
 interface HeaderProps {
   onOpenConnection: () => void;
   onOpenPlaylistMaker: () => void;
-  query: string;
-  onQueryChange: (value: string) => void;
+  onOpenMore?: () => void;
 }
 
 /**
- * Stage-level controls live here so they are reachable from every screen -
- * catalog, loading and controller alike. Model-specific controls stay on the
- * controller surface.
- *
- * Hierarchy: brand (left) - asset discovery (centre, desktop) - stage state and
- * projection (right). Utility icons are visually quieter than both.
+ * Restrained Header:
+ * High-frequency state indicators and navigation:
+ * Brand, Canonical Projection Mode, Stage/Operator status pill,
+ * Multi-Stage Director badge (if active), Desktop Playlist Trigger, and Unified More Trigger.
+ * Low-frequency controls (Environment, Camera, Fullscreen, Calibration) are moved to More.
  */
 export const Header: React.FC<HeaderProps> = ({
   onOpenConnection,
   onOpenPlaylistMaker,
-  query,
-  onQueryChange
+  onOpenMore
 }) => {
   const {
-    connectionState,
-    refreshAssets,
     selectedPlaylist,
-    customPlaylistIds,
-    setIsSettingsOpen,
-    isOrthographic,
-    toggleOrthographic,
-    triggerFullscreen,
-    stages,
-    selectedStageIds,
-    setIsStageDirectorOpen
+    customPlaylistIds
   } = useStage();
 
   const [logoError, setLogoError] = useState<boolean>(false);
-  const [isSearchOpen, setIsSearchOpen] = useState<boolean>(false);
-  const searchInputRef = useRef<HTMLInputElement>(null);
   const { canInstall, triggerInstall } = usePWAInstall();
-
-  useEffect(() => {
-    if (isSearchOpen && searchInputRef.current) {
-      searchInputRef.current.focus();
-    }
-  }, [isSearchOpen]);
 
   return (
     <header className="app-header">
@@ -59,13 +38,13 @@ export const Header: React.FC<HeaderProps> = ({
         {!logoError ? (
           <img
             src="/icon-192.png"
-            alt="Cuenect Hologram"
+            alt="Cuenect"
             className="header-logo-img"
             onError={() => setLogoError(true)}
           />
         ) : (
           <div className="header-logo-fallback">
-            <Layers size={28} />
+            <Layers size={24} />
           </div>
         )}
         <div className="header-title-wrap">
@@ -76,160 +55,74 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
       </div>
 
-      {/* Animated Expandable Search Bar */}
-      <div className={`header-expandable-search ${isSearchOpen ? 'open' : ''}`}>
-        <div className="expandable-search-inner">
-          <Search size={16} className="search-icon" />
-          <input
-            ref={searchInputRef}
-            type="search"
-            value={query}
-            onChange={(e) => onQueryChange(e.target.value)}
-            placeholder="Search 3D models..."
-            className="expandable-search-input"
-          />
-          {query && (
-            <button
-              type="button"
-              className="search-clear-btn"
-              onClick={() => onQueryChange('')}
-              title="Clear search"
-            >
-              <X size={14} />
-            </button>
-          )}
-          <button
-            type="button"
-            className="search-close-btn"
-            onClick={() => {
-              setIsSearchOpen(false);
-              onQueryChange('');
-            }}
-            title="Close search"
-          >
-            <X size={16} />
-          </button>
-        </div>
-      </div>
-
-      {/* Desktop static search (shown when expandable is not open) */}
-      {!isSearchOpen && (
-        <div className="header-search">
-          <SearchField value={query} onChange={onQueryChange} />
-        </div>
-      )}
-
       <div className="header-actions">
-        {/* Top Search Button */}
-        <button
-          type="button"
-          className={`btn-icon header-search-toggle ${isSearchOpen ? 'active' : ''}`}
-          onClick={() => setIsSearchOpen(!isSearchOpen)}
-          title={isSearchOpen ? 'Close search' : 'Search models'}
-          aria-label="Search models"
-          aria-expanded={isSearchOpen}
-        >
-          <Search size={18} />
-        </button>
-
+        {/* Canonical Projection Selector */}
         <ProjectionSelector />
 
-        <EnvironmentSelector />
+        {/* Stage Director Matrix Badge (conditional if stages exist) */}
+                {/* Compact Stage status trigger */}
+        <StageStatusTrigger />
 
+        {/* Stage Link / Operator Pill */}
         <ConnectionStatus onClick={onOpenConnection} />
 
-        {stages.length > 0 && (
-          <button
-            type="button"
-            className="btn-icon"
-            onClick={() => setIsStageDirectorOpen(true)}
-            title={`Stage Director: ${selectedStageIds.size} of ${stages.filter((s) => s.online).length} targeted`}
-            style={{
-              position: 'relative',
-              borderColor: selectedStageIds.size > 0 ? 'rgba(0, 229, 255, 0.5)' : undefined,
-              color: selectedStageIds.size > 0 ? '#00e5ff' : '#94a3b8'
-            }}
-          >
-            <Monitor size={18} />
-            <span
-              style={{
-                position: 'absolute',
-                top: -4,
-                right: -4,
-                background: '#00e5ff',
-                color: '#000',
-                fontSize: '0.62rem',
-                fontWeight: 700,
-                borderRadius: 8,
-                padding: '0 4px',
-                lineHeight: '14px',
-                minWidth: 14,
-                textAlign: 'center'
-              }}
-            >
-              {selectedStageIds.size}
-            </span>
-          </button>
-        )}
-
+        {/* Desktop Playlist Queue Button */}
         <button
-          className="btn-icon hide-on-mobile"
-          onClick={refreshAssets}
-          title="Refresh asset catalog"
-          disabled={connectionState !== 'connected'}
-        >
-          <RefreshCw size={18} />
-        </button>
-
-        <button
-          className="btn-icon hide-on-mobile"
-          onClick={toggleOrthographic}
-          title={isOrthographic ? 'Camera: Orthographic' : 'Camera: Perspective'}
+          type="button"
+          className="btn btn-secondary hide-on-mobile"
+          onClick={onOpenPlaylistMaker}
+          title="Open Playlist Queue"
           style={{
-            borderColor: isOrthographic ? 'var(--line-interactive)' : undefined,
-            color: isOrthographic ? 'var(--color-primary)' : undefined
+            height: 36,
+            padding: '0 12px',
+            fontSize: '0.78rem',
+            gap: 6,
+            borderRadius: 'var(--radius-full)'
           }}
         >
-          <Camera size={18} />
-        </button>
-
-        <button className="btn-icon hide-on-mobile" onClick={triggerFullscreen} title="Toggle fullscreen">
-          <Maximize size={18} />
-        </button>
-
-        <button
-          className="btn-icon hide-on-mobile"
-          onClick={() => setIsSettingsOpen(true)}
-          title="Stereo calibration & settings"
-        >
-          <Sliders size={18} />
-        </button>
-
-        <button
-          className="btn-icon hide-on-mobile"
-          onClick={onOpenPlaylistMaker}
-          title="Playlist builder"
-          style={{ position: 'relative' }}
-        >
-          <ListPlus size={18} />
+          <ListMusic size={15} />
+          <span>Playlist</span>
           {customPlaylistIds.length > 0 && (
-            <span className="bottom-nav-badge" style={{ top: -4, right: -4, transform: 'none' }}>
+            <span
+              style={{
+                background: 'var(--accent-signature-dim)',
+                color: 'var(--accent-signature)',
+                padding: '1px 6px',
+                borderRadius: 999,
+                fontSize: '0.68rem',
+                fontWeight: 700
+              }}
+            >
               {customPlaylistIds.length}
             </span>
           )}
         </button>
 
+        {/* PWA Install Button (if available) */}
         {canInstall && (
           <button
             className="btn-icon pwa-install-btn"
             onClick={triggerInstall}
             title="Install Cuenect App to Home Screen"
             style={{
-              borderColor: 'var(--color-primary)',
-              color: 'var(--color-primary)'
+              borderColor: 'var(--accent-signature)',
+              color: 'var(--accent-signature)'
             }}
           >
-            <Download size={18} />
+            <Download size={17} />
+          </button>
+        )}
+
+        {/* Unified System / More Menu Trigger */}
+        {onOpenMore && (
+          <button
+            type="button"
+            className="btn-icon"
+            onClick={onOpenMore}
+            title="More Options & System Settings"
+            aria-label="More Options & System Settings"
+          >
+            <MoreVertical size={18} />
           </button>
         )}
       </div>

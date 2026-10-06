@@ -225,6 +225,67 @@
   background: rgba(239, 68, 68, 0.08);
 }
 
+/* Side-drawer variant for BottomSheet on desktop (UX-208 / UX-209) */
+@media (min-width: 1024px) {
+  .sheet-backdrop.is-side-drawer {
+    align-items: stretch;
+    justify-content: flex-end;
+    background: rgba(4, 7, 13, 0.45);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+  }
+  .sheet.is-side-drawer {
+    width: 420px;
+    height: 100vh;
+    max-height: 100vh;
+    border-radius: 0;
+    border-top: none;
+    border-left: 1px solid var(--line-elevated);
+    box-shadow: -8px 0 32px rgba(0, 0, 0, 0.65);
+    animation: side-drawer-slide-in var(--dur-modal) var(--ease-out);
+  }
+  @keyframes side-drawer-slide-in {
+    from {
+      opacity: 0.6;
+      transform: translateX(100%);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+}
+
+/* ---------------------------------------------------- Signature Animations (UX-212) */
+
+/* Ambient space dust drift */
+.env-space-dust {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image: 
+    radial-gradient(1px 1px at 20px 30px, rgba(255, 255, 255, 0.22), transparent),
+    radial-gradient(1px 1px at 80px 140px, rgba(104, 217, 208, 0.18), transparent),
+    radial-gradient(1.5px 1.5px at 170px 90px, rgba(255, 255, 255, 0.2), transparent),
+    radial-gradient(1px 1px at 260px 220px, rgba(104, 217, 208, 0.14), transparent);
+  background-repeat: repeat;
+  background-size: 360px 360px;
+  opacity: 0.4;
+  animation: ambient-dust-drift 110s linear infinite;
+  z-index: 0;
+}
+
+@keyframes ambient-dust-drift {
+  from { transform: translateY(0); }
+  to { transform: translateY(-360px); }
+}
+
+/* Asset Staging Causality tactile feedback */
+.btn-card-load:active {
+  transform: scale(0.96);
+  box-shadow: 0 0 16px rgba(104, 217, 208, 0.5);
+}
+
 /* ---------------------------------------------------- Confirm dialog */
 
 .confirm-backdrop {
@@ -484,4 +545,82 @@
     padding: 0 6px;
     gap: 3px;
   }
+}
+
+/* Controller Header Back Button */
+.controller-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 6px 14px;
+  border-radius: var(--radius-full);
+  background: var(--surface-2);
+  border: 1px solid var(--line-subtle);
+  color: var(--text-secondary);
+  font-size: 0.84rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--dur-button) var(--ease-out);
+}
+
+.controller-back-btn:hover {
+  background: var(--surface-3);
+  color: var(--text-primary);
+  border-color: var(--line-elevated);
+}
+
+.controller-back-btn:active {
+  transform: scale(0.97);
+}
+
+/* Playlist Drag and Drop Reordering */
+.playlist-row {
+  user-select: none;
+  transition: transform var(--dur-micro) var(--ease-out),
+              background var(--dur-button) var(--ease-out),
+              border-color var(--dur-button) var(--ease-out),
+              opacity var(--dur-micro) var(--ease-out);
+}
+
+.playlist-row.is-dragging {
+  opacity: 0.45;
+  background: var(--surface-2);
+  border: 1px dashed var(--color-primary);
+  transform: scale(0.98);
+}
+
+.playlist-row.drag-target-above {
+  border-top: 2px solid var(--color-primary);
+  box-shadow: 0 -4px 12px rgba(104, 217, 208, 0.25);
+}
+
+.playlist-row.drag-target-below {
+  border-bottom: 2px solid var(--color-primary);
+  box-shadow: 0 4px 12px rgba(104, 217, 208, 0.25);
+}
+
+.playlist-drag-handle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 36px;
+  color: var(--text-muted);
+  cursor: grab;
+  border-radius: var(--radius-xs);
+  transition: color var(--dur-button) var(--ease-out),
+              background var(--dur-button) var(--ease-out);
+  touch-action: none;
+  flex-shrink: 0;
+}
+
+.playlist-drag-handle:hover {
+  color: var(--text-primary);
+  background: var(--surface-3);
+}
+
+.playlist-drag-handle:active {
+  cursor: grabbing;
+  color: var(--color-primary);
 }

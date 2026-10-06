@@ -24,7 +24,8 @@ export const AssetCard: React.FC<AssetCardProps> = ({ asset }) => {
     removeFromCustomPlaylist,
     setIsControllerOpen,
     favouriteAssetIds,
-    toggleFavourite
+    toggleFavourite,
+    setInspectedAsset
   } = useStage();
 
   const cardRef = React.useRef<HTMLDivElement>(null);
@@ -96,6 +97,11 @@ export const AssetCard: React.FC<AssetCardProps> = ({ asset }) => {
       : null;
 
   const handleCardClick = () => {
+    setInspectedAsset(asset);
+  };
+
+  const handleLoadClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
     if (isActive) {
       setIsControllerOpen(true);
     } else {
@@ -106,6 +112,7 @@ export const AssetCard: React.FC<AssetCardProps> = ({ asset }) => {
   return (
     <div
       ref={cardRef}
+      data-asset-id={asset.AssetID}
       className={`asset-card ${isActive ? 'active-stage' : ''}`}
       onClick={handleCardClick}
       style={{ cursor: 'pointer' }}
@@ -177,10 +184,7 @@ export const AssetCard: React.FC<AssetCardProps> = ({ asset }) => {
           <button
             type="button"
             className={`btn btn-card-load ${isActive ? 'btn-secondary' : 'btn-primary'}`}
-            onClick={(e) => {
-              e.stopPropagation();
-              handleCardClick();
-            }}
+            onClick={handleLoadClick}
           >
             {isActive ? <Sliders size={14} /> : <Play size={14} />}
             {isActive ? 'Control' : 'Load'}

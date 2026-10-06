@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { useState, useRef } from 'react';
 import { useStage } from '../../context/StageContext';
 import { BottomSheet } from '../Common/BottomSheet';
 import { Slider } from '../Common/Slider';
-import { Play, Trash2, ArrowUp, ArrowDown, ListPlus, Box } from 'lucide-react';
+import { Play, Trash2, GripVertical, ListPlus, Box } from 'lucide-react';
 import { StateView } from '../Common/StateView';
 
 interface PlaylistMakerModalProps {
@@ -11,11 +11,8 @@ interface PlaylistMakerModalProps {
 }
 
 /**
- * Playlist composition surface: the running order is the content, so rows carry
- * a preview, position and reorder controls rather than sitting in empty space.
- *
- * Reordering uses explicit up/down buttons - drag-and-drop on a phone in a dark
- * venue is far easier to get wrong than a 34px button.
+ * Playlist composition surface: the running order is the content.
+ * Reordering uses vertical drag-and-drop with pointer and HTML5 drag support.
  */
 export const PlaylistMakerModal: React.FC<PlaylistMakerModalProps> = ({ isOpen, onClose }) => {
   const {
@@ -31,19 +28,13 @@ export const PlaylistMakerModal: React.FC<PlaylistMakerModalProps> = ({ isOpen, 
     slideshowIndex
   } = useStage();
 
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const [dropPosition, setDropPosition] = useState<'above' | 'below' | null>(null);
+
   const playlistAssets = customPlaylistIds
     .map((id) => assets.find((a) => a.AssetID === id))
     .filter((a): a is (typeof assets)[0] => Boolean(a));
-
-  const moveItem = (index: number, direction: 'up' | 'down') => {
-    const newIndex = direction === 'up' ? index - 1 : index + 1;
-    if (newIndex < 0 || newIndex >= customPlaylistIds.length) return;
-
-    const newIds = [...customPlaylistIds];
-    const [moved] = newIds.splice(index, 1);
-    newIds.splice(newIndex, 0, moved);
-    reorderCustomPlaylist(newIds);
-  };
 
   const handleStart = () => {
     startSlideshow(0);
@@ -52,10 +43,137 @@ export const PlaylistMakerModal: React.FC<PlaylistMakerModalProps> = ({ isOpen, 
 
   const totalRuntime = playlistAssets.length * slideDuration;
 
+  // HTML5 Drag and Drop handlers
+  const handleDragStart = (idx: number, e: React.DragEvent) => {
+    setDraggedIndex(idx);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', String(idx));
+  };
+
+  const handleDragOver = (idx: number, e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (draggedIndex === null || draggedIndex === idx) return;
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    const midY = rect.top + rect.height / 2;
+    const pos = e.clientY < midY ? 'above' : 'below';
+
+    if (dragOverIndex !== idx || dropPosition !== pos) {
+      setDragOverIndex(idx);
+      setDropPosition(pos);
+    }
+  };
+
+  const handleDrop = (targetIdx: number, e: React.DragEvent) => {
+    e.preventDefault();
+    if (draggedIndex === null || draggedIndex === targetIdx) {
+      setDraggedIndex(null);
+      setDragOverIndex(null);
+      setDropPosition(null);
+      return;
+    }
+
+    const newIds = [...customPlaylistIds];
+    const [movedId] = newIds.splice(draggedIndex, 1);
+
+    let insertIdx = targetIdx;
+    if (draggedIndex < targetIdx && dropPosition === 'above') {
+      insertIdx = targetIdx - 1;
+    } else if (draggedIndex > targetIdx && dropPosition === 'below') {
+      insertIdx = targetIdx + 1;
+    }
+    insertIdx = Math.max(0, Math.min(newIds.length, insertIdx));
+
+    newIds.splice(insertIdx, 0, movedId);
+    reorderCustomPlaylist(newIds);
+
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+    setDropPosition(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+    setDropPosition(null);
+  };
+
+  // Pointer drag for touch devices via the grip handle
+  const pointerDragRef = useRef<{
+    active: boolean;
+    startIndex: number;
+    container: HTMLElement | null;
+  } | null>(null);
+
+  const handlePointerDown = (idx: number, e: React.PointerEvent) => {
+    if (e.button !== 0 && e.pointerType === 'mouse') return;
+    const container = (e.currentTarget as HTMLElement).closest('.playlist-rows-container') as HTMLElement | null;
+    pointerDragRef.current = {
+      active: true,
+      startIndex: idx,
+      container
+    };
+    setDraggedIndex(idx);
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  };
+
+  const handlePointerMove = (e: React.PointerEvent) => {
+    if (!pointerDragRef.current?.active || !pointerDragRef.current.container) return;
+    const { startIndex, container } = pointerDragRef.current;
+    const clientY = e.clientY;
+
+    const rows = Array.from(container.querySelectorAll('.playlist-row')) as HTMLElement[];
+    for (let i = 0; i < rows.length; i++) {
+      const rect = rows[i].getBoundingClientRect();
+      if (clientY >= rect.top && clientY <= rect.bottom) {
+        if (i !== startIndex) {
+          const midY = rect.top + rect.height / 2;
+          setDragOverIndex(i);
+          setDropPosition(clientY < midY ? 'above' : 'below');
+        }
+        return;
+      }
+    }
+  };
+
+  const handlePointerUp = (e: React.PointerEvent) => {
+    if (!pointerDragRef.current?.active) return;
+    const { startIndex } = pointerDragRef.current;
+    pointerDragRef.current = null;
+
+    try {
+      (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+    } catch {
+      // Ignore if not captured
+    }
+
+    if (dragOverIndex !== null && dragOverIndex !== startIndex) {
+      const newIds = [...customPlaylistIds];
+      const [movedId] = newIds.splice(startIndex, 1);
+
+      let insertIdx = dragOverIndex;
+      if (startIndex < dragOverIndex && dropPosition === 'above') {
+        insertIdx = dragOverIndex - 1;
+      } else if (startIndex > dragOverIndex && dropPosition === 'below') {
+        insertIdx = dragOverIndex + 1;
+      }
+      insertIdx = Math.max(0, Math.min(newIds.length, insertIdx));
+
+      newIds.splice(insertIdx, 0, movedId);
+      reorderCustomPlaylist(newIds);
+    }
+
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+    setDropPosition(null);
+  };
+
   return (
     <BottomSheet
       isOpen={isOpen}
       onClose={onClose}
+      variant="side-drawer"
       title="Playlist"
       subtitle={
         playlistAssets.length > 0
@@ -68,9 +186,9 @@ export const PlaylistMakerModal: React.FC<PlaylistMakerModalProps> = ({ isOpen, 
             type="button"
             className="btn btn-primary"
             onClick={handleStart}
-            style={{ flex: 1, gap: 8 }}
+            style={{ flex: 1, minHeight: 44, padding: '12px 24px', gap: 8, fontSize: '0.88rem', fontWeight: 700 }}
           >
-            <Play size={16} />
+            <Play size={16} fill="currentColor" />
             {isSlideshowActive ? 'Restart Sequence' : 'Play Sequence'}
           </button>
         ) : undefined
@@ -82,7 +200,12 @@ export const PlaylistMakerModal: React.FC<PlaylistMakerModalProps> = ({ isOpen, 
           title="Playlist is empty"
           description="Add assets with the + button on any catalog tile, then order them here to run an automated sequence."
           actions={
-            <button type="button" className="btn btn-secondary" onClick={onClose}>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={onClose}
+              style={{ minHeight: 42, padding: '10px 20px' }}
+            >
               Browse Assets
             </button>
           }
@@ -101,70 +224,85 @@ export const PlaylistMakerModal: React.FC<PlaylistMakerModalProps> = ({ isOpen, 
           />
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <span className="u-section-label">Running Order</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span className="u-section-label">Running Order</span>
+              <span className="u-meta" style={{ fontSize: '0.72rem' }}>Drag handle to reorder</span>
+            </div>
 
-            {playlistAssets.map((asset, idx) => {
-              const thumb = thumbnails[asset.AssetID];
-              const isCurrent = isSlideshowActive && slideshowIndex === idx;
+            <div className="playlist-rows-container" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {playlistAssets.map((asset, idx) => {
+                const thumb = thumbnails[asset.AssetID];
+                const isCurrent = isSlideshowActive && slideshowIndex === idx;
+                const isDragging = draggedIndex === idx;
+                const isDragOver = dragOverIndex === idx;
 
-              return (
-                <div key={asset.AssetID} className={`playlist-row ${isCurrent ? 'current' : ''}`}>
-                  <span className="playlist-row-index">{idx + 1}</span>
-
-                  {thumb ? (
-                    <img src={thumb} alt="" className="playlist-row-thumb" />
-                  ) : (
+                return (
+                  <div
+                    key={asset.AssetID}
+                    draggable
+                    onDragStart={(e) => handleDragStart(idx, e)}
+                    onDragOver={(e) => handleDragOver(idx, e)}
+                    onDrop={(e) => handleDrop(idx, e)}
+                    onDragEnd={handleDragEnd}
+                    className={`playlist-row ${isCurrent ? 'current' : ''} ${
+                      isDragging ? 'is-dragging' : ''
+                    } ${
+                      isDragOver && dropPosition === 'above' ? 'drag-target-above' : ''
+                    } ${
+                      isDragOver && dropPosition === 'below' ? 'drag-target-below' : ''
+                    }`}
+                  >
                     <div
-                      className="playlist-row-thumb"
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: 'var(--text-muted)'
-                      }}
+                      className="playlist-drag-handle"
+                      title="Drag to reorder"
+                      onPointerDown={(e) => handlePointerDown(idx, e)}
+                      onPointerMove={handlePointerMove}
+                      onPointerUp={handlePointerUp}
+                      onPointerCancel={handlePointerUp}
                     >
-                      <Box size={18} />
+                      <GripVertical size={16} />
                     </div>
-                  )}
 
-                  <div className="playlist-row-body">
-                    <div className="playlist-row-name">{asset.AssetName}</div>
-                    <div className="u-mono" style={{ color: 'var(--text-muted)' }}>
-                      {slideDuration}s{isCurrent ? ' · active' : ''}
+                    <span className="playlist-row-index">{idx + 1}</span>
+
+                    {thumb ? (
+                      <img src={thumb} alt="" className="playlist-row-thumb" />
+                    ) : (
+                      <div
+                        className="playlist-row-thumb"
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: 'var(--text-muted)'
+                        }}
+                      >
+                        <Box size={18} />
+                      </div>
+                    )}
+
+                    <div className="playlist-row-body">
+                      <div className="playlist-row-name">{asset.AssetName}</div>
+                      <div className="u-mono" style={{ color: 'var(--text-muted)' }}>
+                        {slideDuration}s{isCurrent ? ' · active' : ''}
+                      </div>
+                    </div>
+
+                    <div className="playlist-row-actions">
+                      <button
+                        type="button"
+                        className="icon-btn-sm danger"
+                        onClick={() => removeFromCustomPlaylist(asset.AssetID)}
+                        aria-label={`Remove ${asset.AssetName} from playlist`}
+                        title="Remove from playlist"
+                      >
+                        <Trash2 size={14} />
+                      </button>
                     </div>
                   </div>
-
-                  <div className="playlist-row-actions">
-                    <button
-                      type="button"
-                      className="icon-btn-sm"
-                      disabled={idx === 0}
-                      onClick={() => moveItem(idx, 'up')}
-                      aria-label={`Move ${asset.AssetName} up`}
-                    >
-                      <ArrowUp size={14} />
-                    </button>
-                    <button
-                      type="button"
-                      className="icon-btn-sm"
-                      disabled={idx === playlistAssets.length - 1}
-                      onClick={() => moveItem(idx, 'down')}
-                      aria-label={`Move ${asset.AssetName} down`}
-                    >
-                      <ArrowDown size={14} />
-                    </button>
-                    <button
-                      type="button"
-                      className="icon-btn-sm danger"
-                      onClick={() => removeFromCustomPlaylist(asset.AssetID)}
-                      aria-label={`Remove ${asset.AssetName}`}
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
         </>
       )}

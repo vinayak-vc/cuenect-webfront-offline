@@ -14,6 +14,9 @@ import {
   EnvironmentPreset,
   EnvironmentPresetPayload,
   EnvironmentPresetNames,
+  QualityTier,
+  QualityTierPayload,
+  QualityTierNames,
   MetadataActionPayload,
   SmithsonianExploreModel,
   StaticStrings,
@@ -198,20 +201,26 @@ export class StageSocketService {
   public setStages(stages: StageNode[]): void {
     this.stages = stages;
 
-    // Prune IDs that no longer exist
-    const existingIds = new Set(stages.map((s) => s.stageId));
+    // Prune IDs that no longer exist or are offline
+    const onlineIds = new Set(stages.filter((s) => s.online).map((s) => s.stageId));
     const nextSelected = new Set<string>();
     this.selectedStageIds.forEach((id) => {
-      if (existingIds.has(id)) nextSelected.add(id);
+      if (onlineIds.has(id)) nextSelected.add(id);
     });
 
     // If no previous selection, select all online stages by default
-    if (nextSelected.size === 0 && stages.length > 0) {
-      stages.filter((s) => s.online).forEach((s) => nextSelected.add(s.stageId));
+    if (nextSelected.size === 0 && onlineIds.size > 0) {
+      onlineIds.forEach((id) => nextSelected.add(id));
     }
 
     this.selectedStageIds = nextSelected;
     this.notifyStagesChange();
+  }
+
+  public purgeOfflineStages(): void {
+    if (this.socket && this.socket.connected) {
+      this.socket.emit('stage-purge-offline');
+    }
   }
 
   public setSelectedStageIds(ids: string[] | Set<string>): void {
@@ -616,6 +625,7 @@ export class StageSocketService {
     'hologram-display-mode-action',
     'hologram-default-display-mode-action',
     'hologram-environment-action',
+    'hologram-quality-tier-action',
     'hologram-model-transform',
     'hologram-metadata-action'
   ]);
@@ -659,20 +669,26 @@ export class StageSocketService {
     // Targeted multi-stage routing: wrap mutating events in dispatch-command
     if (StageSocketService.STAGE_MUTATING_EVENTS.has(eventName)) {
       let targets: string[] | string = '*';
-      if (this.stages.length > 0) {
-        if (this.selectedStageIds.size === 0) {
-          // Explicitly deselected all stages: do not command any stage
-          return;
-        }
+      if (this.stages.length > 0 && this.selectedStageIds.size > 0) {
         const onlineStages = this.stages.filter((s) => s.online).map((s) => s.stageId);
         const isAll = onlineStages.length > 0 && onlineStages.every((id) => this.selectedStageIds.has(id));
         targets = isAll ? '*' : Array.from(this.selectedStageIds);
       }
-      this.socket.emit('dispatch-command', {
-        targets,
-        targetEvent: eventName,
-        data
-      });
+
+      // One delivery per command. The relay re-broadcasts a direct event to every other socket (signalingServer.js
+      // onAny) and also routes dispatch-command to the `stages:all` room, which holds every registered stage, so
+      // sending both delivered each command to a registered stage twice. A direct event still reaches stages that
+      // never registered; dispatch-command is only needed to address specific stages.
+      const broadcast: boolean = targets === '*' || (Array.isArray(targets) && targets.includes('*'));
+      if (broadcast) {
+        this.socket.emit(eventName, data);
+      } else {
+        this.socket.emit('dispatch-command', {
+          targets,
+          targetEvent: eventName,
+          data
+        });
+      }
       return;
     }
 
@@ -813,6 +829,18 @@ export class StageSocketService {
       presetName: EnvironmentPresetNames[preset]
     };
     this.emitEvent(StaticStrings.EnvironmentActionKey, payload);
+  }
+
+  /**
+   * Set the graphics quality tier on the hologram stage viewer.
+   * Both `tier` and `tierName` are sent to ensure Unity's parser resolves either field.
+   */
+  public sendQualityTier(tier: QualityTier): void {
+    const payload: QualityTierPayload = {
+      tier,
+      tierName: QualityTierNames[tier]
+    };
+    this.emitEvent(StaticStrings.QualityTierActionKey, payload);
   }
 
   /** Ask the bridge for exclusive control of the stage. */

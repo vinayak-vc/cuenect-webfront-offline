@@ -5,8 +5,8 @@ import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import { AssetInformation, JoyStickDirection, hasModelMetadata } from '../../types/protocol';
 import { useStage } from '../../context/StageContext';
 import { stageSocket } from '../../services/socketService';
+import { useIsDesktop } from '../../hooks/useMediaQuery';
 import {
-  RotateCcw,
   AlertCircle,
   Loader2,
   Orbit,
@@ -23,8 +23,8 @@ interface ModelViewer3DProps {
 }
 
 export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible = true, forceLoad = false, onSwitchToDpad }) => {
+  const isDesktop = useIsDesktop();
   const {
-    resetModelTransform,
     syncModelTransform,
     stopAutoRotate,
     stageModelTransform,
@@ -174,6 +174,8 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
   const isDoubleTapPanRef = useRef<boolean>(false);
   const syncThrottleRef = useRef<number>(0);
   const zoomHoldIntervalRef = useRef<number | null>(null);
+  const rightClickStartPosRef = useRef<{ x: number; y: number } | null>(null);
+  const hasRightDraggedRef = useRef<boolean>(false);
 
 
 
@@ -222,33 +224,7 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
     };
   }, [handleZoomButtonUp]);
 
-  // Clean reset function
-  const handleReset = useCallback(() => {
-    isAutoRotatingRef.current = false;
-    stopAutoRotate();
-    setViewDragMode('orbit');
-    currentYawDegRef.current = 0;
-    currentPitchDegRef.current = 0;
-    currentScaleRef.current = 1.0;
-    targetScaleRef.current = 1.0;
-    currentPosRef.current = { x: 0, y: 0 };
 
-    if (yawGroupRef.current) {
-      yawGroupRef.current.rotation.set(0, 0, 0);
-    }
-    if (pitchGroupRef.current) {
-      pitchGroupRef.current.rotation.set(0, 0, 0);
-    }
-    if (panRootRef.current) {
-      panRootRef.current.position.set(0, 0, 0);
-      panRootRef.current.scale.set(1.0, 1.0, 1.0);
-    }
-    requestRender();
-
-    if (isStageSyncRef.current) {
-      resetModelTransform();
-    }
-  }, [resetModelTransform, stopAutoRotate, requestRender]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -519,6 +495,11 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
       stopAutoRotate();
     }
 
+    if (e.button === 2) {
+      rightClickStartPosRef.current = { x: e.clientX, y: e.clientY };
+      hasRightDraggedRef.current = false;
+    }
+
     // Double tap detection for Pan mode
     const now = Date.now();
     const isDoubleTap = pointersRef.current.size === 1 && now - lastTapTimeRef.current < 300;
@@ -635,6 +616,13 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
     const dy = e.clientY - prevPos.y;
     pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
 
+    if (rightClickStartPosRef.current && (e.buttons === 2)) {
+      const dist = Math.hypot(e.clientX - rightClickStartPosRef.current.x, e.clientY - rightClickStartPosRef.current.y);
+      if (dist > 5) {
+        hasRightDraggedRef.current = true;
+      }
+    }
+
     const isPanMode = viewDragMode === 'pan' || isDoubleTapPanRef.current || e.buttons === 2 || e.shiftKey;
 
     if (isPanMode) {
@@ -747,8 +735,10 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
         style={{
           position: 'relative',
           width: '100%',
-          maxWidth: 420,
-          height: showingMetadataBelow
+          maxWidth: isDesktop ? '100%' : 420,
+          height: isDesktop
+            ? 'clamp(460px, 58vh, 620px)'
+            : showingMetadataBelow
             ? 'clamp(240px, calc(100dvh - 480px), 310px)'
             : 'clamp(310px, calc(100dvh - 340px), 440px)',
           transition: 'height 0.22s cubic-bezier(0.22, 1, 0.36, 1)',
@@ -762,11 +752,19 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
       >
         <div
           ref={containerRef}
+          data-model-viewport="true"
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
           onPointerCancel={handlePointerUp}
-          onContextMenu={(e) => e.preventDefault()}
+          onContextMenu={(e) => {
+            e.preventDefault();
+            if (hasRightDraggedRef.current) {
+              e.stopPropagation();
+              hasRightDraggedRef.current = false;
+            }
+            rightClickStartPosRef.current = null;
+          }}
           style={{
             width: '100%',
             height: '100%',
@@ -836,33 +834,6 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
           </button>
         </div>
 
-        {/* Top-Right: Quick Reset Button */}
-        <button
-          type="button"
-          onClick={handleReset}
-          title="Reset orientation, framing, and position"
-          style={{
-            position: 'absolute',
-            top: 10,
-            right: 10,
-            width: 28,
-            height: 28,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            borderRadius: '50%',
-            background: 'rgba(7, 10, 19, 0.78)',
-            border: '1px solid rgba(255, 255, 255, 0.14)',
-            backdropFilter: 'blur(8px)',
-            color: '#f8fafc',
-            cursor: 'pointer',
-            zIndex: 10,
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.4)',
-            transition: 'all 0.15s ease'
-          }}
-        >
-          <RotateCcw size={13} />
-        </button>
 
         {/* Bottom-Right: Floating Zoom Pill (Tap or Hold) */}
         <div
@@ -1088,24 +1059,6 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
 
         {/* Action Buttons */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <button
-            type="button"
-            className="btn btn-secondary"
-            onClick={handleReset}
-            title="Reset model pose and framing"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 5,
-              padding: '5px 11px',
-              fontSize: '0.74rem',
-              borderRadius: 20
-            }}
-          >
-            <RotateCcw size={13} />
-            Reset
-          </button>
-
           {onSwitchToDpad && (
             <button
               type="button"
@@ -1116,7 +1069,7 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
                 fontSize: '0.74rem',
                 padding: '5px 10px',
                 borderRadius: 20,
-                color: 'var(--color-primary-bright, #00e5ff)'
+                color: 'var(--accent-signature)'
               }}
             >
               D-Pad

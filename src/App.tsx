@@ -12,12 +12,14 @@ import { BottomNav, MobileSection } from './components/Common/BottomNav';
 import { NowOnStage } from './components/Stage/NowOnStage';
 import { BottomSheet } from './components/Common/BottomSheet';
 import { StateView } from './components/Common/StateView';
+import { AssetInspector } from './components/Inspector/AssetInspector';
 import { MoreSheet } from './components/Stage/MoreSheet';
 import { ProjectionSheet } from './components/Stage/ProjectionSheet';
-import { StageDirectorBar } from './components/Stage/StageDirectorBar';
 import { StageDirectorModal } from './components/Stage/StageDirectorModal';
 import { ConfirmDialog } from './components/Common/ConfirmDialog';
+import { ContextMenu } from './components/Common/ContextMenu';
 import { Gamepad2, Loader2 } from 'lucide-react';
+import { EnvironmentPreset } from './types/protocol';
 import { useStage } from './context/StageContext';
 import { useIsMobile } from './hooks/useMediaQuery';
 
@@ -34,7 +36,8 @@ export const App: React.FC = () => {
     dismissCompletedDownloadPrompt,
     loadAsset,
     catalogTab,
-    setCatalogTab
+    setCatalogTab,
+    environmentPreset
   } = useStage();
 
   const [isConnectionModalOpen, setIsConnectionModalOpen] = useState<boolean>(false);
@@ -106,15 +109,13 @@ export const App: React.FC = () => {
         .filter(Boolean)
         .join(' ')}
     >
-      <style>{`.header-search-toggle, .header-expandable-search, .header-search { display: none !important; }`}</style>
+      {environmentPreset === EnvironmentPreset.Space && <div className="env-space-dust" aria-hidden="true" />}
+
       <Header
         onOpenConnection={() => setIsConnectionModalOpen(true)}
         onOpenPlaylistMaker={() => setIsPlaylistMakerOpen(true)}
-        query={query}
-        onQueryChange={setQuery}
+        onOpenMore={() => setIsMoreSheetOpen(true)}
       />
-
-      <StageDirectorBar />
 
       <main className="app-main">
         <AssetGrid
@@ -222,6 +223,8 @@ export const App: React.FC = () => {
 
       <NowOnStage onOpenController={() => setIsControllerOpen(true)} />
 
+      <AssetInspector />
+
       <ConnectionModal
         isOpen={isConnectionModalOpen}
         onClose={() => setIsConnectionModalOpen(false)}
@@ -273,6 +276,12 @@ export const App: React.FC = () => {
       />
 
       <ToastContainer />
+
+      <ContextMenu
+        onOpenConnection={() => setIsConnectionModalOpen(true)}
+        onOpenPlaylistMaker={() => setIsPlaylistMakerOpen(true)}
+        onOpenSettings={() => setIsSettingsOpen(true)}
+      />
 
       {isMobile && <BottomNav active={activeSection} onSelect={handleNavSelect} />}
     </div>

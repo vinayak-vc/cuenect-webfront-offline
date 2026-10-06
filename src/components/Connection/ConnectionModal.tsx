@@ -281,7 +281,7 @@ export const ConnectionModal: React.FC<ConnectionModalProps> = ({ isOpen, onClos
                 <button
                   type="button"
                   className="btn btn-primary"
-                  style={{ flex: 1 }}
+                  style={{ flex: 1, minHeight: 44, padding: '12px 20px', fontSize: '0.88rem', fontWeight: 700 }}
                   onClick={handleConnect}
                   disabled={!isValidHost(ip)}
                 >
@@ -292,7 +292,7 @@ export const ConnectionModal: React.FC<ConnectionModalProps> = ({ isOpen, onClos
                 <button
                   type="button"
                   className="btn btn-primary"
-                  style={{ flex: 1 }}
+                  style={{ flex: 1, minHeight: 44, padding: '12px 20px', fontSize: '0.88rem', fontWeight: 700 }}
                   onClick={onClose}
                 >
                   Done
@@ -303,7 +303,7 @@ export const ConnectionModal: React.FC<ConnectionModalProps> = ({ isOpen, onClos
             <button
               type="button"
               className="btn btn-primary"
-              style={{ flex: 1 }}
+              style={{ flex: 1, minHeight: 44, padding: '12px 20px', fontSize: '0.88rem', fontWeight: 700 }}
               onClick={handleConnect}
               disabled={!isValidHost(ip) || connectionState === 'connecting'}
             >
