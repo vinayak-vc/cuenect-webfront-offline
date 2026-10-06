@@ -139,10 +139,16 @@
     - Projection Modes: `2D Flat`, `Side-by-Side 3D (SBS)`, `Hologram Stage (HOLO)`, `Fullscreen Max (FMAX)` with active mode checkmark.
     - Navigation: `Stage Director & Matrix`, `Playlist Queue & Slideshow`, `Stage Link & Telemetry`.
     - System: `Settings & Calibration`, `Browser Fullscreen` toggle.
-- **Obsidian Visual Language & Accessibility (`src/styles/tokens.css`)**:
-  - Dark glassmorphism (`rgba(12, 17, 26, 0.96)`, `backdrop-filter: blur(20px)`, subtle cyan borders).
-  - Clamped viewport positioning preventing any off-screen clipping.
-  - Dismisses on click-outside, Escape key, window blur, resize, and scroll.
+- **Contextual Action Identification & Adaptive Visibility (`src/components/Common/ContextMenu.tsx`)**:
+  - **Editable Input / Text Area Context**: When right-clicking inside search inputs, textareas, or form inputs:
+    - If text is selected: Prioritizes `Cut` (Ctrl+X), `Copy` (Ctrl+C), `Paste` (Ctrl+V), `Delete` (Del), `Select All` (Ctrl+A), `Clear Field`, and `Search Catalog for "{selectedText}"`.
+    - If no text is selected: Offers `Paste` (Ctrl+V), `Select All` (Ctrl+A), `Clear Field`, and `Copy Entire Text`.
+    - Automatically updates React synthetic state via native property descriptor setters and input/change events.
+  - **Text Selection Context**: When right-clicking highlighted text outside of editable inputs:
+    - Offers `Copy` (Ctrl+C), `Search Catalog for "{selectedText}"` (auto-navigates and sets search filter), and `Deselect`.
+  - **Stage Pill Context**: When right-clicking the header stage trigger/status pill:
+    - Offers `Target All Online Stages`, `Deselect All Stages`, `Open Stage Director Matrix`, and `Stage Connection & Telemetry`.
+  - **Dynamic Hiding / Showing**: Irrelevant controls (e.g. 3D manipulation modes, projection modes) are completely hidden when working with text or inputs, ensuring the menu is focused and compact.
 
 ## 5. Modified & New Files
 - `src/components/Common/ContextMenu.tsx` (NEW)
@@ -156,6 +162,6 @@
 - `docs/ai_handoff.md` (MODIFIED)
 
 ## 6. Next Recommended Task
-- Open http://localhost:3000/ and right-click on any asset card, Smithsonian explore card, 3D model viewport, and page background to test all customized options.
+- Open http://localhost:3000/, select text in the search bar or anywhere on the page, and right-click to test the Cut/Copy/Paste/Delete/Search actions.
 
 

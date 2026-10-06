@@ -34,33 +34,50 @@ import {
   Square,
   Radio,
   Gamepad2,
-  ExternalLink
+  ExternalLink,
+  Scissors,
+  Clipboard,
+  Trash2,
+  X,
+  LogOut,
+  FileText
 } from 'lucide-react';
 
 interface ContextMenuProps {
   onOpenConnection?: () => void;
   onOpenPlaylistMaker?: () => void;
   onOpenSettings?: () => void;
+  searchQuery?: string;
+  onSearchQueryChange?: (query: string) => void;
 }
 
 interface MenuState {
   x: number;
   y: number;
-  type: 'asset' | 'explore' | 'controller' | 'global';
+  type: 'editable-input' | 'text-selection' | 'asset' | 'explore' | 'controller' | 'stage-pill' | 'global';
   asset?: AssetInformation;
   exploreModel?: SmithsonianExploreModel;
+  inputElement?: HTMLInputElement | HTMLTextAreaElement;
+  selectedText?: string;
 }
 
 export const ContextMenu: React.FC<ContextMenuProps> = ({
   onOpenConnection,
   onOpenPlaylistMaker,
-  onOpenSettings
+  onOpenSettings,
+  searchQuery,
+  onSearchQueryChange
 }) => {
   const {
+    stages,
+    selectedStageIds,
+    selectAllStages,
+    clearStageSelection,
     assets,
     exploreModels,
     activeAsset,
     loadAsset,
+    unloadAsset,
     setIsControllerOpen,
     setInspectedAsset,
     customPlaylistIds,
@@ -89,6 +106,9 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
   const menuRef = useRef<HTMLDivElement>(null);
   const [adjustedPos, setAdjustedPos] = useState<{ x: number; y: number } | null>(null);
 
+  const onlineStages = stages.filter((s) => s.online);
+  const selectedOnlineCount = onlineStages.filter((s) => selectedStageIds.has(s.stageId)).length;
+
   // Close context menu handler
   const closeMenu = useCallback(() => {
     setMenu(null);
@@ -103,7 +123,40 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
       const target = e.target as HTMLElement | null;
       if (!target) return;
 
-      // 1. Check if right-clicked on an Asset card
+      // 1. Check if right-clicking an editable input or textarea
+      const inputTarget =
+        target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement
+          ? target
+          : (target.closest('input, textarea') as HTMLInputElement | HTMLTextAreaElement | null);
+
+      if (inputTarget) {
+        const start = inputTarget.selectionStart ?? 0;
+        const end = inputTarget.selectionEnd ?? 0;
+        const inputSel = start !== end ? inputTarget.value.substring(start, end).trim() : '';
+
+        setMenu({
+          x: e.clientX,
+          y: e.clientY,
+          type: 'editable-input',
+          inputElement: inputTarget,
+          selectedText: inputSel
+        });
+        return;
+      }
+
+      // 2. Check if text is currently highlighted/selected on the page
+      const winSel = window.getSelection()?.toString().trim() || '';
+      if (winSel.length > 0) {
+        setMenu({
+          x: e.clientX,
+          y: e.clientY,
+          type: 'text-selection',
+          selectedText: winSel
+        });
+        return;
+      }
+
+      // 3. Check if right-clicked on an Asset card
       const assetCard = target.closest('[data-asset-id]') as HTMLElement | null;
       if (assetCard) {
         const assetId = assetCard.getAttribute('data-asset-id');
@@ -119,7 +172,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
         }
       }
 
-      // 2. Check if right-clicked on an Explore card
+      // 4. Check if right-clicked on an Explore card
       const exploreCard = target.closest('[data-explore-id]') as HTMLElement | null;
       if (exploreCard) {
         const exploreId = exploreCard.getAttribute('data-explore-id');
@@ -135,7 +188,18 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
         }
       }
 
-      // 3. Check if right-clicked inside the 3D model viewport or controller
+      // 5. Check if right-clicked on Stage trigger pill
+      const stageTrigger = target.closest('.stage-trigger, [title*="Stage status"]') as HTMLElement | null;
+      if (stageTrigger) {
+        setMenu({
+          x: e.clientX,
+          y: e.clientY,
+          type: 'stage-pill'
+        });
+        return;
+      }
+
+      // 6. Check if right-clicked inside the 3D model viewport or controller
       const isController =
         Boolean(target.closest('[data-model-viewport]')) ||
         Boolean(target.closest('[data-controller-surface]'));
@@ -150,7 +214,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
         return;
       }
 
-      // 4. Default: Global application context menu
+      // 7. Default: Global application context menu
       setMenu({
         x: e.clientX,
         y: e.clientY,
@@ -219,12 +283,105 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
 
   if (!menu) return null;
 
+  // Helper: Copy string to clipboard
   const copyToClipboard = (text: string, label: string) => {
     navigator.clipboard.writeText(text).then(() => {
       addToast('Copied', `${label} copied to clipboard`, 'success');
     }).catch(() => {
       addToast('Copy Failed', 'Unable to access clipboard', 'error');
     });
+    closeMenu();
+  };
+
+  // Helper: Cut from input
+  const handleCutInput = (input: HTMLInputElement | HTMLTextAreaElement) => {
+    const start = input.selectionStart ?? 0;
+    const end = input.selectionEnd ?? 0;
+    if (start === end) return;
+    const val = input.value;
+    const selected = val.substring(start, end);
+    navigator.clipboard.writeText(selected).then(() => {
+      const newVal = val.slice(0, start) + val.slice(end);
+      setNativeInputValue(input, newVal);
+      input.focus();
+      input.setSelectionRange(start, start);
+      addToast('Cut', 'Text cut to clipboard', 'info');
+    }).catch(() => {
+      addToast('Cut Failed', 'Could not access clipboard', 'error');
+    });
+    closeMenu();
+  };
+
+  // Helper: Paste into input
+  const handlePasteInput = async (input: HTMLInputElement | HTMLTextAreaElement) => {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (!text) {
+        addToast('Clipboard Empty', 'No text found in clipboard', 'info');
+        closeMenu();
+        return;
+      }
+      const start = input.selectionStart ?? 0;
+      const end = input.selectionEnd ?? 0;
+      const val = input.value;
+      const newVal = val.slice(0, start) + text + val.slice(end);
+      setNativeInputValue(input, newVal);
+      input.focus();
+      input.setSelectionRange(start + text.length, start + text.length);
+      addToast('Pasted', 'Text pasted from clipboard', 'info');
+    } catch {
+      addToast('Paste Unavailable', 'Clipboard permission not granted', 'warning');
+    }
+    closeMenu();
+  };
+
+  // Helper: Delete selected text in input
+  const handleDeleteInput = (input: HTMLInputElement | HTMLTextAreaElement) => {
+    const start = input.selectionStart ?? 0;
+    const end = input.selectionEnd ?? 0;
+    if (start === end) return;
+    const val = input.value;
+    const newVal = val.slice(0, start) + val.slice(end);
+    setNativeInputValue(input, newVal);
+    input.focus();
+    input.setSelectionRange(start, start);
+    closeMenu();
+  };
+
+  // Helper: Select all in input
+  const handleSelectAllInput = (input: HTMLInputElement | HTMLTextAreaElement) => {
+    input.focus();
+    input.select();
+    closeMenu();
+  };
+
+  // Helper: Clear input value
+  const handleClearInput = (input: HTMLInputElement | HTMLTextAreaElement) => {
+    setNativeInputValue(input, '');
+    input.focus();
+    closeMenu();
+  };
+
+  // Helper: set value and dispatch input/change events so React states update
+  const setNativeInputValue = (input: HTMLInputElement | HTMLTextAreaElement, value: string) => {
+    const proto = input instanceof HTMLTextAreaElement ? window.HTMLTextAreaElement.prototype : window.HTMLInputElement.prototype;
+    const nativeSetter = Object.getOwnPropertyDescriptor(proto, 'value')?.set;
+    if (nativeSetter) {
+      nativeSetter.call(input, value);
+    } else {
+      input.value = value;
+    }
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+  };
+
+  // Helper: Search catalog for query
+  const handleSearchCatalog = (text: string) => {
+    if (onSearchQueryChange) {
+      onSearchQueryChange(text);
+    }
+    setIsControllerOpen(false);
+    addToast('Catalog Search', `Searching for "${text.slice(0, 24)}"`, 'info');
     closeMenu();
   };
 
@@ -237,6 +394,248 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
     closeMenu();
   };
 
+  // ============================================================================
+  // RENDER: Editable Input / Text Area Context
+  // ============================================================================
+  const renderEditableInputMenu = (input: HTMLInputElement | HTMLTextAreaElement, selText?: string) => {
+    const hasSelection = Boolean(selText && selText.length > 0);
+    const hasValue = input.value.length > 0;
+    const isSearchInput = input.type === 'search' || input.className.includes('search') || input.placeholder.toLowerCase().includes('search');
+
+    return (
+      <>
+        <div className="ctx-header">
+          <div className="ctx-icon-badge">
+            {isSearchInput ? <Search size={15} /> : <FileText size={15} />}
+          </div>
+          <div className="ctx-title-wrap">
+            <div className="ctx-title">
+              {hasSelection ? 'Selected Text' : isSearchInput ? 'Search Input' : 'Text Input'}
+            </div>
+            <div className="ctx-subtitle">
+              {hasSelection ? `"${selText!.slice(0, 22)}${selText!.length > 22 ? '...' : ''}"` : input.placeholder || 'Editable field'}
+            </div>
+          </div>
+        </div>
+
+        <div className="ctx-divider" />
+        <div className="ctx-section-label">Edit Actions</div>
+
+        {hasSelection && (
+          <button
+            type="button"
+            className="ctx-item"
+            onClick={() => handleCutInput(input)}
+          >
+            <Scissors size={15} />
+            <span>Cut</span>
+            <span className="ctx-shortcut">Ctrl+X</span>
+          </button>
+        )}
+
+        {hasSelection && (
+          <button
+            type="button"
+            className="ctx-item"
+            onClick={() => copyToClipboard(selText!, 'Selected text')}
+          >
+            <Copy size={15} />
+            <span>Copy</span>
+            <span className="ctx-shortcut">Ctrl+C</span>
+          </button>
+        )}
+
+        <button
+          type="button"
+          className="ctx-item primary"
+          onClick={() => handlePasteInput(input)}
+        >
+          <Clipboard size={15} />
+          <span>Paste</span>
+          <span className="ctx-shortcut">Ctrl+V</span>
+        </button>
+
+        {hasSelection && (
+          <button
+            type="button"
+            className="ctx-item"
+            onClick={() => handleDeleteInput(input)}
+          >
+            <Trash2 size={15} />
+            <span>Delete</span>
+            <span className="ctx-shortcut">Del</span>
+          </button>
+        )}
+
+        {hasValue && (
+          <button
+            type="button"
+            className="ctx-item"
+            onClick={() => handleSelectAllInput(input)}
+          >
+            <CheckSquare size={15} />
+            <span>Select All</span>
+            <span className="ctx-shortcut">Ctrl+A</span>
+          </button>
+        )}
+
+        {hasValue && (
+          <button
+            type="button"
+            className="ctx-item"
+            onClick={() => handleClearInput(input)}
+          >
+            <X size={15} />
+            <span>Clear Field</span>
+          </button>
+        )}
+
+        {hasSelection && (
+          <>
+            <div className="ctx-divider" />
+            <div className="ctx-section-label">Catalog Actions</div>
+            <button
+              type="button"
+              className="ctx-item"
+              onClick={() => handleSearchCatalog(selText!)}
+            >
+              <Search size={15} />
+              <span>Search Catalog for "{selText!.slice(0, 16)}"</span>
+            </button>
+          </>
+        )}
+      </>
+    );
+  };
+
+  // ============================================================================
+  // RENDER: Non-Editable Text Selection Context
+  // ============================================================================
+  const renderTextSelectionMenu = (selectedText: string) => {
+    return (
+      <>
+        <div className="ctx-header">
+          <div className="ctx-icon-badge">
+            <FileText size={15} />
+          </div>
+          <div className="ctx-title-wrap">
+            <div className="ctx-title">Text Selection</div>
+            <div className="ctx-subtitle">"{selectedText.slice(0, 22)}{selectedText.length > 22 ? '...' : ''}"</div>
+          </div>
+        </div>
+
+        <div className="ctx-divider" />
+        <div className="ctx-section-label">Actions</div>
+
+        <button
+          type="button"
+          className="ctx-item primary"
+          onClick={() => copyToClipboard(selectedText, 'Selected text')}
+        >
+          <Copy size={15} />
+          <span>Copy</span>
+          <span className="ctx-shortcut">Ctrl+C</span>
+        </button>
+
+        <button
+          type="button"
+          className="ctx-item"
+          onClick={() => handleSearchCatalog(selectedText)}
+        >
+          <Search size={15} />
+          <span>Search Catalog for "{selectedText.slice(0, 16)}"</span>
+        </button>
+
+        <button
+          type="button"
+          className="ctx-item"
+          onClick={() => {
+            window.getSelection()?.removeAllRanges();
+            closeMenu();
+          }}
+        >
+          <X size={15} />
+          <span>Deselect</span>
+        </button>
+      </>
+    );
+  };
+
+  // ============================================================================
+  // RENDER: Stage Trigger Pill Context
+  // ============================================================================
+  const renderStagePillMenu = () => {
+    const isAllSelected = onlineStages.length > 0 && selectedOnlineCount === onlineStages.length;
+
+    return (
+      <>
+        <div className="ctx-header">
+          <div className="ctx-icon-badge">
+            <Monitor size={15} />
+          </div>
+          <div className="ctx-title-wrap">
+            <div className="ctx-title">Stage Status & Targeting</div>
+            <div className="ctx-subtitle">{selectedOnlineCount} of {onlineStages.length} online stages targeted</div>
+          </div>
+        </div>
+
+        <div className="ctx-divider" />
+        <div className="ctx-section-label">Stage Targeting</div>
+
+        {onlineStages.length > 0 && (
+          <button
+            type="button"
+            className="ctx-item"
+            onClick={() => {
+              if (isAllSelected) clearStageSelection();
+              else selectAllStages();
+              closeMenu();
+            }}
+          >
+            {isAllSelected ? (
+              <>
+                <Square size={15} />
+                <span>Deselect All Stages</span>
+              </>
+            ) : (
+              <>
+                <CheckSquare size={15} />
+                <span>Target All Online Stages</span>
+              </>
+            )}
+          </button>
+        )}
+
+        <button
+          type="button"
+          className="ctx-item primary"
+          onClick={() => {
+            setIsStageDirectorOpen(true);
+            closeMenu();
+          }}
+        >
+          <SlidersHorizontal size={15} />
+          <span>Open Stage Director Matrix</span>
+        </button>
+
+        <button
+          type="button"
+          className="ctx-item"
+          onClick={() => {
+            if (onOpenConnection) onOpenConnection();
+            closeMenu();
+          }}
+        >
+          <Monitor size={15} />
+          <span>Stage Connection & Telemetry</span>
+        </button>
+      </>
+    );
+  };
+
+  // ============================================================================
+  // RENDER: Asset Card Context
+  // ============================================================================
   const renderAssetMenu = (asset: AssetInformation) => {
     const isActive = activeAsset?.AssetID === asset.AssetID;
     const isInPlaylist = customPlaylistIds.includes(asset.AssetID);
@@ -245,7 +644,6 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
 
     return (
       <>
-        {/* Header Summary */}
         <div className="ctx-header">
           <div className="ctx-icon-badge">
             {category === DataType.Video ? (
@@ -298,6 +696,21 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
             </>
           )}
         </button>
+
+        {/* Unload active asset */}
+        {isActive && (
+          <button
+            type="button"
+            className="ctx-item"
+            onClick={() => {
+              unloadAsset();
+              closeMenu();
+            }}
+          >
+            <LogOut size={15} />
+            <span>Unload from Stage</span>
+          </button>
+        )}
 
         {/* Inspect Specifications */}
         <button
@@ -367,10 +780,22 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
           <Copy size={15} />
           <span>Copy Asset ID</span>
         </button>
+
+        <button
+          type="button"
+          className="ctx-item"
+          onClick={() => copyToClipboard(asset.AssetName, 'Asset Name')}
+        >
+          <Copy size={15} />
+          <span>Copy Asset Name</span>
+        </button>
       </>
     );
   };
 
+  // ============================================================================
+  // RENDER: Smithsonian Explore Card Context
+  // ============================================================================
   const renderExploreMenu = (model: SmithsonianExploreModel) => {
     const recordUrl = model.metadata?.sourceUrl || (model.smithsonianId ? `https://3d.si.edu/object/3d/${model.smithsonianId}` : undefined);
 
@@ -446,6 +871,9 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
     );
   };
 
+  // ============================================================================
+  // RENDER: 3D Model Viewport / Controller Context
+  // ============================================================================
   const renderControllerMenu = () => {
     return (
       <>
@@ -486,6 +914,18 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
         >
           <RefreshCw size={15} />
           <span>Stop Auto-Rotate</span>
+        </button>
+
+        <button
+          type="button"
+          className="ctx-item"
+          onClick={() => {
+            unloadAsset();
+            closeMenu();
+          }}
+        >
+          <LogOut size={15} />
+          <span>Unload from Stage</span>
         </button>
 
         <div className="ctx-divider" />
@@ -593,6 +1033,9 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
     );
   };
 
+  // ============================================================================
+  // RENDER: Global Kiosk Context
+  // ============================================================================
   const renderGlobalMenu = () => {
     return (
       <>
@@ -605,6 +1048,25 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
             <div className="ctx-subtitle">Hologram Exhibition Control</div>
           </div>
         </div>
+
+        {/* Active Search Filter Clear Affordance */}
+        {searchQuery && (
+          <>
+            <div className="ctx-divider" />
+            <div className="ctx-section-label">Catalog Filter</div>
+            <button
+              type="button"
+              className="ctx-item"
+              onClick={() => {
+                if (onSearchQueryChange) onSearchQueryChange('');
+                closeMenu();
+              }}
+            >
+              <X size={15} />
+              <span>Clear Filter ("{searchQuery.slice(0, 16)}")</span>
+            </button>
+          </>
+        )}
 
         <div className="ctx-divider" />
         <div className="ctx-section-label">Projection Mode</div>
@@ -740,6 +1202,9 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
       aria-label="Cuenect Context Menu"
       tabIndex={-1}
     >
+      {menu.type === 'editable-input' && menu.inputElement && renderEditableInputMenu(menu.inputElement, menu.selectedText)}
+      {menu.type === 'text-selection' && menu.selectedText && renderTextSelectionMenu(menu.selectedText)}
+      {menu.type === 'stage-pill' && renderStagePillMenu()}
       {menu.type === 'asset' && menu.asset && renderAssetMenu(menu.asset)}
       {menu.type === 'explore' && menu.exploreModel && renderExploreMenu(menu.exploreModel)}
       {menu.type === 'controller' && renderControllerMenu()}

@@ -322,4 +322,13 @@
   color: var(--accent-signature);
 }
 
+.ctx-shortcut {
+  margin-left: auto;
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  font-family: var(--font-mono, monospace);
+  padding-left: 12px;
+}
+
+
 

@@ -281,6 +281,8 @@ export const App: React.FC = () => {
         onOpenConnection={() => setIsConnectionModalOpen(true)}
         onOpenPlaylistMaker={() => setIsPlaylistMakerOpen(true)}
         onOpenSettings={() => setIsSettingsOpen(true)}
+        searchQuery={query}
+        onSearchQueryChange={setQuery}
       />
 
       {isMobile && <BottomNav active={activeSection} onSelect={handleNavSelect} />}
