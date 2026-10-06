@@ -1,134 +1,71 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { ChevronDown, Monitor, Layers, Box, Glasses, Check } from 'lucide-react';
+import React, { useState } from 'react';
+import { ChevronDown } from 'lucide-react';
 import { useStage } from '../../context/StageContext';
-import { DisplayMode, DisplayModeLabels, DisplayModeShortLabels } from '../../types/protocol';
-import { useIsMobile } from '../../hooks/useMediaQuery';
-import { BottomSheet } from './BottomSheet';
+import { DisplayModeShortLabels } from '../../types/protocol';
+import { PresentationPanel } from '../Presentation/PresentationPanel';
 
-interface ProjectionOption {
-  mode: DisplayMode;
-  icon: React.ReactNode;
-  desc: string;
+interface ProjectionSelectorProps {
+  labelPrefix?: string;
+  className?: string;
 }
 
-const OPTIONS: ProjectionOption[] = [
-  {
-    mode: DisplayMode.Mono2D,
-    icon: <Monitor size={16} />,
-    desc: 'Single camera, no stereo separation.'
-  },
-  {
-    mode: DisplayMode.StereoSbs,
-    icon: <Layers size={16} />,
-    desc: 'Side-by-side stereo pair.'
-  },
-  {
-    mode: DisplayMode.HoloDevice,
-    icon: <Box size={16} />,
-    desc: 'Axiom HOLO device with tracked per-eye rendering.'
-  },
-  {
-    mode: DisplayMode.KmaxDevice,
-    icon: <Glasses size={16} />,
-    desc: 'FMAX XR panel with head-tracked per-eye rendering.'
-  }
-];
-
 /**
- * Custom projection-mode control replacing the native <select>.
- *
- * Desktop: a popover listbox anchored to the trigger.
- * Mobile: a bottom sheet, so the options land in thumb reach.
- * Both paths are keyboard operable and share one state source.
+ * Canonical Projection Selector Pill:
+ * Displays the current projection mode (2D, SBS, HOLO, FMAX)
+ * and triggers the unified PresentationPanel when clicked.
  */
-export const ProjectionSelector: React.FC = () => {
-  const { displayMode, setDisplayMode } = useStage();
-  const isMobile = useIsMobile();
-  const [open, setOpen] = useState(false);
-  const wrapRef = useRef<HTMLDivElement>(null);
-
-  // Close the desktop popover on outside click / Escape.
-  useEffect(() => {
-    if (!open || isMobile) return;
-
-    const onDocClick = (e: MouseEvent) => {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false);
-    };
-
-    document.addEventListener('mousedown', onDocClick);
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('mousedown', onDocClick);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [open, isMobile]);
-
-  const select = (mode: DisplayMode) => {
-    setDisplayMode(mode);
-    setOpen(false);
-  };
-
-  const optionList = (
-    <div role="listbox" aria-label="Projection mode">
-      {OPTIONS.map((opt) => (
-        <button
-          key={opt.mode}
-          type="button"
-          role="option"
-          aria-selected={displayMode === opt.mode}
-          className="projection-option"
-          onClick={() => select(opt.mode)}
-        >
-          <span className="projection-option-icon">{opt.icon}</span>
-          <span style={{ flex: 1, minWidth: 0 }}>
-            <span className="projection-option-name" style={{ display: 'block' }}>
-              {DisplayModeLabels[opt.mode]}
-            </span>
-            <span className="projection-option-desc">{opt.desc}</span>
-          </span>
-          {displayMode === opt.mode && (
-            <Check size={16} style={{ color: 'var(--color-primary)', flexShrink: 0, marginTop: 6 }} />
-          )}
-        </button>
-      ))}
-    </div>
-  );
+export const ProjectionSelector: React.FC<ProjectionSelectorProps> = ({
+  labelPrefix = 'Mode:',
+  className
+}) => {
+  const { displayMode } = useStage();
+  const [isOpen, setIsOpen] = useState(false);
 
   return (
-    <div className="projection-control" ref={wrapRef}>
+    <>
       <button
         type="button"
-        className="projection-trigger"
-        onClick={() => setOpen((v) => !v)}
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        title="Projection mode"
+        className={`status-pill ${className || ''}`}
+        onClick={() => setIsOpen(true)}
+        title="Change Presentation Mode (2D / SBS / HOLO / FMAX)"
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 6,
+          height: 36,
+          padding: '0 12px',
+          borderRadius: 'var(--radius-full)',
+          background: 'var(--surface-1)',
+          border: '1px solid var(--line-subtle)',
+          color: 'var(--text-primary)',
+          cursor: 'pointer',
+          transition: 'all 0.15s ease'
+        }}
       >
-        <span className="projection-trigger-label">
-          <span className="projection-trigger-caption">Projection</span>
-          <span className="projection-trigger-value">
-            <span className="label-full">{DisplayModeLabels[displayMode]}</span>
-            <span className="label-short">{DisplayModeShortLabels[displayMode]}</span>
-          </span>
+        <span
+          style={{
+            fontSize: '0.66rem',
+            letterSpacing: '0.06em',
+            textTransform: 'uppercase',
+            color: 'var(--text-muted)',
+            fontWeight: 600
+          }}
+        >
+          {labelPrefix}
         </span>
-        <ChevronDown size={14} style={{ color: 'var(--text-muted)' }} />
+        <span
+          style={{
+            fontSize: '0.80rem',
+            fontWeight: 700,
+            color: 'var(--accent-signature)'
+          }}
+        >
+          {DisplayModeShortLabels[displayMode] || '2D'}
+        </span>
+        <ChevronDown size={13} style={{ color: 'var(--text-muted)', marginLeft: 2 }} />
       </button>
 
-      {open && !isMobile && <div className="projection-menu">{optionList}</div>}
-
-      {isMobile && (
-        <BottomSheet
-          isOpen={open}
-          onClose={() => setOpen(false)}
-          title="Projection Mode"
-          subtitle="Rendering projection mode"
-        >
-          {optionList}
-        </BottomSheet>
-      )}
-    </div>
+      <PresentationPanel isOpen={isOpen} onClose={() => setIsOpen(false)} />
+    </>
   );
 };

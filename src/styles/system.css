@@ -9,6 +9,31 @@
    .toast-item.
    ========================================================================= */
 
+/* ------------------------------------------------ Custom Scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(100, 197, 190, 0.35) var(--surface-1);
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--surface-1);
+  border-radius: var(--radius-sm);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(100, 197, 190, 0.35);
+  border-radius: var(--radius-sm);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-primary);
+}
+
 /* ---------------------------------------------------------------- App shell */
 
 .app-container {
@@ -968,6 +993,7 @@
   max-height: 88vh;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
   background: var(--surface-sheet);
   border-top-left-radius: var(--radius-sheet);
   border-top-right-radius: var(--radius-sheet);
@@ -994,6 +1020,7 @@
     border-radius: var(--radius-xl);
     border: 1px solid var(--line-elevated);
     padding-bottom: 0;
+    overflow: hidden;
     animation: dialog-in var(--dur-modal) var(--ease-out);
   }
   @keyframes dialog-in {
@@ -1024,6 +1051,10 @@
   gap: var(--sp-3);
   padding: var(--sp-3) var(--sp-4);
   border-bottom: 1px solid var(--line-subtle);
+  background: var(--surface-sheet);
+  position: sticky;
+  top: 0;
+  z-index: 10;
   flex-shrink: 0;
 }
 
@@ -1032,6 +1063,8 @@
 }
 
 .sheet-body {
+  flex: 1 1 auto;
+  min-height: 0;
   padding: var(--sp-4);
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
@@ -1379,10 +1412,10 @@
 @media (min-width: 1024px) {
   .controller-body {
     display: grid;
-    grid-template-columns: 300px minmax(0, 1fr) 300px;
+    grid-template-columns: minmax(280px, 24%) minmax(0, 1fr) minmax(240px, 20%);
     gap: var(--sp-5);
     align-items: start;
-    max-width: 1400px;
+    max-width: 1560px;
     margin: 0 auto;
     width: 100%;
   }
@@ -1400,8 +1433,9 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: var(--sp-5);
-    padding: var(--sp-4) 0;
+    gap: var(--sp-4);
+    padding: var(--sp-2) 0;
+    width: 100%;
   }
 }
 

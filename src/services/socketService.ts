@@ -14,12 +14,19 @@ import {
   EnvironmentPreset,
   EnvironmentPresetPayload,
   EnvironmentPresetNames,
-  StaticStrings
+  QualityTier,
+  QualityTierPayload,
+  QualityTierNames,
+  MetadataActionPayload,
+  SmithsonianExploreModel,
+  StaticStrings,
+  StageNode
 } from '../types/protocol';
 
 export type SocketMessageHandler = (event: string, data: any) => void;
 export type SocketStateChangeHandler = (state: ConnectionState, detail?: string, isInitial?: boolean) => void;
 export type SocketUsersChangeHandler = (users: User[]) => void;
+export type SocketStagesChangeHandler = (stages: StageNode[], selected: Set<string>) => void;
 export type ConnectionTransport = 'ngrok' | 'lan';
 export type TransportPromotionState = 'idle' | 'discovering' | 'probing' | 'promoted' | 'fallback';
 export type TransportChangeHandler = (transport: ConnectionTransport, state: TransportPromotionState) => void;
@@ -32,10 +39,13 @@ export class StageSocketService {
   private transportState: TransportPromotionState = 'idle';
   private hasAttemptedLanPromotion: boolean = false;
   private users: User[] = [];
+  private stages: StageNode[] = [];
+  private selectedStageIds: Set<string> = new Set();
   private clientName: string = '';
   private messageHandlers: Set<SocketMessageHandler> = new Set();
   private stateHandlers: Set<SocketStateChangeHandler> = new Set();
   private usersHandlers: Set<SocketUsersChangeHandler> = new Set();
+  private stagesHandlers: Set<SocketStagesChangeHandler> = new Set();
   private transportHandlers: Set<TransportChangeHandler> = new Set();
 
   public getState(): ConnectionState {
@@ -171,6 +181,90 @@ export class StageSocketService {
     };
   }
 
+  // ── Multi-Stage Orchestration ───────────────────────────────────────
+  public getStages(): StageNode[] {
+    return this.stages;
+  }
+
+  public getSelectedStageIds(): Set<string> {
+    return this.selectedStageIds;
+  }
+
+  public onStagesChange(handler: SocketStagesChangeHandler): () => void {
+    this.stagesHandlers.add(handler);
+    handler(this.stages, this.selectedStageIds);
+    return () => {
+      this.stagesHandlers.delete(handler);
+    };
+  }
+
+  public setStages(stages: StageNode[]): void {
+    this.stages = stages;
+
+    // Prune IDs that no longer exist or are offline
+    const onlineIds = new Set(stages.filter((s) => s.online).map((s) => s.stageId));
+    const nextSelected = new Set<string>();
+    this.selectedStageIds.forEach((id) => {
+      if (onlineIds.has(id)) nextSelected.add(id);
+    });
+
+    // If no previous selection, select all online stages by default
+    if (nextSelected.size === 0 && onlineIds.size > 0) {
+      onlineIds.forEach((id) => nextSelected.add(id));
+    }
+
+    this.selectedStageIds = nextSelected;
+    this.notifyStagesChange();
+  }
+
+  public purgeOfflineStages(): void {
+    if (this.socket && this.socket.connected) {
+      this.socket.emit('stage-purge-offline');
+    }
+  }
+
+  public setSelectedStageIds(ids: string[] | Set<string>): void {
+    this.selectedStageIds = new Set(ids);
+    this.notifyStagesChange();
+  }
+
+  public toggleStageSelection(stageId: string): void {
+    const next = new Set(this.selectedStageIds);
+    if (next.has(stageId)) {
+      next.delete(stageId);
+    } else {
+      next.add(stageId);
+    }
+    this.selectedStageIds = next;
+    this.notifyStagesChange();
+  }
+
+  public selectAllStages(): void {
+    this.selectedStageIds = new Set(this.stages.filter((s) => s.online).map((s) => s.stageId));
+    this.notifyStagesChange();
+  }
+
+  public clearStageSelection(): void {
+    this.selectedStageIds = new Set();
+    this.notifyStagesChange();
+  }
+
+  public selectStageGroup(groupName: string): void {
+    const matching = this.stages.filter((s) => s.group === groupName && s.online).map((s) => s.stageId);
+    this.selectedStageIds = new Set(matching);
+    this.notifyStagesChange();
+  }
+
+  public isAllStagesSelected(): boolean {
+    const onlineStages = this.stages.filter((s) => s.online).map((s) => s.stageId);
+    return onlineStages.length > 0 && onlineStages.every((id) => this.selectedStageIds.has(id));
+  }
+
+  private notifyStagesChange(): void {
+    this.stagesHandlers.forEach((handler) => handler(this.stages, this.selectedStageIds));
+  }
+  // ────────────────────────────────────────────────────────────────────
+
   private setState(state: ConnectionState, detail?: string): void {
     this.state = state;
     this.stateHandlers.forEach((h) => h(state, detail));
@@ -282,10 +376,15 @@ export class StageSocketService {
           localUrl?: string;
           isTunnel?: boolean;
         };
+        stages?: StageNode[];
       }) => {
         if (resp && resp.users) {
           const userList: User[] = resp.users.map((name, idx) => ({ name, id: idx + 1 }));
           this.setUsers(userList);
+        }
+
+        if (resp && Array.isArray(resp.stages)) {
+          this.setStages(resp.stages);
         }
 
         // Fast path: server already reported its local network coordinates over the socket
@@ -314,6 +413,12 @@ export class StageSocketService {
         if (data && data.users) {
           const userList: User[] = data.users.map((name, idx) => ({ name, id: idx + 1 }));
           this.setUsers(userList);
+        }
+      });
+
+      this.socket.on('stage-roster-update', (data: { stages: StageNode[] }) => {
+        if (data && Array.isArray(data.stages)) {
+          this.setStages(data.stages);
         }
       });
 
@@ -518,7 +623,11 @@ export class StageSocketService {
     'hologram-camera-orthographic-action',
     'StereoSettingsActionKey',
     'hologram-display-mode-action',
-    'hologram-model-transform'
+    'hologram-default-display-mode-action',
+    'hologram-environment-action',
+    'hologram-quality-tier-action',
+    'hologram-model-transform',
+    'hologram-metadata-action'
   ]);
 
   /**
@@ -557,12 +666,46 @@ export class StageSocketService {
       return;
     }
 
+    // Targeted multi-stage routing: wrap mutating events in dispatch-command
+    if (StageSocketService.STAGE_MUTATING_EVENTS.has(eventName)) {
+      let targets: string[] | string = '*';
+      if (this.stages.length > 0 && this.selectedStageIds.size > 0) {
+        const onlineStages = this.stages.filter((s) => s.online).map((s) => s.stageId);
+        const isAll = onlineStages.length > 0 && onlineStages.every((id) => this.selectedStageIds.has(id));
+        targets = isAll ? '*' : Array.from(this.selectedStageIds);
+      }
+
+      // One delivery per command. The relay re-broadcasts a direct event to every other socket (signalingServer.js
+      // onAny) and also routes dispatch-command to the `stages:all` room, which holds every registered stage, so
+      // sending both delivered each command to a registered stage twice. A direct event still reaches stages that
+      // never registered; dispatch-command is only needed to address specific stages.
+      const broadcast: boolean = targets === '*' || (Array.isArray(targets) && targets.includes('*'));
+      if (broadcast) {
+        this.socket.emit(eventName, data);
+      } else {
+        this.socket.emit('dispatch-command', {
+          targets,
+          targetEvent: eventName,
+          data
+        });
+      }
+      return;
+    }
+
     this.socket.emit(eventName, data);
   }
 
   // Unified Stage Actions
   public sendLoadAsset(asset: any): void {
     this.emitEvent('hologram-asset-action', asset);
+  }
+
+  public sendMetadataAction(payload: MetadataActionPayload): void {
+    this.emitEvent(StaticStrings.MetadataActionKey, payload);
+  }
+
+  public startExploreDownload(model: SmithsonianExploreModel): void {
+    this.emitEvent('explore-download-start', model);
   }
 
   public sendModelControl(control: ModelControl | any): void {
@@ -686,6 +829,18 @@ export class StageSocketService {
       presetName: EnvironmentPresetNames[preset]
     };
     this.emitEvent(StaticStrings.EnvironmentActionKey, payload);
+  }
+
+  /**
+   * Set the graphics quality tier on the hologram stage viewer.
+   * Both `tier` and `tierName` are sent to ensure Unity's parser resolves either field.
+   */
+  public sendQualityTier(tier: QualityTier): void {
+    const payload: QualityTierPayload = {
+      tier,
+      tierName: QualityTierNames[tier]
+    };
+    this.emitEvent(StaticStrings.QualityTierActionKey, payload);
   }
 
   /** Ask the bridge for exclusive control of the stage. */

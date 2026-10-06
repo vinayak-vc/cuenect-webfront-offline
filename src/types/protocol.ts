@@ -6,6 +6,62 @@ export enum DataType {
   Video = 2
 }
 
+export interface MetadataDetailItem {
+  label: string;
+  value: string;
+}
+
+export interface ModelMetadata {
+  title?: string;
+  museum?: string;
+  creator?: string;
+  date?: string;
+  collection?: string;
+  place?: string;
+  medium?: string;
+  dimensions?: string;
+  creditLine?: string;
+  identifier?: string;
+  taxonomy?: string;
+  annotations?: string;
+  description?: string;
+  details?: MetadataDetailItem[];
+  license?: string;
+  sourceUrl?: string;
+}
+
+export interface SmithsonianExploreModel {
+  smithsonianId: string;
+  packageUuid: string;
+  title: string;
+  thumbnailUrl: string;
+  modelUrl: string;
+  fileSizeBytes: number;
+  fileSizeMB: number;
+  dracoCompressed: boolean;
+  isDownloaded: boolean;
+  downloadedAssetId?: string | null;
+  metadata: ModelMetadata;
+}
+
+export interface ExploreDownloadProgress {
+  smithsonianId: string;
+  title: string;
+  status: 'downloading' | 'completed' | 'error';
+  progress: number;
+  downloadedBytes: number;
+  totalBytes: number;
+  error?: string | null;
+}
+
+export interface MetadataActionPayload {
+  visible: boolean;
+  fullScreen?: boolean;
+  assetId?: string;
+  title?: string;
+  metadata?: ModelMetadata | null;
+}
+
 export interface AssetInformation {
   AssetID: string;
   AssetName: string;
@@ -23,6 +79,36 @@ export interface AssetInformation {
   dimensions?: { x: number; y: number; z: number } | null;
   isWebPreviewable?: boolean;
   rejectionReason?: string | null;
+  smithsonianId?: string;
+  metadata?: ModelMetadata | null;
+}
+
+export function cleanMetadataDescription(desc?: string | null): string {
+  if (!desc) return '';
+  const trimmed = desc.trim();
+  if (/^3D digitized artifact from the /i.test(trimmed)) return '';
+  return trimmed;
+}
+
+export function hasModelMetadata(asset?: Partial<AssetInformation> | null): boolean {
+  if (!asset || !asset.metadata) return false;
+  const m = asset.metadata;
+  const desc = cleanMetadataDescription(m.description);
+  return Boolean(
+    (m.museum && m.museum.trim()) ||
+    (m.creator && m.creator.trim()) ||
+    (m.date && m.date.trim()) ||
+    (m.collection && m.collection.trim()) ||
+    (m.place && m.place.trim()) ||
+    (m.medium && m.medium.trim()) ||
+    (m.dimensions && m.dimensions.trim()) ||
+    (m.creditLine && m.creditLine.trim()) ||
+    (m.identifier && m.identifier.trim()) ||
+    (m.taxonomy && m.taxonomy.trim()) ||
+    (m.annotations && m.annotations.trim()) ||
+    desc ||
+    (Array.isArray(m.details) && m.details.length > 0)
+  );
 }
 
 export interface AssetInformationS {
@@ -262,6 +348,88 @@ export interface EnvironmentPresetPayload {
 
 export const DEFAULT_ENVIRONMENT_PRESET: EnvironmentPreset = EnvironmentPreset.Space;
 
+/**
+ * Hologram stage graphics quality tier.
+ * Mirrors HeavyEnvQualityTier in Scripts/HeavyEnvironment/HeavyEnvQuality.cs.
+ * Persisted ordinals; do not renumber.
+ */
+export enum QualityTier {
+  VeryLow = 0,
+  Low = 1,
+  Medium = 2,
+  High = 3,
+  Ultra = 4,
+  Custom = 5
+}
+
+export const QualityTierNames: Record<QualityTier, string> = {
+  [QualityTier.VeryLow]: 'verylow',
+  [QualityTier.Low]: 'low',
+  [QualityTier.Medium]: 'medium',
+  [QualityTier.High]: 'high',
+  [QualityTier.Ultra]: 'ultra',
+  [QualityTier.Custom]: 'custom'
+};
+
+export const QualityTierShortLabels: Record<QualityTier, string> = {
+  [QualityTier.VeryLow]: 'Very Low',
+  [QualityTier.Low]: 'Low',
+  [QualityTier.Medium]: 'Medium',
+  [QualityTier.High]: 'High',
+  [QualityTier.Ultra]: 'Ultra',
+  [QualityTier.Custom]: 'Custom'
+};
+
+export const QualityTierLabels: Record<QualityTier, string> = {
+  [QualityTier.VeryLow]: 'Very Low',
+  [QualityTier.Low]: 'Low',
+  [QualityTier.Medium]: 'Medium',
+  [QualityTier.High]: 'High',
+  [QualityTier.Ultra]: 'Ultra',
+  [QualityTier.Custom]: 'Custom'
+};
+
+export const QualityTierDescriptions: Record<QualityTier, string> = {
+  [QualityTier.VeryLow]: 'Bare stage, flat black, zero environment lighting. Fastest, byte-identical to 2D off.',
+  [QualityTier.Low]: 'Nebula backdrop and caustic floor. Low-power PCs and integrated graphics.',
+  [QualityTier.Medium]: 'Probe volume and reflection probe added. Baseline for budget dedicated GPUs.',
+  [QualityTier.High]: 'Hero materials, motes, and point-cloud reveal on. Balanced for standard 60 fps kiosks.',
+  [QualityTier.Ultra]: 'Full volumetric shafts, 6,000 motes, and HDR output. Max immersion on high-end GPUs.',
+  [QualityTier.Custom]: 'Custom profile configured on the kiosk display settings.'
+};
+
+export interface QualityTierPayload {
+  tier: QualityTier;
+  tierName: string;
+}
+
+export const DEFAULT_QUALITY_TIER: QualityTier = QualityTier.High;
+
+/**
+ * Resolve a quality tier from whatever the stage reports. The stage echoes both the
+ * numeric tier and the wire name; either is accepted, and anything
+ * unrecognised returns null so a bad payload cannot silently flip the UI.
+ */
+export function parseQualityTier(
+  payload: { tier?: unknown; tierName?: unknown } | null | undefined
+): QualityTier | null {
+  if (!payload) return null;
+
+  if (typeof payload.tier === 'number' && QualityTierNames[payload.tier as QualityTier] !== undefined) {
+    return payload.tier as QualityTier;
+  }
+
+  if (typeof payload.tierName === 'string') {
+    const name = payload.tierName.trim().toLowerCase();
+    const match = (Object.keys(QualityTierNames) as unknown as QualityTier[])
+      .find((key) => QualityTierNames[key].toLowerCase() === name);
+    if (match !== undefined) return Number(match) as QualityTier;
+  }
+
+  return null;
+}
+
+
 export const DEFAULT_STEREO_SETTINGS: StereoAdjustSettings = {
   ipd: 0.065,
   zeroParallax: 3.0,
@@ -319,12 +487,41 @@ export const StaticStrings = {
   DisplayModeActionKey: 'hologram-display-mode-action',
   DefaultDisplayModeActionKey: 'hologram-default-display-mode-action',
   EnvironmentActionKey: 'hologram-environment-action',
+  QualityTierActionKey: 'hologram-quality-tier-action',
   ModelTransformActionKey: 'hologram-model-transform',
+  MetadataActionKey: 'hologram-metadata-action',
   ControlLockState: 'control-lock-state',
   ControlRequest: 'control-request',
   ControlRelease: 'control-release',
-  DeleteAsset: 'DeleteAsset'
+  DeleteAsset: 'DeleteAsset',
+  StageRegister: 'stage-register',
+  StageRegistered: 'stage-registered',
+  StageStateUpdate: 'stage-state-update',
+  StageRosterUpdate: 'stage-roster-update',
+  DispatchCommand: 'dispatch-command',
+  GetStagesRoster: 'get-stages-roster'
 } as const;
+
+export interface StageNode {
+  stageId: string;
+  displayName: string;
+  group: string;
+  online: boolean;
+  currentModel?: string | null;
+  displayMode?: string;
+  lastSeen?: number;
+}
+
+export interface StageRosterPayload {
+  stages: StageNode[];
+}
+
+export interface DispatchEnvelope {
+  targets: string[] | string;
+  targetEvent?: string;
+  event?: string;
+  data: any;
+}
 
 export interface ModelTransformPayload {
   yaw: number;

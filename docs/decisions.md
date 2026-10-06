@@ -79,3 +79,21 @@
 - **Rationale**:
   - A single 20 MB model download consumes 2% of the total monthly ngrok free quota. Switching models repeatedly would exhaust the quota within hours.
   - D-Pad control uses only ~150-byte control messages, enabling endless operation over ngrok without bandwidth exhaustion.
+
+## D-011: Universal Direct Broadcast & Multi-Stage Dual Dispatch
+- **Context**: In multi-stage environments, mutating commands were wrapped in `dispatch-command`. If no stage was selected or Unity was not joined to `stages:all`, commands were dropped or never received.
+- **Decision**: Mutating stage events are dispatched to targeted stages via `dispatch-command` when specific stages are selected, and broadcast directly via `this.socket.emit(eventName, data)` whenever targets is `'*'` (or no specific stages are selected). Never drop events on empty stage selection.
+- **Rationale**: Standard Unity stage installations listen directly to `hologram-asset-action`, `hologram-model-action`, etc. Dual dispatch ensures zero regressions and 100% backwards compatibility while preserving targeted multicast for advanced multi-stage setups.
+
+## D-012: Drag-and-Drop Running Order in Playlist
+- **Context**: Reordering playlist items using up/down arrow buttons was slow and cluttered the item rows.
+- **Decision**: Replace up/down buttons with vertical drag-and-drop using a `GripVertical` handle, combining HTML5 Drag & Drop with PointerEvent touch-capture support.
+- **Rationale**: Provides intuitive, fast reordering on desktop and mobile while reducing visual clutter in the row actions to just a clean delete button.
+
+## D-013: Differentiated Curatorial Presentation: Web Operator vs Unity Audience
+- **Context**: Previously, raw Smithsonian database metadata was rendered identically as an overwhelming, infinite vertical list in the Web Controller and as a centered blocking rectangle over the Unity 3D stage.
+- **Decision**:
+  1. **Web Controller (Operator Experience)**: Restructure desktop layout to ~25% Left concise identity summary / 55-60% Center large 3D manipulation hero viewport / 20% Right telemetry. Vertically bound the left column and place the complete Smithsonian archive record into a dedicated side-drawer (`BottomSheet`) with progressive disclosure. In `AssetInspector`, add explicit `Load to Stage & Control` primary action and collapsible curatorial details.
+  2. **Unity Stage (Audience Museum Experience)**: Move from a centered modal to an asymmetric editorial museum graphic anchored to the LEFT (~42% width), leaving the right ~58% fully open, lit, and unoccluded for the 3D hologram. Use a soft horizontal vignette gradient instead of a 100% opaque full-screen fill. Structure typography into museum wall placard hierarchy (Hero Title → Uppercase Museum → 2x2 Key Facts Grid → Curatorial Narrative → Attribution), and choreograph entrances with a non-allocating coroutine runner (`StageMetadataOverlayRunner`).
+- **Rationale**: Operators need high-speed cockpit control and immediate 3D manipulation with fast essential facts, while museum visitors on the Unity stage require an elegant, unoccluded view of the floating 3D hologram alongside an editorial graphic.
+

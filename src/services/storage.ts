@@ -6,7 +6,10 @@ import {
   DEFAULT_DISPLAY_MODE,
   EnvironmentPreset,
   EnvironmentPresetNames,
-  DEFAULT_ENVIRONMENT_PRESET
+  DEFAULT_ENVIRONMENT_PRESET,
+  QualityTier,
+  QualityTierNames,
+  DEFAULT_QUALITY_TIER
 } from '../types/protocol';
 
 const STORAGE_KEYS = {
@@ -20,6 +23,7 @@ const STORAGE_KEYS = {
   DISPLAY_MODE: 'cuenect_display_mode',
   DEFAULT_DISPLAY_MODE: 'cuenect_default_display_mode',
   ENVIRONMENT_PRESET: 'cuenect_environment_preset',
+  QUALITY_TIER: 'cuenect_quality_tier',
   RECENT_ASSETS: 'cuenect_recent_assets',
   FAVOURITE_ASSETS: 'cuenect_favourite_assets'
 } as const;
@@ -127,6 +131,20 @@ export const StorageService = {
 
   saveEnvironmentPreset(preset: EnvironmentPreset): void {
     localStorage.setItem(STORAGE_KEYS.ENVIRONMENT_PRESET, preset.toString());
+  },
+
+  getQualityTier(): QualityTier {
+    const raw = localStorage.getItem(STORAGE_KEYS.QUALITY_TIER);
+    if (raw === null) return DEFAULT_QUALITY_TIER;
+    const parsed = parseInt(raw, 10);
+    if (QualityTierNames[parsed as QualityTier] !== undefined) {
+      return parsed as QualityTier;
+    }
+    return DEFAULT_QUALITY_TIER;
+  },
+
+  saveQualityTier(tier: QualityTier): void {
+    localStorage.setItem(STORAGE_KEYS.QUALITY_TIER, tier.toString());
   },
 
   getRecentAssets(): string[] {

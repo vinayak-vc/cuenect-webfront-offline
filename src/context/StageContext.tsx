@@ -19,9 +19,15 @@ import {
   parseDisplayMode,
   EnvironmentPreset,
   parseEnvironmentPreset,
+  QualityTier,
+  parseQualityTier,
   ControlLockState,
   DEFAULT_CONTROL_LOCK,
-  ModelTransformPayload
+  ModelTransformPayload,
+  SmithsonianExploreModel,
+  ExploreDownloadProgress,
+  hasModelMetadata,
+  StageNode
 } from '../types/protocol';
 import {
   stageSocket,
@@ -62,6 +68,29 @@ interface StageContextValue {
   setIsControllerOpen: (open: boolean) => void;
   isSettingsOpen: boolean;
   setIsSettingsOpen: (open: boolean) => void;
+  inspectedAsset: AssetInformation | SmithsonianExploreModel | null;
+  setInspectedAsset: (asset: AssetInformation | SmithsonianExploreModel | null) => void;
+
+  // Smithsonian 3D Explore & Background Downloads
+  catalogTab: 'downloaded' | 'explore';
+  setCatalogTab: (tab: 'downloaded' | 'explore') => void;
+  exploreModels: SmithsonianExploreModel[];
+  isExploreLoading: boolean;
+  isExploreOffline: boolean;
+  exploreOfflineReason: string | null;
+  exploreQuery: string;
+  setExploreQuery: (q: string) => void;
+  fetchExploreCatalog: (queryOverride?: string) => Promise<void>;
+  activeDownloads: Record<string, ExploreDownloadProgress>;
+  startExploreDownload: (model: SmithsonianExploreModel) => Promise<void>;
+  completedDownloadPrompt: AssetInformation | null;
+  dismissCompletedDownloadPrompt: () => void;
+
+  // Metadata HUD visibility (controlled from mobile/webfront)
+  isMetadataVisible: boolean;
+  toggleMetadataVisible: () => void;
+  isFullMetadataOpen: boolean;
+  toggleFullMetadataModal: () => void;
   
   // Model controls
   sendModelJoystick: (direction: JoyStickDirection, xPos?: number, yPos?: number, zoom?: number, action?: string) => void;
@@ -93,6 +122,8 @@ interface StageContextValue {
   setDefaultDisplayMode: (mode: DisplayMode) => void;
   environmentPreset: EnvironmentPreset;
   setEnvironmentPreset: (preset: EnvironmentPreset) => void;
+  qualityTier: QualityTier;
+  setQualityTier: (tier: QualityTier) => void;
 
   // Stereoscopic & Stage Calibration Settings
   stereoSettings: StereoAdjustSettings;
@@ -129,6 +160,18 @@ interface StageContextValue {
   toasts: ToastMessage[];
   addToast: (title: string, message: string, type?: 'info' | 'success' | 'warning' | 'error') => void;
   removeToast: (id: string) => void;
+
+  // Multi-Stage Orchestration
+  stages: StageNode[];
+  selectedStageIds: Set<string>;
+  setSelectedStageIds: (ids: string[] | Set<string>) => void;
+  toggleStageSelection: (stageId: string) => void;
+  selectAllStages: () => void;
+  clearStageSelection: () => void;
+  selectStageGroup: (groupName: string) => void;
+  purgeOfflineStages: () => void;
+  isStageDirectorOpen: boolean;
+  setIsStageDirectorOpen: (open: boolean) => void;
 }
 
 const StageContext = createContext<StageContextValue | null>(null);
@@ -146,6 +189,25 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [activeAsset, setActiveAsset] = useState<AssetInformation | null>(null);
   const [isControllerOpen, setIsControllerOpen] = useState<boolean>(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
+  const [inspectedAsset, setInspectedAsset] = useState<AssetInformation | SmithsonianExploreModel | null>(null);
+
+  // Smithsonian Explore & Background Downloads state
+  const [catalogTab, setCatalogTab] = useState<'downloaded' | 'explore'>('downloaded');
+  const [exploreModels, setExploreModels] = useState<SmithsonianExploreModel[]>([]);
+  const [isExploreLoading, setIsExploreLoading] = useState<boolean>(false);
+  const [isExploreOffline, setIsExploreOffline] = useState<boolean>(false);
+  const [exploreOfflineReason, setExploreOfflineReason] = useState<string | null>(null);
+  const [exploreQuery, setExploreQuery] = useState<string>('');
+  const [activeDownloads, setActiveDownloads] = useState<Record<string, ExploreDownloadProgress>>({});
+  const [completedDownloadPrompt, setCompletedDownloadPrompt] = useState<AssetInformation | null>(null);
+  const [isMetadataVisible, setIsMetadataVisible] = useState<boolean>(true);
+  const [isFullMetadataOpen, setIsFullMetadataOpen] = useState<boolean>(false);
+
+  // Track whether the user is currently viewing the Explore screen
+  const isUserOnExploreScreenRef = useRef<boolean>(false);
+  useEffect(() => {
+    isUserOnExploreScreenRef.current = catalogTab === 'explore' && !isControllerOpen && !isSettingsOpen;
+  }, [catalogTab, isControllerOpen, isSettingsOpen]);
   
   // Model & stage state
   const [currentMovableMode, setCurrentMovableMode] = useState<MoveableAssetType>(MoveableAssetType.Rotate);
@@ -158,6 +220,7 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [displayMode, setDisplayModeState] = useState<DisplayMode>(StorageService.getDisplayMode());
   const [defaultDisplayMode, setDefaultDisplayModeState] = useState<DisplayMode>(StorageService.getDefaultDisplayMode());
   const [environmentPreset, setEnvironmentPresetState] = useState<EnvironmentPreset>(StorageService.getEnvironmentPreset());
+  const [qualityTier, setQualityTierState] = useState<QualityTier>(StorageService.getQualityTier());
   const [recentAssetIds, setRecentAssetIds] = useState<string[]>(StorageService.getRecentAssets());
   const [favouriteAssetIds, setFavouriteAssetIds] = useState<string[]>(StorageService.getFavouriteAssets());
   const [controlLock, setControlLock] = useState<ControlLockState>(DEFAULT_CONTROL_LOCK);
@@ -177,6 +240,45 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [slideDuration, setSlideDurationState] = useState<number>(StorageService.getSlideDuration());
   const slideshowTimerRef = useRef<number | null>(null);
   
+  // Multi-Stage Orchestration state
+  const [stages, setStages] = useState<StageNode[]>(stageSocket.getStages());
+  const [selectedStageIds, setSelectedStageIdsState] = useState<Set<string>>(stageSocket.getSelectedStageIds());
+  const [isStageDirectorOpen, setIsStageDirectorOpen] = useState<boolean>(false);
+
+  useEffect(() => {
+    const unsubStages = stageSocket.onStagesChange((newStages, newSelected) => {
+      setStages([...newStages]);
+      setSelectedStageIdsState(new Set(newSelected));
+    });
+    return () => {
+      unsubStages();
+    };
+  }, []);
+
+  const toggleStageSelection = useCallback((stageId: string) => {
+    stageSocket.toggleStageSelection(stageId);
+  }, []);
+
+  const selectAllStages = useCallback(() => {
+    stageSocket.selectAllStages();
+  }, []);
+
+  const clearStageSelection = useCallback(() => {
+    stageSocket.clearStageSelection();
+  }, []);
+
+  const selectStageGroup = useCallback((groupName: string) => {
+    stageSocket.selectStageGroup(groupName);
+  }, []);
+
+  const purgeOfflineStages = useCallback(() => {
+    stageSocket.purgeOfflineStages();
+  }, []);
+
+  const setSelectedStageIds = useCallback((ids: string[] | Set<string>) => {
+    stageSocket.setSelectedStageIds(ids);
+  }, []);
+
   // Notifications
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
@@ -245,7 +347,7 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           Category: resolveCategory(item)
         }));
 
-        const signature = normalizedAssets.map((a) => `${a.AssetID}:${a.isloaded ? 1 : 0}`).join('|');
+        const signature = normalizedAssets.map((a) => `${a.AssetID}:${a.isloaded ? 1 : 0}:${a.smithsonianId || ''}`).join('|');
         if (signature === lastAssetsSignatureRef.current) {
           return;
         }
@@ -444,6 +546,16 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         return;
       }
 
+      // Quality tier is authoritative from the stage (e.g. DetectDefault on start, or Kiosk F10 menu changes)
+      if (eventName === StaticStrings.QualityTierActionKey) {
+        const reported = parseQualityTier(data);
+        if (reported !== null) {
+          setQualityTierState(reported);
+          StorageService.saveQualityTier(reported);
+        }
+        return;
+      }
+
       if (eventName === StaticStrings.ControlLockState && data) {
         setControlLock((prev) => {
           const next: ControlLockState = {
@@ -462,6 +574,89 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           stageSocket.setStageControl(next.youHaveControl);
           return next;
         });
+        return;
+      }
+
+      if (eventName === StaticStrings.MetadataActionKey && data) {
+        if (typeof data.visible === 'boolean') {
+          setIsMetadataVisible(data.visible);
+        }
+        return;
+      }
+
+      if (eventName === 'explore-download-progress' && data && (data.smithsonianId || data.id)) {
+        const sid = data.smithsonianId || data.id;
+        setActiveDownloads((prev) => ({
+          ...prev,
+          [sid]: {
+            smithsonianId: sid,
+            title: data.title || prev[sid]?.title || 'Smithsonian 3D Model',
+            status: 'downloading',
+            progress: typeof data.progress === 'number' ? data.progress : 0,
+            downloadedBytes: data.downloadedBytes || 0,
+            totalBytes: data.totalBytes || 0
+          }
+        }));
+        return;
+      }
+
+      if (eventName === 'explore-download-complete' && data && data.asset) {
+        const sid = data.smithsonianId || data.id || data.asset.smithsonianId;
+        const completedAsset: AssetInformation = {
+          ...data.asset,
+          Category: resolveCategory(data.asset)
+        };
+
+        if (sid) {
+          setActiveDownloads((prev) => {
+            const next = { ...prev };
+            delete next[sid];
+            return next;
+          });
+          setExploreModels((prev) =>
+            prev.map((m) =>
+              m.smithsonianId === sid
+                ? { ...m, isDownloaded: true, downloadedAssetId: completedAsset.AssetID }
+                : m
+            )
+          );
+        }
+
+        // Optimistically add to local downloaded assets list if not already present
+        setAssets((prev) => {
+          const exists = prev.some((a) => a.AssetID === completedAsset.AssetID);
+          const next = exists
+            ? prev.map((a) => (a.AssetID === completedAsset.AssetID ? completedAsset : a))
+            : [...prev, completedAsset];
+          const names = Array.from(new Set(next.map((a) => a.PlaylistName).filter(Boolean)));
+          setPlaylists(['All', ...names]);
+          return next;
+        });
+
+        // Request thumbnail right away so it is cached
+        requestThumbnail(completedAsset.AssetID);
+
+        if (isUserOnExploreScreenRef.current) {
+          // User is still on the Explore screen -> load model directly onto the stage
+          addToast('Download Complete', `Loading "${completedAsset.AssetName}" onto stage...`, 'success');
+          loadAssetRef.current(completedAsset);
+        } else {
+          // User moved away from the Explore screen -> show Popup on Webfront asking to Load or not
+          setCompletedDownloadPrompt(completedAsset);
+        }
+        return;
+      }
+
+      if (eventName === 'explore-download-error' && data) {
+        const sid = data.smithsonianId || data.id;
+        if (sid) {
+          setActiveDownloads((prev) => {
+            const next = { ...prev };
+            delete next[sid];
+            return next;
+          });
+        }
+        addToast('Download Failed', data.error || `Failed to download ${data.title || 'model'}`, 'error');
         return;
       }
 
@@ -502,7 +697,7 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       unsubBlocked();
       unsubTransport();
     };
-  }, [addToast, parseAndSetAssets]);
+  }, [addToast, parseAndSetAssets, requestThumbnail]);
 
   // Load Asset on Stage
   const loadAsset = useCallback((asset: AssetInformation) => {
@@ -523,16 +718,29 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setIsControllerOpen(true);
     setRecentAssetIds(StorageService.pushRecentAsset(asset.AssetID));
 
+    const hasMeta = hasModelMetadata(normalized);
+    setIsMetadataVisible(hasMeta);
+    setIsFullMetadataOpen(false);
+
     const assetPayload = {
       uuid: asset.AssetID,
       title: asset.AssetName,
       name: asset.ModelPath || asset.AssetName,
       action: asset.ModelPath || asset.AssetName,
       thumb_image: asset.ThumbnailImagePath || '',
-      type: normalized.Category.toString()
+      type: normalized.Category.toString(),
+      smithsonianId: asset.smithsonianId || '',
+      metadata: asset.metadata || null
     };
 
     stageSocket.sendLoadAsset(assetPayload);
+    stageSocket.sendMetadataAction({
+      visible: hasMeta,
+      fullScreen: false,
+      assetId: asset.AssetID,
+      title: asset.AssetName,
+      metadata: hasMeta ? asset.metadata || null : null
+    });
     
     if (normalized.Category === DataType.Model) {
       setCurrentMovableMode(MoveableAssetType.Rotate);
@@ -543,14 +751,159 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, [addToast]);
 
+  const loadAssetRef = useRef(loadAsset);
+  loadAssetRef.current = loadAsset;
+
   // Unload Asset
   const unloadAsset = useCallback(() => {
     const modelControl: ModelControl = { isAssetClose: 'true', action: 'reset' };
     stageSocket.sendModelControl(modelControl);
+    stageSocket.sendMetadataAction({ visible: false, fullScreen: false, metadata: null });
+    setIsFullMetadataOpen(false);
     setActiveAsset(null);
     setIsControllerOpen(false);
     setIsVideoPlaying(false);
   }, []);
+
+  const toggleMetadataVisible = useCallback(() => {
+    setIsMetadataVisible((prev) => {
+      const next = !prev;
+      if (!next) {
+        setIsFullMetadataOpen(false);
+      }
+      stageSocket.sendMetadataAction({
+        visible: next,
+        fullScreen: false,
+        assetId: activeAsset?.AssetID,
+        title: activeAsset?.AssetName,
+        metadata: activeAsset?.metadata || null
+      });
+      return next;
+    });
+  }, [activeAsset]);
+
+  const toggleFullMetadataModal = useCallback(() => {
+    setIsFullMetadataOpen((prev) => {
+      const next = !prev;
+      if (next) {
+        setIsMetadataVisible(true);
+      }
+      stageSocket.sendMetadataAction({
+        visible: true,
+        fullScreen: next,
+        assetId: activeAsset?.AssetID,
+        title: activeAsset?.AssetName,
+        metadata: activeAsset?.metadata || null
+      });
+      return next;
+    });
+  }, [activeAsset]);
+
+  const dismissCompletedDownloadPrompt = useCallback(() => {
+    setCompletedDownloadPrompt(null);
+  }, []);
+
+  // Fetch 10 random CC0 models from Smithsonian Explore endpoint on Node server
+  const fetchExploreCatalog = useCallback(async (queryOverride?: string) => {
+    const q = queryOverride !== undefined ? queryOverride : exploreQuery;
+    setIsExploreLoading(true);
+    setIsExploreOffline(false);
+    setExploreOfflineReason(null);
+
+    try {
+      const baseUrl = stageSocket.getHttpBaseUrl();
+      const url = `${baseUrl}/api/explore/models?count=10&q=${encodeURIComponent(q.trim())}&ngrok-skip-browser-warning=true`;
+      const res = await fetch(url, {
+        headers: {
+          'ngrok-skip-browser-warning': 'true',
+          Accept: 'application/json'
+        }
+      });
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+      const data = await res.json();
+      if (data.offline || data.ok === false) {
+        setIsExploreOffline(true);
+        const rawMsg = data.message || data.error || 'Smithsonian 3D is unreachable (offline).';
+        setExploreOfflineReason(String(rawMsg).replace(/\s*API\b/gi, ''));
+        setExploreModels([]);
+      } else {
+        setIsExploreOffline(false);
+        setExploreOfflineReason(null);
+        const rawModels = Array.isArray(data.models) ? data.models : [];
+        const normalizedModels: SmithsonianExploreModel[] = rawModels.map((m: any) => {
+          const sid = m.smithsonianId || m.id || '';
+          return {
+            ...m,
+            smithsonianId: sid,
+            packageUuid: m.packageUuid || String(sid).replace(/^3d_package:/i, ''),
+            downloadedAssetId: m.downloadedAssetId || m.localAssetId || m.assetId || null
+          };
+        });
+        setExploreModels(normalizedModels);
+      }
+    } catch (err: any) {
+      setIsExploreOffline(true);
+      const rawErr = err?.message || 'Unable to reach Node server or Smithsonian 3D.';
+      setExploreOfflineReason(String(rawErr).replace(/\s*API\b/gi, ''));
+    } finally {
+      setIsExploreLoading(false);
+    }
+  }, [exploreQuery]);
+
+  // Automatically fetch initial 10 random models when user opens the Explore tab for the first time
+  const hasFetchedInitialExploreRef = useRef<boolean>(false);
+  useEffect(() => {
+    if (catalogTab === 'explore' && !hasFetchedInitialExploreRef.current && exploreModels.length === 0 && !isExploreLoading) {
+      hasFetchedInitialExploreRef.current = true;
+      fetchExploreCatalog('');
+    }
+  }, [catalogTab, exploreModels.length, isExploreLoading, fetchExploreCatalog]);
+
+  // Trigger a background model download on the Node server
+  const startExploreDownload = useCallback(async (model: SmithsonianExploreModel) => {
+    const sid = model?.smithsonianId || (model as any)?.id;
+    if (!model || !sid) return;
+
+    const payloadModel = {
+      ...model,
+      id: sid,
+      smithsonianId: sid
+    };
+
+    setActiveDownloads((prev) => ({
+      ...prev,
+      [sid]: {
+        smithsonianId: sid,
+        title: model.title,
+        status: 'downloading',
+        progress: prev[sid]?.progress || 0,
+        downloadedBytes: prev[sid]?.downloadedBytes || 0,
+        totalBytes: model.fileSizeBytes || 0
+      }
+    }));
+
+    try {
+      const baseUrl = stageSocket.getHttpBaseUrl();
+      const res = await fetch(`${baseUrl}/api/explore/download`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'ngrok-skip-browser-warning': 'true'
+        },
+        body: JSON.stringify(payloadModel)
+      });
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+      addToast('Downloading', `Downloading "${model.title}" in background...`, 'info');
+    } catch {
+      // Fallback to Socket.IO event if HTTP POST fails
+      stageSocket.startExploreDownload(payloadModel as SmithsonianExploreModel);
+      addToast('Downloading', `Downloading "${model.title}" in background...`, 'info');
+    }
+  }, [addToast]);
 
   // 3D Model Joystick Controls
   const sendModelJoystick = useCallback((direction: JoyStickDirection, xPos?: number, yPos?: number, zoom?: number, action?: string) => {
@@ -646,6 +999,16 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setEnvironmentPresetState(preset);
     StorageService.saveEnvironmentPreset(preset);
     stageSocket.sendEnvironmentPreset(preset);
+  }, []);
+
+  /**
+   * Set the graphics quality tier on the stage.
+   * Optimistic locally, then confirmed by Unity's echo.
+   */
+  const setQualityTier = useCallback((tier: QualityTier) => {
+    setQualityTierState(tier);
+    StorageService.saveQualityTier(tier);
+    stageSocket.sendQualityTier(tier);
   }, []);
 
   const toggleStereoscopic = useCallback(() => {
@@ -872,6 +1235,25 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setIsControllerOpen,
     isSettingsOpen,
     setIsSettingsOpen,
+    inspectedAsset,
+    setInspectedAsset,
+    catalogTab,
+    setCatalogTab,
+    exploreModels,
+    isExploreLoading,
+    isExploreOffline,
+    exploreOfflineReason,
+    exploreQuery,
+    setExploreQuery,
+    fetchExploreCatalog,
+    activeDownloads,
+    startExploreDownload,
+    completedDownloadPrompt,
+    dismissCompletedDownloadPrompt,
+    isMetadataVisible,
+    toggleMetadataVisible,
+    isFullMetadataOpen,
+    toggleFullMetadataModal,
     sendModelJoystick,
     resetModelTransform,
     syncModelTransform,
@@ -889,6 +1271,8 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setDefaultDisplayMode,
     environmentPreset,
     setEnvironmentPreset,
+    qualityTier,
+    setQualityTier,
     recentAssetIds,
     favouriteAssetIds,
     toggleFavourite,
@@ -922,7 +1306,17 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     refreshAssets,
     toasts,
     addToast,
-    removeToast
+    removeToast,
+    stages,
+    selectedStageIds,
+    setSelectedStageIds,
+    toggleStageSelection,
+    selectAllStages,
+    clearStageSelection,
+    selectStageGroup,
+    purgeOfflineStages,
+    isStageDirectorOpen,
+    setIsStageDirectorOpen
   };
 
   return <StageContext.Provider value={value}>{children}</StageContext.Provider>;
