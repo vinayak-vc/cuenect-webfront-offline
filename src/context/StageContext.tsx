@@ -21,6 +21,11 @@ import {
   parseEnvironmentPreset,
   QualityTier,
   parseQualityTier,
+  CustomGraphicsProfile,
+  parseCustomProfile,
+  sanitizeCustomProfile,
+  StageDiagnostics,
+  parseStageDiagnostics,
   ControlLockState,
   DEFAULT_CONTROL_LOCK,
   ModelTransformPayload,
@@ -124,6 +129,12 @@ interface StageContextValue {
   setEnvironmentPreset: (preset: EnvironmentPreset) => void;
   qualityTier: QualityTier;
   setQualityTier: (tier: QualityTier) => void;
+  /** The profile the Custom tier uses (HE-23), and a way to change part of it. */
+  customProfile: CustomGraphicsProfile;
+  updateCustomProfile: (changes: Partial<CustomGraphicsProfile>) => void;
+  /** The stage's latest health report, and the round trip to it in ms (B-015). Both null until the stage answers. */
+  stageDiagnostics: StageDiagnostics | null;
+  stageLatencyMs: number | null;
 
   // Stereoscopic & Stage Calibration Settings
   stereoSettings: StereoAdjustSettings;
@@ -221,6 +232,13 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [defaultDisplayMode, setDefaultDisplayModeState] = useState<DisplayMode>(StorageService.getDefaultDisplayMode());
   const [environmentPreset, setEnvironmentPresetState] = useState<EnvironmentPreset>(StorageService.getEnvironmentPreset());
   const [qualityTier, setQualityTierState] = useState<QualityTier>(StorageService.getQualityTier());
+  const [stageDiagnostics, setStageDiagnostics] = useState<StageDiagnostics | null>(null);
+  const [stageLatencyMs, setStageLatencyMs] = useState<number | null>(null);
+  const pingSentRef = useRef<Map<string, number>>(new Map());
+  const [customProfile, setCustomProfileState] = useState<CustomGraphicsProfile>(StorageService.getCustomProfile());
+  const customProfileRef = useRef<CustomGraphicsProfile>(customProfile);
+  /** While an edit is waiting to be sent, an incoming report is older than the edit and must not overwrite it. */
+  const customSendTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [recentAssetIds, setRecentAssetIds] = useState<string[]>(StorageService.getRecentAssets());
   const [favouriteAssetIds, setFavouriteAssetIds] = useState<string[]>(StorageService.getFavouriteAssets());
   const [controlLock, setControlLock] = useState<ControlLockState>(DEFAULT_CONTROL_LOCK);
@@ -365,6 +383,31 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, [addToast]);
 
+  // B-015: time the round trip to the stage every few seconds while connected; forget it all when the link drops.
+  useEffect(() => {
+    if (connectionState !== 'connected') {
+      setStageDiagnostics(null);
+      setStageLatencyMs(null);
+      pingSentRef.current.clear();
+      return undefined;
+    }
+
+    const sendPing = () => {
+      const id = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+      const sent = pingSentRef.current;
+      sent.set(id, performance.now());
+      if (sent.size > 12) {
+        const oldest = sent.keys().next().value;
+        if (oldest !== undefined) sent.delete(oldest);
+      }
+      stageSocket.emitEvent('stage-ping', { id });
+    };
+
+    sendPing();
+    const timer = setInterval(sendPing, 5000);
+    return () => clearInterval(timer);
+  }, [connectionState]);
+
   const refreshAssets = useCallback(() => {
     if (connectionState === 'connected') {
       requestedThumbnailsRef.current.clear();
@@ -504,6 +547,21 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         return;
       }
 
+      if (eventName === 'stage-diagnostics') {
+        const report = parseStageDiagnostics(data);
+        if (report !== null) setStageDiagnostics(report);
+        return;
+      }
+
+      if (eventName === 'stage-pong' && data && typeof data.id === 'string') {
+        const sentAt = pingSentRef.current.get(data.id);
+        if (sentAt !== undefined) {
+          pingSentRef.current.delete(data.id);
+          setStageLatencyMs(Math.round(performance.now() - sentAt));
+        }
+        return;
+      }
+
       // The stage is authoritative about which projection is actually live: it can
       // refuse HOLO (the player is not on OpenGL Core), be switched by its own F5
       // hotkey, or be driven by another operator. Adopt what it reports and never
@@ -552,6 +610,14 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         if (reported !== null) {
           setQualityTierState(reported);
           StorageService.saveQualityTier(reported);
+        }
+        if (customSendTimer.current === null) {
+          const reportedProfile = parseCustomProfile(data, customProfileRef.current);
+          if (reportedProfile !== null) {
+            customProfileRef.current = reportedProfile;
+            setCustomProfileState(reportedProfile);
+            StorageService.saveCustomProfile(reportedProfile);
+          }
         }
         return;
       }
@@ -1008,7 +1074,28 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const setQualityTier = useCallback((tier: QualityTier) => {
     setQualityTierState(tier);
     StorageService.saveQualityTier(tier);
-    stageSocket.sendQualityTier(tier);
+    stageSocket.sendQualityTier(tier, tier === QualityTier.Custom ? customProfileRef.current : undefined);
+  }, []);
+
+  /**
+   * Change part of the Custom profile (HE-23). The edit is applied here at once and sent after a short pause, so dragging a
+   * slider sends one message rather than a stream. Editing implies the Custom tier.
+   */
+  const updateCustomProfile = useCallback((changes: Partial<CustomGraphicsProfile>) => {
+    const next = sanitizeCustomProfile({ ...customProfileRef.current, ...changes }, customProfileRef.current);
+    customProfileRef.current = next;
+    setCustomProfileState(next);
+    StorageService.saveCustomProfile(next);
+    setQualityTierState(QualityTier.Custom);
+    StorageService.saveQualityTier(QualityTier.Custom);
+
+    if (customSendTimer.current !== null) {
+      clearTimeout(customSendTimer.current);
+    }
+    customSendTimer.current = setTimeout(() => {
+      customSendTimer.current = null;
+      stageSocket.sendQualityTier(QualityTier.Custom, customProfileRef.current);
+    }, 350);
   }, []);
 
   const toggleStereoscopic = useCallback(() => {
@@ -1273,6 +1360,10 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setEnvironmentPreset,
     qualityTier,
     setQualityTier,
+    customProfile,
+    updateCustomProfile,
+    stageDiagnostics,
+    stageLatencyMs,
     recentAssetIds,
     favouriteAssetIds,
     toggleFavourite,

@@ -9,7 +9,10 @@ import {
   DEFAULT_ENVIRONMENT_PRESET,
   QualityTier,
   QualityTierNames,
-  DEFAULT_QUALITY_TIER
+  DEFAULT_QUALITY_TIER,
+  CustomGraphicsProfile,
+  DEFAULT_CUSTOM_PROFILE,
+  sanitizeCustomProfile
 } from '../types/protocol';
 
 const STORAGE_KEYS = {
@@ -24,6 +27,7 @@ const STORAGE_KEYS = {
   DEFAULT_DISPLAY_MODE: 'cuenect_default_display_mode',
   ENVIRONMENT_PRESET: 'cuenect_environment_preset',
   QUALITY_TIER: 'cuenect_quality_tier',
+  CUSTOM_PROFILE: 'cuenect_custom_graphics_profile',
   RECENT_ASSETS: 'cuenect_recent_assets',
   FAVOURITE_ASSETS: 'cuenect_favourite_assets'
 } as const;
@@ -145,6 +149,20 @@ export const StorageService = {
 
   saveQualityTier(tier: QualityTier): void {
     localStorage.setItem(STORAGE_KEYS.QUALITY_TIER, tier.toString());
+  },
+
+  getCustomProfile(): CustomGraphicsProfile {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEYS.CUSTOM_PROFILE);
+      if (raw === null) return { ...DEFAULT_CUSTOM_PROFILE };
+      return sanitizeCustomProfile(JSON.parse(raw));
+    } catch {
+      return { ...DEFAULT_CUSTOM_PROFILE };
+    }
+  },
+
+  saveCustomProfile(profile: CustomGraphicsProfile): void {
+    localStorage.setItem(STORAGE_KEYS.CUSTOM_PROFILE, JSON.stringify(profile));
   },
 
   getRecentAssets(): string[] {

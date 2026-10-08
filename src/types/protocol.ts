@@ -401,9 +401,169 @@ export const QualityTierDescriptions: Record<QualityTier, string> = {
 export interface QualityTierPayload {
   tier: QualityTier;
   tierName: string;
+  /** True when `custom` carries a profile. The stage sends it with every tier report so the Custom panel shows live values. */
+  hasCustom?: boolean;
+  custom?: CustomGraphicsProfile;
+}
+
+/**
+ * The graphics settings a controller may change through the Custom tier (HE-23). Field names are the stage's
+ * (`CustomGraphicsPayload` in Constants.cs). Display settings - resolution, full screen, v-sync - are not here on
+ * purpose: changing them from another machine can leave the kiosk without a picture.
+ */
+export interface CustomGraphicsProfile {
+  loadEnvironment: boolean;
+  probeVolume: boolean;
+  reflectionProbe: boolean;
+  heroMaterials: boolean;
+  volumetricShafts: boolean;
+  nebula: boolean;
+  motes: boolean;
+  moteCount: number;
+  causticFloor: boolean;
+  pointCloudReveal: boolean;
+  pointCloudCount: number;
+  pointCloudCoverage: number;
+  pointCloudMaxPointSize: number;
+  renderScale: number;
+  upscaler: number;
+  antiAliasing: number;
+  shadowQuality: number;
+  postProcessing: boolean;
+  hdrOutput: boolean;
+}
+
+/** Ranges the stage enforces (GraphicsSettingsModel.SanitizeAndMigrate); the panel uses the same ones. */
+export const CUSTOM_PROFILE_LIMITS = {
+  moteCount: { min: 0, max: 8000, step: 250 },
+  pointCloudCount: { min: 10000, max: 100000, step: 5000 },
+  pointCloudCoverage: { min: 0.5, max: 0.95, step: 0.05 },
+  pointCloudMaxPointSize: { min: 1, max: 6, step: 0.5 },
+  renderScale: { min: 0.5, max: 1, step: 0.05 },
+  upscaler: { min: 0, max: 2 },
+  antiAliasing: { min: 0, max: 3 },
+  shadowQuality: { min: 0, max: 3 }
+} as const;
+
+/** The High preset, which is where a Custom profile starts from. */
+export const DEFAULT_CUSTOM_PROFILE: CustomGraphicsProfile = {
+  loadEnvironment: true,
+  probeVolume: true,
+  reflectionProbe: true,
+  heroMaterials: true,
+  volumetricShafts: false,
+  nebula: true,
+  motes: true,
+  moteCount: 3000,
+  causticFloor: true,
+  pointCloudReveal: true,
+  pointCloudCount: 50000,
+  pointCloudCoverage: 0.75,
+  pointCloudMaxPointSize: 3,
+  renderScale: 1,
+  upscaler: 0,
+  antiAliasing: 0,
+  shadowQuality: 2,
+  postProcessing: true,
+  hdrOutput: false
+};
+
+const CUSTOM_BOOLEAN_KEYS: Array<keyof CustomGraphicsProfile> = [
+  'loadEnvironment', 'probeVolume', 'reflectionProbe', 'heroMaterials', 'volumetricShafts', 'nebula',
+  'motes', 'causticFloor', 'pointCloudReveal', 'postProcessing', 'hdrOutput'
+];
+
+const CUSTOM_NUMBER_KEYS = [
+  'moteCount', 'pointCloudCount', 'pointCloudCoverage', 'pointCloudMaxPointSize',
+  'renderScale', 'upscaler', 'antiAliasing', 'shadowQuality'
+] as const;
+
+/**
+ * A complete, in-range profile from whatever was received or stored. A field that is missing or the wrong type falls
+ * back to `base`, a number is clamped, and the integer fields are rounded, so a bad payload cannot put the panel (or the
+ * stage) into a state it did not offer.
+ */
+export function sanitizeCustomProfile(
+  raw: unknown,
+  base: CustomGraphicsProfile = DEFAULT_CUSTOM_PROFILE
+): CustomGraphicsProfile {
+  const source = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
+  const result: CustomGraphicsProfile = { ...base };
+
+  for (const key of CUSTOM_BOOLEAN_KEYS) {
+    if (typeof source[key] === 'boolean') {
+      (result as unknown as Record<string, unknown>)[key] = source[key];
+    }
+  }
+
+  for (const key of CUSTOM_NUMBER_KEYS) {
+    const value = source[key];
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      const limit = CUSTOM_PROFILE_LIMITS[key];
+      const clamped = Math.min(limit.max, Math.max(limit.min, value));
+      const integer = key === 'moteCount' || key === 'pointCloudCount' || key === 'upscaler'
+        || key === 'antiAliasing' || key === 'shadowQuality';
+      (result as unknown as Record<string, unknown>)[key] = integer ? Math.round(clamped) : clamped;
+    }
+  }
+
+  return result;
+}
+
+/** The custom profile in a quality-tier report, or null when the stage did not send one. */
+export function parseCustomProfile(
+  payload: { hasCustom?: unknown; custom?: unknown } | null | undefined,
+  base: CustomGraphicsProfile = DEFAULT_CUSTOM_PROFILE
+): CustomGraphicsProfile | null {
+  if (!payload || payload.hasCustom !== true || !payload.custom) return null;
+  return sanitizeCustomProfile(payload.custom, base);
 }
 
 export const DEFAULT_QUALITY_TIER: QualityTier = QualityTier.High;
+
+/** The stage's live health, published every two seconds (B-015). Field names are the stage's `StageDiagnosticsPayload`. */
+export interface StageDiagnostics {
+  fps: number;
+  frameMs: number;
+  worstFrameMs: number;
+  gpu: string;
+  graphicsApi: string;
+  width: number;
+  height: number;
+  displayMode: string;
+  qualityTier: string;
+  memoryMb: number;
+  uptimeSeconds: number;
+  version: string;
+  /** Local time (ms) the report arrived, to tell a fresh report from a stale one. */
+  receivedAt: number;
+}
+
+/** A diagnostics report from whatever was received, or null when it is not one. Bad numbers become 0. */
+export function parseStageDiagnostics(raw: unknown, now: number = Date.now()): StageDiagnostics | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const source = raw as Record<string, unknown>;
+  if (typeof source.fps !== 'number' || !Number.isFinite(source.fps)) return null;
+
+  const number = (value: unknown): number => (typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : 0);
+  const text = (value: unknown): string => (typeof value === 'string' ? value.slice(0, 120) : '');
+
+  return {
+    fps: number(source.fps),
+    frameMs: number(source.frameMs),
+    worstFrameMs: number(source.worstFrameMs),
+    gpu: text(source.gpu),
+    graphicsApi: text(source.graphicsApi),
+    width: Math.round(number(source.width)),
+    height: Math.round(number(source.height)),
+    displayMode: text(source.displayMode),
+    qualityTier: text(source.qualityTier),
+    memoryMb: Math.round(number(source.memoryMb)),
+    uptimeSeconds: Math.round(number(source.uptimeSeconds)),
+    version: text(source.version),
+    receivedAt: now
+  };
+}
 
 /**
  * Resolve a quality tier from whatever the stage reports. The stage echoes both the

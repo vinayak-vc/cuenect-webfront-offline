@@ -8,6 +8,7 @@ import {
   QualityTierLabels
 } from '../../types/protocol';
 import { PresentationPanel } from '../Presentation/PresentationPanel';
+import { StageDiagnosticsCard } from './StageDiagnosticsCard';
 import {
   Monitor,
   RotateCcw,
@@ -241,6 +242,8 @@ export const MoreSheet: React.FC<MoreSheetProps> = ({
           {/* Section 4: SYSTEM & OPTICS */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <span className="u-section-label">System & Optics</span>
+
+            {connectionState === 'connected' && <StageDiagnosticsCard />}
 
             <div className="sheet-action-list">
               <button

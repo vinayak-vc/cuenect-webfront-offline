@@ -16,6 +16,7 @@ import {
   EnvironmentPresetNames,
   QualityTier,
   QualityTierPayload,
+  CustomGraphicsProfile,
   QualityTierNames,
   MetadataActionPayload,
   SmithsonianExploreModel,
@@ -835,11 +836,16 @@ export class StageSocketService {
    * Set the graphics quality tier on the hologram stage viewer.
    * Both `tier` and `tierName` are sent to ensure Unity's parser resolves either field.
    */
-  public sendQualityTier(tier: QualityTier): void {
+  public sendQualityTier(tier: QualityTier, custom?: CustomGraphicsProfile): void {
     const payload: QualityTierPayload = {
       tier,
       tierName: QualityTierNames[tier]
     };
+    // HE-23: the Custom tier carries the profile the stage should adopt; the presets never do.
+    if (tier === QualityTier.Custom && custom) {
+      payload.hasCustom = true;
+      payload.custom = custom;
+    }
     this.emitEvent(StaticStrings.QualityTierActionKey, payload);
   }
 

@@ -11,6 +11,7 @@ import {
   QualityTierDescriptions
 } from '../../types/protocol';
 import { BottomSheet } from '../Common/BottomSheet';
+import { CustomGraphicsEditor } from './CustomGraphicsEditor';
 import {
   Monitor,
   Layers,
@@ -115,6 +116,13 @@ const QUALITY_OPTIONS: Array<{
     tag: 'Max Immersion',
     cost: '~1.6 ms',
     desc: QualityTierDescriptions[QualityTier.Ultra]
+  },
+  {
+    tier: QualityTier.Custom,
+    icon: <Sliders size={17} />,
+    tag: 'Your settings',
+    cost: 'varies',
+    desc: 'Choose every environment, point-cloud and rendering setting yourself.'
   }
 ];
 
@@ -317,7 +325,7 @@ export const PresentationPanel: React.FC<PresentationPanelProps> = ({
                   Custom Profile Active
                 </strong>
                 <span style={{ color: 'var(--text-secondary)', fontSize: '0.72rem', display: 'block', marginTop: 2 }}>
-                  Configured in kiosk display settings (F10 / G). Selecting any tier below applies that preset and restores defaults.
+                  Change the settings below; the stage applies them as you go. Selecting any other tier applies that preset instead (your custom settings are kept for next time).
                 </span>
               </div>
             </div>
@@ -397,6 +405,8 @@ export const PresentationPanel: React.FC<PresentationPanelProps> = ({
               );
             })}
           </div>
+
+          {qualityTier === QualityTier.Custom && <CustomGraphicsEditor />}
         </div>
 
         {/* Section 4: Camera Optics & Projection Geometry */}
