@@ -81,17 +81,6 @@ export const StageStatusTrigger: React.FC = () => {
         <Monitor size={15} style={{ color: isTargeted ? 'var(--accent-signature)' : 'inherit' }} />
         <span
           style={{
-            fontSize: '0.66rem',
-            letterSpacing: '0.06em',
-            textTransform: 'uppercase',
-            color: 'var(--text-muted)',
-            fontWeight: 600
-          }}
-        >
-          Stages
-        </span>
-        <span
-          style={{
             fontSize: '0.78rem',
             fontWeight: 700,
             color: isTargeted ? 'var(--accent-signature)' : 'var(--text-primary)'

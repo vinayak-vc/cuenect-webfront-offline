@@ -7,6 +7,7 @@ import './styles/index.css';
 import './styles/dpad.css';
 import './styles/system.css';
 import './styles/console.css';
+import './styles/motion.css';
 import { registerServiceWorker } from './services/pwaService';
 
 registerServiceWorker();

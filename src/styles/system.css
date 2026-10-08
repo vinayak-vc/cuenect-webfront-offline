@@ -1721,8 +1721,8 @@ button,
   }
 }
 
-/* Below ~360px the wordmark yields to the controls. */
-@media (max-width: 359px) {
+/* Below 640px (mobile) the text wordmark yields to the controls so header items never overlap. */
+@media (max-width: 639px) {
   .header-title-wrap {
     display: none;
   }

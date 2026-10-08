@@ -24,7 +24,6 @@ import {
   Image as ImageIcon,
   Film,
   Camera,
-  Sun,
   Search,
   Move,
   RefreshCw,
@@ -957,36 +956,6 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
           <Move size={15} />
           <span>Pan / Translate</span>
           {currentMovableMode === MoveableAssetType.Pan && (
-            <Check size={14} className="ctx-check" />
-          )}
-        </button>
-
-        <button
-          type="button"
-          className={`ctx-item ${currentMovableMode === MoveableAssetType.Spotlight ? 'active' : ''}`}
-          onClick={() => {
-            setMovableMode(MoveableAssetType.Spotlight);
-            closeMenu();
-          }}
-        >
-          <Sun size={15} />
-          <span>Spotlight / Lighting</span>
-          {currentMovableMode === MoveableAssetType.Spotlight && (
-            <Check size={14} className="ctx-check" />
-          )}
-        </button>
-
-        <button
-          type="button"
-          className={`ctx-item ${currentMovableMode === MoveableAssetType.Magnifier ? 'active' : ''}`}
-          onClick={() => {
-            setMovableMode(MoveableAssetType.Magnifier);
-            closeMenu();
-          }}
-        >
-          <Search size={15} />
-          <span>Magnifier Lens</span>
-          {currentMovableMode === MoveableAssetType.Magnifier && (
             <Check size={14} className="ctx-check" />
           )}
         </button>

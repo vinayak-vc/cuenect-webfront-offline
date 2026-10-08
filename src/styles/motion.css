@@ -1,0 +1,365 @@
+/* ============================================================================
+   CUENECT Stage Controller - Modern Motion & Animation System
+   ----------------------------------------------------------------------------
+   Centralized animation system prioritizing 60fps performance on mobile & desktop.
+   Uses transform/opacity only, respects prefers-reduced-motion, and provides
+   subtle futuristic micro-interactions.
+   ========================================================================= */
+
+:root {
+  /* --- Motion Duration Tokens --- */
+  --motion-instant: 60ms;
+  --motion-fast: 120ms;
+  --motion-normal: 180ms;
+  --motion-smooth: 240ms;
+  --motion-slow: 300ms;
+
+  /* --- Motion Easing Tokens --- */
+  --ease-standard: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
+  --ease-soft: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-sharp: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* --- Stagger Timing --- */
+  --stagger-step: 40ms;
+  --stagger-max: 280ms;
+}
+
+/* --------------------------------------------------------------------------
+   1. PAGE / SCREEN TRANSITIONS
+   -------------------------------------------------------------------------- */
+@keyframes screen-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.screen-enter,
+.page-enter,
+.catalog-container,
+.state-panel {
+  animation: screen-enter var(--motion-smooth, 240ms) var(--ease-standard) both;
+  will-change: opacity, transform;
+}
+
+/* --------------------------------------------------------------------------
+   2. CARD ENTRANCE / STAGGER ANIMATION
+   -------------------------------------------------------------------------- */
+@keyframes card-entrance {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.asset-card.card-enter,
+.skeleton-card.card-enter {
+  animation: card-entrance var(--motion-smooth, 240ms) var(--ease-standard) both;
+  will-change: opacity, transform;
+}
+
+/* Stagger up to first 8 cards (caps at 280ms maximum delay for responsiveness) */
+.asset-card.card-enter:nth-child(1), .skeleton-card.card-enter:nth-child(1) { animation-delay: 0ms; }
+.asset-card.card-enter:nth-child(2), .skeleton-card.card-enter:nth-child(2) { animation-delay: 40ms; }
+.asset-card.card-enter:nth-child(3), .skeleton-card.card-enter:nth-child(3) { animation-delay: 80ms; }
+.asset-card.card-enter:nth-child(4), .skeleton-card.card-enter:nth-child(4) { animation-delay: 120ms; }
+.asset-card.card-enter:nth-child(5), .skeleton-card.card-enter:nth-child(5) { animation-delay: 160ms; }
+.asset-card.card-enter:nth-child(6), .skeleton-card.card-enter:nth-child(6) { animation-delay: 200ms; }
+.asset-card.card-enter:nth-child(7), .skeleton-card.card-enter:nth-child(7) { animation-delay: 240ms; }
+.asset-card.card-enter:nth-child(8), .skeleton-card.card-enter:nth-child(8) { animation-delay: 280ms; }
+.asset-card.card-enter:nth-child(n+9), .skeleton-card.card-enter:nth-child(n+9) { animation-delay: 280ms; }
+
+/* --------------------------------------------------------------------------
+   3. BUTTON PRESS / INTERACTION FEEDBACK
+   -------------------------------------------------------------------------- */
+.btn,
+.btn-primary,
+.btn-secondary,
+.btn-ghost,
+.btn-icon,
+.btn-card-load,
+.btn-card-playlist-action,
+.filter-chip,
+.stage-trigger,
+.dpad-btn,
+.status-pill {
+  transition: transform var(--motion-fast, 120ms) var(--ease-standard),
+              background var(--motion-normal, 180ms) var(--ease-standard),
+              border-color var(--motion-normal, 180ms) var(--ease-standard),
+              box-shadow var(--motion-normal, 180ms) var(--ease-standard),
+              filter var(--motion-fast, 120ms) var(--ease-standard);
+  will-change: transform;
+}
+
+.btn:active,
+.btn-primary:active,
+.btn-secondary:active,
+.btn-ghost:active,
+.btn-icon:active,
+.btn-card-load:active,
+.btn-card-playlist-action:active,
+.filter-chip:active,
+.stage-trigger:active,
+.status-pill:active,
+.interactive-tap:active {
+  transform: scale(0.96) !important;
+}
+
+/* --------------------------------------------------------------------------
+   4. CARD HOVER / TOUCH INTERACTION
+   -------------------------------------------------------------------------- */
+.asset-card {
+  transition: transform var(--motion-normal, 180ms) var(--ease-standard),
+              box-shadow var(--motion-normal, 180ms) var(--ease-standard),
+              border-color var(--motion-normal, 180ms) var(--ease-standard);
+  will-change: transform;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .asset-card:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--elev-floating), 0 0 16px rgba(104, 217, 208, 0.16);
+    border-color: var(--line-interactive);
+  }
+}
+
+.asset-card:active {
+  transform: translateY(0) scale(0.985);
+}
+
+/* --------------------------------------------------------------------------
+   5. IMAGE / THUMBNAIL LOADING ANIMATION
+   -------------------------------------------------------------------------- */
+@keyframes thumb-shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.asset-thumb-placeholder,
+.skeleton-block {
+  background: linear-gradient(
+    90deg,
+    rgba(12, 17, 26, 0.85) 0%,
+    rgba(24, 33, 49, 0.95) 50%,
+    rgba(12, 17, 26, 0.85) 100%
+  );
+  background-size: 200% 100%;
+  animation: thumb-shimmer 2.2s ease-in-out infinite;
+}
+
+.asset-thumb {
+  opacity: 0;
+  transition: opacity var(--motion-smooth, 220ms) var(--ease-standard),
+              transform var(--motion-normal, 180ms) var(--ease-standard);
+}
+
+.asset-thumb.loaded {
+  opacity: 1;
+}
+
+/* --------------------------------------------------------------------------
+   6. MODAL & DETAIL PANEL ANIMATION
+   -------------------------------------------------------------------------- */
+@keyframes backdrop-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes modal-content-enter {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes sheet-slide-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.modal-overlay,
+.sheet-backdrop {
+  animation: backdrop-fade-in var(--motion-smooth, 240ms) var(--ease-standard) both;
+}
+
+.modal-content,
+.modal-container {
+  animation: modal-content-enter var(--motion-smooth, 260ms) var(--ease-standard) both;
+  will-change: opacity, transform;
+}
+
+.sheet {
+  animation: sheet-slide-up var(--motion-slow, 280ms) var(--ease-standard) both;
+  will-change: transform;
+}
+
+@media (min-width: 768px) {
+  .sheet {
+    animation: modal-content-enter var(--motion-smooth, 260ms) var(--ease-standard) both;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   7. BOTTOM NAVIGATION ANIMATION
+   -------------------------------------------------------------------------- */
+@keyframes nav-icon-pop {
+  0% { transform: scale(0.9); }
+  60% { transform: scale(1.08); }
+  100% { transform: scale(1); }
+}
+
+@keyframes nav-pill-expand {
+  0% { width: 0; opacity: 0; }
+  100% { width: 26px; opacity: 1; }
+}
+
+.bottom-nav-item {
+  transition: color var(--motion-normal, 180ms) var(--ease-standard);
+}
+
+.bottom-nav-item.active svg {
+  animation: nav-icon-pop var(--motion-normal, 180ms) var(--ease-spring);
+}
+
+.bottom-nav-item.active::before {
+  animation: nav-pill-expand var(--motion-normal, 180ms) var(--ease-standard) both;
+  box-shadow: 0 0 10px rgba(104, 217, 208, 0.6);
+}
+
+/* --------------------------------------------------------------------------
+   8. SUCCESS & COMPLETION MICRO-ANIMATIONS
+   -------------------------------------------------------------------------- */
+@keyframes micro-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.12);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.anim-pop,
+.asset-live-badge,
+.asset-state-badge {
+  animation: micro-pop var(--motion-smooth, 250ms) var(--ease-spring) both;
+}
+
+@keyframes toast-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.toast-item {
+  animation: toast-slide-in var(--motion-smooth, 240ms) var(--ease-standard) both;
+}
+
+/* --------------------------------------------------------------------------
+   SPECIAL TOUCH: SUBTLE FUTURISTIC CYAN GLOW
+   -------------------------------------------------------------------------- */
+.glow-cyan-subtle {
+  position: relative;
+}
+
+.glow-cyan-subtle::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  box-shadow: 0 0 14px rgba(104, 217, 208, 0.28), inset 0 0 8px rgba(104, 217, 208, 0.12);
+  pointer-events: none;
+  opacity: 0.85;
+  transition: opacity var(--motion-normal, 180ms) var(--ease-standard);
+}
+
+.asset-card.active-stage {
+  border-color: rgba(104, 217, 208, 0.55);
+  box-shadow: 0 0 16px rgba(104, 217, 208, 0.2), var(--ring-accent);
+}
+
+/* --------------------------------------------------------------------------
+   ACCESSIBILITY: RESPECT REDUCED MOTION PREFERENCES
+   -------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .screen-enter,
+  .page-enter,
+  .catalog-container,
+  .state-panel,
+  .asset-card.card-enter,
+  .skeleton-card.card-enter,
+  .modal-overlay,
+  .sheet-backdrop,
+  .modal-content,
+  .modal-container,
+  .sheet,
+  .toast-item,
+  .anim-pop {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .asset-card:hover {
+    transform: none !important;
+  }
+
+  .btn:active,
+  .interactive-tap:active {
+    transform: none !important;
+  }
+
+  .asset-thumb {
+    opacity: 1 !important;
+    transition: none !important;
+  }
+
+  .asset-thumb-placeholder,
+  .skeleton-block {
+    animation: none !important;
+  }
+}

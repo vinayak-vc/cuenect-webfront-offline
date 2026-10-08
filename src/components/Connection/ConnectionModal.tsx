@@ -4,6 +4,8 @@ import { Modal } from '../Common/Modal';
 import { QRScannerModal } from './QRScannerModal';
 import { QrCode, Wifi, WifiOff, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
 import { ConnectionConfig } from '../../services/storage';
+import { LottieAnimation } from '../Common/LottieAnimation';
+import { successCheckLottie, futuristicLoaderLottie } from '../../animations/lottieData';
 
 interface ConnectionModalProps {
   isOpen: boolean;
@@ -121,7 +123,12 @@ export const ConnectionModal: React.FC<ConnectionModalProps> = ({ isOpen, onClos
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <CheckCircle2 size={18} style={{ color: 'var(--color-success)' }} />
+              <LottieAnimation
+                animationData={successCheckLottie}
+                loop={false}
+                size={22}
+                fallback={<CheckCircle2 size={18} style={{ color: 'var(--color-success)' }} />}
+              />
               <div>
                 <div style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--color-success)' }}>
                   Currently Connected
@@ -162,7 +169,12 @@ export const ConnectionModal: React.FC<ConnectionModalProps> = ({ isOpen, onClos
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Loader2 size={18} className="spin" style={{ color: 'var(--color-warning)' }} />
+              <LottieAnimation
+                animationData={futuristicLoaderLottie}
+                loop={true}
+                size={22}
+                fallback={<Loader2 size={18} className="spin" style={{ color: 'var(--color-warning)' }} />}
+              />
               <div>
                 <div style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--color-warning)' }}>
                   Connecting...

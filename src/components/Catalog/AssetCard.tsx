@@ -109,11 +109,13 @@ export const AssetCard: React.FC<AssetCardProps> = ({ asset }) => {
     }
   };
 
+  const [isImgLoaded, setIsImgLoaded] = React.useState(false);
+
   return (
     <div
       ref={cardRef}
       data-asset-id={asset.AssetID}
-      className={`asset-card ${isActive ? 'active-stage' : ''}`}
+      className={`asset-card card-enter ${isActive ? 'active-stage glow-cyan-subtle' : ''}`}
       onClick={handleCardClick}
       style={{ cursor: 'pointer' }}
       role="button"
@@ -127,9 +129,15 @@ export const AssetCard: React.FC<AssetCardProps> = ({ asset }) => {
     >
       <div className="asset-thumb-wrapper">
         {thumbUrl ? (
-          <img src={thumbUrl} alt={asset.AssetName} className="asset-thumb" loading="lazy" />
+          <img
+            src={thumbUrl}
+            alt={asset.AssetName}
+            className={`asset-thumb ${isImgLoaded ? 'loaded' : ''}`}
+            loading="lazy"
+            onLoad={() => setIsImgLoaded(true)}
+          />
         ) : (
-          <div className="asset-thumb-placeholder">{categoryIcon(34)}</div>
+          <div className="asset-thumb-placeholder shimmering">{categoryIcon(34)}</div>
         )}
 
         {/* When an asset is live, its state matters more than its type - showing

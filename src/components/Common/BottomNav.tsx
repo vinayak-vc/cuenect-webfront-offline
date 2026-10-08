@@ -45,10 +45,10 @@ export const BottomNav: React.FC<BottomNavProps> = ({ active, onSelect }) => {
         >
           {item.icon}
           <span>{item.label}</span>
-          {!!item.badge && item.badge > 0 && <span className="bottom-nav-badge">{item.badge}</span>}
+          {!!item.badge && item.badge > 0 && <span className="bottom-nav-badge anim-pop">{item.badge}</span>}
           {item.dot && !item.badge && (
             <span
-              className="bottom-nav-badge"
+              className="bottom-nav-badge anim-pop"
               style={{ minWidth: 8, height: 8, padding: 0 }}
               aria-hidden="true"
             />

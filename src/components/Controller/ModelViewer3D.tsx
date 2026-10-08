@@ -125,7 +125,10 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
       const clampedPitch = Math.max(-85, Math.min(85, stageModelTransform.pitch));
       currentPitchDegRef.current = clampedPitch;
       if (pitchGroupRef.current) {
-        pitchGroupRef.current.rotation.x = (clampedPitch * Math.PI) / 180;
+        pitchGroupRef.current.quaternion.setFromAxisAngle(
+          new THREE.Vector3(1, 0, 0),
+          (clampedPitch * Math.PI) / 180
+        );
       }
     }
 
@@ -664,14 +667,26 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
       // Gesture: Single Finger Drag -> ROTATE (Yaw & Pitch)
       setActiveGesture('rotate');
       const rotSpeed = 0.45; // degrees per pixel
-      currentYawDegRef.current = (currentYawDegRef.current - dx * rotSpeed) % 360;
-      currentPitchDegRef.current = Math.max(-85, Math.min(85, currentPitchDegRef.current + dy * rotSpeed));
+      const deltaYaw = -dx * rotSpeed;
+      const deltaPitch = dy * rotSpeed;
+
+      currentYawDegRef.current = (currentYawDegRef.current + deltaYaw) % 360;
+
+      const prevPitch = currentPitchDegRef.current;
+      const nextPitch = Math.max(-85, Math.min(85, prevPitch + deltaPitch));
+      const effectiveDeltaPitch = nextPitch - prevPitch;
+      currentPitchDegRef.current = nextPitch;
 
       if (yawGroupRef.current) {
         yawGroupRef.current.rotation.y = -(currentYawDegRef.current * Math.PI) / 180;
       }
       if (pitchGroupRef.current) {
-        pitchGroupRef.current.rotation.x = (currentPitchDegRef.current * Math.PI) / 180;
+        // Apply pitch increment relative to the model's current orientation (around local right/X axis)
+        const deltaQuat = new THREE.Quaternion().setFromAxisAngle(
+          new THREE.Vector3(1, 0, 0),
+          (effectiveDeltaPitch * Math.PI) / 180
+        );
+        pitchGroupRef.current.quaternion.multiply(deltaQuat);
       }
       requestRender();
 

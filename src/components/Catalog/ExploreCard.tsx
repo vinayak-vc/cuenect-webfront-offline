@@ -79,10 +79,12 @@ export const ExploreCard: React.FC<ExploreCardProps> = ({ model }) => {
     startExploreDownload(model);
   };
 
+  const [isImgLoaded, setIsImgLoaded] = React.useState(false);
+
   return (
     <div
       data-explore-id={model.smithsonianId}
-      className={`asset-card ${isActive ? 'active-stage' : ''}`}
+      className={`asset-card card-enter ${isActive ? 'active-stage glow-cyan-subtle' : ''}`}
       onClick={handleCardClick}
       style={{ cursor: isDownloading ? 'progress' : 'pointer' }}
       role="button"
@@ -99,11 +101,12 @@ export const ExploreCard: React.FC<ExploreCardProps> = ({ model }) => {
           <img
             src={model.thumbnailUrl}
             alt={model.title}
-            className="asset-thumb"
+            className={`asset-thumb ${isImgLoaded ? 'loaded' : ''}`}
             loading="lazy"
+            onLoad={() => setIsImgLoaded(true)}
           />
         ) : (
-          <div className="asset-thumb-placeholder">
+          <div className="asset-thumb-placeholder shimmering">
             <Box size={34} />
           </div>
         )}

@@ -77,14 +77,21 @@
   --stage-light-glow: 0 0 24px rgba(55, 209, 127, 0.18);
 
   /* --- Motion ----------------------------------------------------------- */
+  --motion-fast: 120ms;
+  --motion-normal: 180ms;
+  --motion-smooth: 240ms;
+  --motion-slow: 300ms;
+
+  --ease-standard: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
+  --ease-out: cubic-bezier(0.2, 0, 0, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-emphasis: cubic-bezier(0.16, 1, 0.3, 1);
+
   --motion-micro: 150ms cubic-bezier(0.2, 0, 0, 1);
   --motion-panel: 260ms cubic-bezier(0.16, 1, 0.3, 1);
   --motion-workspace: 380ms cubic-bezier(0.16, 1, 0.3, 1);
   --motion-ambient: 12s ease-in-out infinite;
-
-  --ease-out: cubic-bezier(0.2, 0, 0, 1);
-  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
-  --ease-emphasis: cubic-bezier(0.16, 1, 0.3, 1);
 
   --dur-micro: 140ms;
   --dur-button: 160ms;

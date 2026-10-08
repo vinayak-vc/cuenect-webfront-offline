@@ -31,7 +31,7 @@ export const StateView: React.FC<StateViewProps> = ({
 export const SkeletonGrid: React.FC<{ count?: number }> = ({ count = 8 }) => (
   <div className="asset-grid" aria-hidden="true">
     {Array.from({ length: count }).map((_, i) => (
-      <div key={i} className="skeleton-card">
+      <div key={i} className="skeleton-card card-enter">
         <div className="skeleton-block skeleton-thumb" />
         <div className="skeleton-block skeleton-line" />
         <div className="skeleton-block skeleton-line short" />

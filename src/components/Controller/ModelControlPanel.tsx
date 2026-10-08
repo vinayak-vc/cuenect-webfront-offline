@@ -64,12 +64,12 @@ export const ModelControlPanel: React.FC = () => {
   const isProbing = transportState === 'discovering' || transportState === 'probing';
   const assetHasMetadata = hasModelMetadata(activeAsset);
 
-  // Check whether active model is eligible for web 3D rendering
+  // Check whether active model is eligible for web 3D rendering (up to 50 MB and 750k triangles)
   const isWithinThreshold = Boolean(
     activeAsset &&
       activeAsset.isWebPreviewable !== false &&
-      (!activeAsset.fileSizeBytes || activeAsset.fileSizeBytes <= 25 * 1024 * 1024) &&
-      (!activeAsset.triangleCount || activeAsset.triangleCount <= 250000)
+      (!activeAsset.fileSizeBytes || activeAsset.fileSizeBytes <= 50 * 1024 * 1024) &&
+      (!activeAsset.triangleCount || activeAsset.triangleCount <= 750000)
   );
 
   const isEligible = isWithinThreshold && !isTunnel && !isProbing;
