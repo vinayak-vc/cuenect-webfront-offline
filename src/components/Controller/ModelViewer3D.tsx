@@ -674,19 +674,16 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
 
       const prevPitch = currentPitchDegRef.current;
       const nextPitch = Math.max(-85, Math.min(85, prevPitch + deltaPitch));
-      const effectiveDeltaPitch = nextPitch - prevPitch;
       currentPitchDegRef.current = nextPitch;
 
       if (yawGroupRef.current) {
         yawGroupRef.current.rotation.y = -(currentYawDegRef.current * Math.PI) / 180;
       }
       if (pitchGroupRef.current) {
-        // Apply pitch increment relative to the model's current orientation (around local right/X axis)
-        const deltaQuat = new THREE.Quaternion().setFromAxisAngle(
+        pitchGroupRef.current.quaternion.setFromAxisAngle(
           new THREE.Vector3(1, 0, 0),
-          (effectiveDeltaPitch * Math.PI) / 180
+          (nextPitch * Math.PI) / 180
         );
-        pitchGroupRef.current.quaternion.multiply(deltaQuat);
       }
       requestRender();
 
