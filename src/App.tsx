@@ -19,7 +19,7 @@ import { StageDirectorModal } from './components/Stage/StageDirectorModal';
 import { ConfirmDialog } from './components/Common/ConfirmDialog';
 import { ContextMenu } from './components/Common/ContextMenu';
 import { Gamepad2, Loader2 } from 'lucide-react';
-import { EnvironmentPreset } from './types/protocol';
+import { EnvironmentPreset, MoveableAssetType } from './types/protocol';
 import { useStage } from './context/StageContext';
 import { useIsMobile } from './hooks/useMediaQuery';
 
@@ -37,7 +37,9 @@ export const App: React.FC = () => {
     loadAsset,
     catalogTab,
     setCatalogTab,
-    environmentPreset
+    environmentPreset,
+    resetModelTransform,
+    setMovableMode
   } = useStage();
 
   const [isConnectionModalOpen, setIsConnectionModalOpen] = useState<boolean>(false);
@@ -52,6 +54,39 @@ export const App: React.FC = () => {
   useEffect(() => {
     document.title = `Cuenect Controller v${packageJson.version}`;
   }, []);
+
+  // Global keyboard shortcuts: F = reset, Q = rotate/orbit, E = pan
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't trigger shortcuts when user is typing in form inputs, textareas, etc.
+      const activeEl = document.activeElement as HTMLElement | null;
+      const target = e.target as HTMLElement | null;
+      const isInput = (el: HTMLElement | null) =>
+        el &&
+        (el.tagName === 'INPUT' ||
+          el.tagName === 'TEXTAREA' ||
+          el.tagName === 'SELECT' ||
+          el.isContentEditable);
+
+      if (isInput(activeEl) || isInput(target)) return;
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+
+      const key = e.key.toLowerCase();
+      if (key === 'f') {
+        e.preventDefault();
+        resetModelTransform();
+      } else if (key === 'q') {
+        e.preventDefault();
+        setMovableMode(MoveableAssetType.Rotate);
+      } else if (key === 'e') {
+        e.preventDefault();
+        setMovableMode(MoveableAssetType.Pan);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [resetModelTransform, setMovableMode]);
 
   // Nav highlight is derived from which surface is open - no duplicate state.
   const activeSection: MobileSection = useMemo(() => {

@@ -78,7 +78,7 @@ export class StageSocketService {
   }
 
   public isTunnelConnection(): boolean {
-    return this.transport === 'ngrok';
+    return this.transport === 'ngrok' || (this.url ? this.url.toLowerCase().includes('ngrok') : false);
   }
 
   public onTransportChange(handler: TransportChangeHandler): () => void {

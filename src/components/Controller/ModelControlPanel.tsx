@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useStage } from '../../context/StageContext';
+import { stageSocket } from '../../services/socketService';
 import {
   MoveableAssetType,
   DisplayModeShortLabels,
@@ -55,14 +56,14 @@ export const ModelControlPanel: React.FC = () => {
   const [userSurfacePreference, setUserSurfacePreference] = useState<'3d' | 'dpad'>('3d');
   const [forceLoadAnyway, setForceLoadAnyway] = useState(false);
 
-  // Reset force load override whenever active asset changes
-  useEffect(() => {
-    setForceLoadAnyway(false);
-  }, [activeAsset?.AssetID]);
-
-  const isTunnel = activeTransport === 'ngrok';
+  const isTunnel = activeTransport === 'ngrok' || stageSocket.isTunnelConnection();
   const isProbing = transportState === 'discovering' || transportState === 'probing';
   const assetHasMetadata = hasModelMetadata(activeAsset);
+
+  // Reset force load override whenever active asset changes or if routed via tunnel
+  useEffect(() => {
+    setForceLoadAnyway(false);
+  }, [activeAsset?.AssetID, isTunnel]);
 
   // Check whether active model is eligible for web 3D rendering (up to 50 MB and 750k triangles)
   const isWithinThreshold = Boolean(
@@ -73,7 +74,10 @@ export const ModelControlPanel: React.FC = () => {
   );
 
   const isEligible = isWithinThreshold && !isTunnel && !isProbing;
-  const canPreview = (isEligible || forceLoadAnyway) && Boolean(activeAsset);
+
+  // Model loading on web is completely disabled when routed via ngrok tunnel.
+  // "Load Anyway" is only available on local socket URLs.
+  const canPreview = !isTunnel && (isEligible || forceLoadAnyway) && Boolean(activeAsset);
 
   const isRotateOrPan =
     currentMovableMode === MoveableAssetType.Rotate || currentMovableMode === MoveableAssetType.Pan;
@@ -146,11 +150,19 @@ export const ModelControlPanel: React.FC = () => {
               {isProbing
                 ? 'Checking local network connectivity...'
                 : isTunnel
-                ? 'Cloud tunnel · 3D download paused to save data'
+                ? 'Cloud tunnel · 3D model loading disabled'
                 : `Direct mode · Model exceeds web preview ${activeAsset.fileSizeMB ? `(${activeAsset.fileSizeMB} MB)` : ''}`}
             </span>
           </div>
-          {!isProbing && !forceLoadAnyway ? (
+          {isTunnel ? (
+            <span style={{ flexShrink: 0, fontSize: '0.65rem', opacity: 0.8, fontStyle: 'italic' }}>
+              Tunnel active
+            </span>
+          ) : isProbing ? (
+            <span style={{ flexShrink: 0, fontSize: '0.65rem', opacity: 0.8, fontStyle: 'italic' }}>
+              Checking...
+            </span>
+          ) : !forceLoadAnyway ? (
             <button
               type="button"
               onClick={() => {
@@ -159,9 +171,9 @@ export const ModelControlPanel: React.FC = () => {
               }}
               style={{
                 flexShrink: 0,
-                background: isTunnel ? 'rgba(59, 130, 246, 0.25)' : 'rgba(245, 158, 11, 0.25)',
-                border: isTunnel ? '1px solid rgba(59, 130, 246, 0.5)' : '1px solid rgba(245, 158, 11, 0.5)',
-                color: isTunnel ? '#93c5fd' : '#fbbf24',
+                background: 'rgba(245, 158, 11, 0.25)',
+                border: '1px solid rgba(245, 158, 11, 0.5)',
+                color: '#fbbf24',
                 borderRadius: 'var(--radius-full)',
                 padding: '2px 8px',
                 fontSize: '0.68rem',
@@ -174,7 +186,7 @@ export const ModelControlPanel: React.FC = () => {
             </button>
           ) : (
             <span style={{ flexShrink: 0, fontSize: '0.65rem', opacity: 0.8, fontStyle: 'italic' }}>
-              {isProbing ? 'Checking...' : isTunnel ? 'Tunnel active' : 'Preview forced'}
+              Preview forced
             </span>
           )}
         </div>

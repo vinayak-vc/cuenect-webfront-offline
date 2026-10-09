@@ -100,6 +100,7 @@ interface StageContextValue {
   // Model controls
   sendModelJoystick: (direction: JoyStickDirection, xPos?: number, yPos?: number, zoom?: number, action?: string) => void;
   resetModelTransform: () => void;
+  resetTrigger: number;
   syncModelTransform: (yaw: number, pitch: number, scale?: number, posX?: number, posY?: number) => void;
   stopAutoRotate: () => void;
   stageModelTransform: ModelTransformPayload | null;
@@ -223,6 +224,7 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // Model & stage state
   const [currentMovableMode, setCurrentMovableMode] = useState<MoveableAssetType>(MoveableAssetType.Rotate);
   const [stageModelTransform, setStageModelTransform] = useState<ModelTransformPayload | null>(null);
+  const [resetTrigger, setResetTrigger] = useState<number>(0);
   const [isOrthographic, setIsOrthographic] = useState<boolean>(false);
   const [stereoSettings, setStereoSettings] = useState<StereoAdjustSettings>(StorageService.getStereoSettings());
   const stereoSettingsRef = useRef<StereoAdjustSettings>(stereoSettings);
@@ -986,6 +988,18 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const resetModelTransform = useCallback(() => {
     const payload: ModelControl = { direction: JoyStickDirection.Reset, action: 'reset' };
     stageSocket.sendModelControl(payload);
+    // Locally reset transform state so web view resets immediately,
+    // even if no stage is connected to relay transforms back.
+    setStageModelTransform({
+      yaw: 0,
+      pitch: 0,
+      scale: 1.0,
+      posX: 0,
+      posY: 0,
+      maxScale: 25.0,
+      minScale: 0.25
+    });
+    setResetTrigger((prev) => prev + 1);
   }, []);
 
   const syncModelTransform = useCallback((yaw: number, pitch: number, scale?: number, posX?: number, posY?: number) => {
@@ -1343,6 +1357,7 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     toggleFullMetadataModal,
     sendModelJoystick,
     resetModelTransform,
+    resetTrigger,
     syncModelTransform,
     stopAutoRotate,
     stageModelTransform,

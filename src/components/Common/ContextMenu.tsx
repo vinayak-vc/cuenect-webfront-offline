@@ -901,6 +901,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
         >
           <RotateCcw size={15} />
           <span>Reset Transform (Center & Frame)</span>
+          <span className="ctx-shortcut">F</span>
         </button>
 
         <button
@@ -940,6 +941,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
         >
           <RotateCcw size={15} />
           <span>Orbit / Rotate</span>
+          <span className="ctx-shortcut">Q</span>
           {currentMovableMode === MoveableAssetType.Rotate && (
             <Check size={14} className="ctx-check" />
           )}
@@ -955,6 +957,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
         >
           <Move size={15} />
           <span>Pan / Translate</span>
+          <span className="ctx-shortcut">E</span>
           {currentMovableMode === MoveableAssetType.Pan && (
             <Check size={14} className="ctx-check" />
           )}

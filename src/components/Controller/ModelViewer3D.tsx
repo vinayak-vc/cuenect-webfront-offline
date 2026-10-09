@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
-import { AssetInformation, JoyStickDirection, hasModelMetadata } from '../../types/protocol';
+import { AssetInformation, JoyStickDirection, MoveableAssetType, hasModelMetadata } from '../../types/protocol';
 import { useStage } from '../../context/StageContext';
 import { stageSocket } from '../../services/socketService';
 import { useIsDesktop } from '../../hooks/useMediaQuery';
@@ -29,7 +29,10 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
     stopAutoRotate,
     stageModelTransform,
     sendModelJoystick,
-    isMetadataVisible
+    isMetadataVisible,
+    currentMovableMode,
+    setMovableMode,
+    resetTrigger
   } = useStage();
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -37,7 +40,7 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
   const [loadProgress, setLoadProgress] = useState<number>(0);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isStageSync, setIsStageSync] = useState<boolean>(true);
-  const [viewDragMode, setViewDragMode] = useState<'orbit' | 'pan'>('orbit');
+  const isPanActive = currentMovableMode === MoveableAssetType.Pan;
   const [activeGesture, setActiveGesture] = useState<'rotate' | 'pan' | 'zoom' | 'pan-zoom' | null>(null);
   const [showGestureHint, setShowGestureHint] = useState<boolean>(true);
 
@@ -168,6 +171,27 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
 
     requestRender();
   }, [stageModelTransform, requestRender]);
+
+  // Immediate local reset when resetModelTransform is invoked (works even when no stage is connected)
+  useEffect(() => {
+    if (resetTrigger === 0) return;
+    currentYawDegRef.current = 0;
+    currentPitchDegRef.current = 0;
+    currentScaleRef.current = 1.0;
+    targetScaleRef.current = 1.0;
+    currentPosRef.current = { x: 0, y: 0 };
+    if (yawGroupRef.current) {
+      yawGroupRef.current.rotation.y = 0;
+    }
+    if (pitchGroupRef.current) {
+      pitchGroupRef.current.quaternion.identity();
+    }
+    if (panRootRef.current) {
+      panRootRef.current.position.set(0, 0, 0);
+      panRootRef.current.scale.set(1.0, 1.0, 1.0);
+    }
+    requestRender();
+  }, [resetTrigger, requestRender]);
 
   // Gesture tracking references
   const pointersRef = useRef<Map<number, { x: number; y: number }>>(new Map());
@@ -326,6 +350,12 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
     animFrameRef.current = requestAnimationFrame(animate);
 
     // 2. Load GLB Model
+    if (stageSocket.isTunnelConnection() || (stageSocket.getHttpBaseUrl() && stageSocket.getHttpBaseUrl().toLowerCase().includes('ngrok'))) {
+      setIsLoading(false);
+      setLoadError('3D model preview is disabled on cloud tunnel connections.');
+      return;
+    }
+
     setIsLoading(true);
     setLoadProgress(0);
     setLoadError(null);
@@ -511,7 +541,7 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
       setActiveGesture('pan');
     } else {
       isDoubleTapPanRef.current = false;
-      const isPan = viewDragMode === 'pan' || e.buttons === 2 || e.shiftKey;
+      const isPan = isPanActive || e.buttons === 2 || e.shiftKey;
       setActiveGesture(isPan ? 'pan' : 'rotate');
     }
     lastTapTimeRef.current = now;
@@ -626,7 +656,7 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
       }
     }
 
-    const isPanMode = viewDragMode === 'pan' || isDoubleTapPanRef.current || e.buttons === 2 || e.shiftKey;
+    const isPanMode = isPanActive || isDoubleTapPanRef.current || e.buttons === 2 || e.shiftKey;
 
     if (isPanMode) {
       setActiveGesture('pan');
@@ -780,7 +810,7 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
           style={{
             width: '100%',
             height: '100%',
-            cursor: activeGesture === 'pan' || viewDragMode === 'pan' ? 'grabbing' : activeGesture === 'rotate' ? 'crosshair' : 'grab'
+            cursor: activeGesture === 'pan' || isPanActive ? 'grabbing' : activeGesture === 'rotate' ? 'crosshair' : 'grab'
           }}
         />
 
@@ -802,8 +832,8 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
         >
           <button
             type="button"
-            onClick={() => setViewDragMode('orbit')}
-            title="Single-finger drag rotates model"
+            onClick={() => setMovableMode(MoveableAssetType.Rotate)}
+            title="Single-finger drag rotates model (Q)"
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -814,8 +844,8 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
               fontWeight: 600,
               border: 'none',
               cursor: 'pointer',
-              background: viewDragMode === 'orbit' ? 'rgba(0, 229, 255, 0.22)' : 'transparent',
-              color: viewDragMode === 'orbit' ? '#00e5ff' : '#94a3b8',
+              background: !isPanActive ? 'rgba(0, 229, 255, 0.22)' : 'transparent',
+              color: !isPanActive ? '#00e5ff' : '#94a3b8',
               transition: 'all 0.15s ease'
             }}
           >
@@ -824,8 +854,8 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
           </button>
           <button
             type="button"
-            onClick={() => setViewDragMode('pan')}
-            title="Single-finger drag pans model"
+            onClick={() => setMovableMode(MoveableAssetType.Pan)}
+            title="Single-finger drag pans model (E)"
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -836,8 +866,8 @@ export const ModelViewer3D: React.FC<ModelViewer3DProps> = ({ asset, isVisible =
               fontWeight: 600,
               border: 'none',
               cursor: 'pointer',
-              background: viewDragMode === 'pan' ? 'rgba(0, 229, 255, 0.22)' : 'transparent',
-              color: viewDragMode === 'pan' ? '#00e5ff' : '#94a3b8',
+              background: isPanActive ? 'rgba(0, 229, 255, 0.22)' : 'transparent',
+              color: isPanActive ? '#00e5ff' : '#94a3b8',
               transition: 'all 0.15s ease'
             }}
           >
