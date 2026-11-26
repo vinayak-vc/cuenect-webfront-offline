@@ -785,6 +785,10 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               setThumbnails((prev) => ({ ...prev, [assetId]: imageSrc }));
             }
           }
+        } else if (command === 'WebviewStatus') {
+          window.dispatchEvent(new CustomEvent('stage_webview_status', { detail: data }));
+        } else if (command === 'WebviewMediaState') {
+          window.dispatchEvent(new CustomEvent('stage_webview_media_state', { detail: data }));
         }
       }
     });

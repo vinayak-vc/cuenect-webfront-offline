@@ -22,6 +22,7 @@ import { ConfiguratorStudio } from './components/Configurator/ConfiguratorStudio
 import { ConfiguratorProject } from './components/Configurator/types';
 import { AssetUploadModal } from './components/Catalog/AssetUploadModal';
 import { WebviewModal } from './components/Stage/WebviewModal';
+import { WebviewMediaDock } from './components/Stage/WebviewMediaDock';
 import { Gamepad2, Loader2 } from 'lucide-react';
 import { EnvironmentPreset, MoveableAssetType } from './types/protocol';
 import { useStage } from './context/StageContext';
@@ -333,6 +334,10 @@ export const App: React.FC = () => {
       <WebviewModal
         isOpen={isWebviewModalOpen}
         onClose={() => setIsWebviewModalOpen(false)}
+      />
+
+      <WebviewMediaDock
+        onOpenModal={() => setIsWebviewModalOpen(true)}
       />
 
       <ConfiguratorStudio

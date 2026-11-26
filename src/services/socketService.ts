@@ -771,6 +771,34 @@ export class StageSocketService {
     this.emitEvent('stage-message', `WebviewScroll#${deltaY}`);
   }
 
+  public playPauseWebview(): void {
+    this.emitEvent('stage-message', 'WebviewPlayPause#');
+  }
+
+  public nextWebviewTrack(): void {
+    this.emitEvent('stage-message', 'WebviewNext#');
+  }
+
+  public prevWebviewTrack(): void {
+    this.emitEvent('stage-message', 'WebviewPrev#');
+  }
+
+  public seekWebview(seconds: number): void {
+    this.emitEvent('stage-message', `WebviewSeek#${Math.floor(seconds)}`);
+  }
+
+  public setWebviewVolume(percent: number): void {
+    this.emitEvent('stage-message', `WebviewVolume#${Math.round(percent)}`);
+  }
+
+  public bringWebviewForward(): void {
+    this.emitEvent('stage-message', 'WebviewForward#');
+  }
+
+  public sendWebviewBackward(): void {
+    this.emitEvent('stage-message', 'WebviewBackward#');
+  }
+
   public sendVideoControl(control: Partial<VideoControl>): void {
     const payload: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(control)) {
