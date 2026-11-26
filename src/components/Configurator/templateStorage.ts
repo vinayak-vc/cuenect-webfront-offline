@@ -32,7 +32,22 @@ export function getOccasionTemplates(): ConfiguratorProject[] {
     // Map starter templates with any permanent user overrides
     const list = STARTER_TEMPLATES.map((tmpl) => {
       const match = overrides.find((o) => o.id === tmpl.id);
-      return match ? { ...tmpl, ...match } : tmpl;
+      if (!match) return tmpl;
+      // Preserve starter template layer settings (like enableAI) unless explicitly overridden
+      const mergedLayers = tmpl.layers.map((starterLayer) => {
+        const overrideLayer = match.layers?.find((l) => l.id === starterLayer.id);
+        if (!overrideLayer) return starterLayer;
+        return {
+          ...starterLayer,
+          ...overrideLayer,
+          enableAI: overrideLayer.enableAI !== undefined ? overrideLayer.enableAI : starterLayer.enableAI
+        };
+      });
+      return {
+        ...tmpl,
+        ...match,
+        layers: mergedLayers
+      };
     });
 
     // Add any completely custom templates that aren't starter templates

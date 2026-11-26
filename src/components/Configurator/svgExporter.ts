@@ -1,6 +1,6 @@
 import { ConfiguratorProject, TextLayer, ImageLayer, ShapeLayer } from './types';
 
-export const generateProjectSVG = (project: ConfiguratorProject): string => {
+export const generateProjectSVG = (project: ConfiguratorProject, responsive: boolean = true): string => {
   const { width, height, background, layers } = project;
 
   let defs = '';
@@ -48,9 +48,25 @@ export const generateProjectSVG = (project: ConfiguratorProject): string => {
       const fill = tl.fillType === 'linear' ? `url(#grad_${tl.id})` : tl.fill;
       const fontWeight = tl.fontStyle.includes('bold') ? 'bold' : 'normal';
       const fontStyle = tl.fontStyle.includes('italic') ? 'italic' : 'normal';
-      const textAnchor = tl.align === 'center' ? 'middle' : tl.align === 'right' ? 'end' : 'start';
+      const effectiveW = (tl.width || 0) * (tl.scaleX || 1);
+      let textX = tl.x;
+      let textAnchor = 'start';
 
-      elements += `  <text x="${tl.x}" y="${tl.y + tl.fontSize}" font-family="${tl.fontFamily}, sans-serif" font-size="${tl.fontSize}px" font-weight="${fontWeight}" font-style="${fontStyle}" fill="${fill}" text-anchor="${textAnchor}" opacity="${opacity}"${transform}>${escapeXml(tl.text)}</text>\n`;
+      if (tl.align === 'center') {
+        if (effectiveW > 0) {
+          textX = tl.x + effectiveW / 2;
+          textAnchor = 'middle';
+        } else {
+          textAnchor = 'start';
+        }
+      } else if (tl.align === 'right') {
+        if (effectiveW > 0) {
+          textX = tl.x + effectiveW;
+          textAnchor = 'end';
+        }
+      }
+
+      elements += `  <text x="${textX}" y="${tl.y + tl.fontSize}" font-family="${tl.fontFamily}, sans-serif" font-size="${tl.fontSize}px" font-weight="${fontWeight}" font-style="${fontStyle}" fill="${fill}" text-anchor="${textAnchor}" opacity="${opacity}"${transform}>${escapeXml(tl.text)}</text>\n`;
     } else if (layer.type === 'image') {
       const il = layer as ImageLayer;
       const bw = il.borderWidth || 0;
@@ -94,8 +110,12 @@ export const generateProjectSVG = (project: ConfiguratorProject): string => {
     }
   });
 
+  const widthAttr = responsive ? 'width="100%"' : `width="${width}"`;
+  const heightAttr = responsive ? 'height="100%"' : `height="${height}"`;
+  const styleAttr = responsive ? ' style="width: 100%; height: 100%; display: block;"' : '';
+
   return `<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" ${widthAttr} ${heightAttr}${styleAttr} preserveAspectRatio="xMidYMid meet">
   <defs>${defs}
   </defs>
 ${elements}</svg>`;

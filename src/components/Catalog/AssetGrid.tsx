@@ -20,7 +20,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Edit3,
-  Check
+  Check,
+  Plus
 } from 'lucide-react';
 import { ConfiguratorProject } from '../Configurator/types';
 import { generateProjectSVG } from '../Configurator/svgExporter';
@@ -746,178 +747,131 @@ export const AssetGrid: React.FC<AssetGridProps> = ({
             }
           />
         ) : (
-          <div className="asset-grid">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             {filteredTemplates.map((template) => {
               const editableFields = template.layers.filter((l) => Boolean(l.isEditable || l.isTemplateField));
-              const svgPreview = generateProjectSVG(template).replace(/width="\d+" height="\d+"/, 'width="100%" height="100%"');
-              const instanceCount = getTemplateInstances(template.id).length;
+              const svgPreview = generateProjectSVG(template, true);
+              const instances = getTemplateInstances(template.id);
+              const seenIds = new Set<string>();
+              const childAssets: typeof assets = [];
+
+              // 1. Assets from stage database matching this template
+              assets.forEach((a) => {
+                const matches =
+                  (a.metadata && (a.metadata.templateId === template.id || a.metadata.projectFile?.includes(template.id))) ||
+                  instances.some((inst) => inst.assetId === a.AssetID || inst.assetName === a.AssetName);
+                if (matches && !seenIds.has(a.AssetID)) {
+                  childAssets.push(a);
+                  seenIds.add(a.AssetID);
+                }
+              });
+
+              // 2. Any instances stored locally not yet synced into assets array
+              instances.forEach((inst) => {
+                const synthId = inst.assetId || inst.id;
+                if (!seenIds.has(synthId)) {
+                  childAssets.push({
+                    AssetID: synthId,
+                    AssetName: inst.assetName,
+                    ThumbnailImagePath: inst.thumbUrl,
+                    ModelPath: inst.thumbUrl,
+                    PlaylistName: 'Occasions',
+                    isloaded: false,
+                    Category: DataType.Image,
+                    fileSizeBytes: 0,
+                    fileSizeMB: 0,
+                    smithsonianId: '',
+                    metadata: {
+                      title: inst.assetName,
+                      templateId: template.id
+                    }
+                  });
+                  seenIds.add(synthId);
+                }
+              });
 
               return (
                 <div
                   key={template.id}
-                  className="asset-card"
-                  onClick={() => {
-                    setSelectedTemplateForHub(template);
-                    setIsHubModalOpen(true);
-                  }}
                   style={{
-                    background: '#16161A',
-                    border: '1px solid #282830',
+                    background: '#141419',
+                    border: '1px solid #26262E',
                     borderRadius: 12,
-                    overflow: 'hidden',
+                    padding: 16,
                     display: 'flex',
                     flexDirection: 'column',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease',
-                    position: 'relative'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = '#0D99FF';
-                    e.currentTarget.style.transform = 'translateY(-2px)';
-                    e.currentTarget.style.boxShadow = '0 8px 24px rgba(13, 153, 255, 0.2)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = '#282830';
-                    e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.boxShadow = 'none';
+                    gap: 14
                   }}
                 >
-                  {/* Aspect Ratio 16:9 Thumbnail SVG */}
-                  <div
-                    style={{
-                      width: '100%',
-                      aspectRatio: '16 / 9',
-                      background: '#0B0B0E',
-                      overflow: 'hidden',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      position: 'relative',
-                      borderBottom: '1px solid #22222A'
-                    }}
-                  >
-                    <div
-                      style={{ width: '100%', height: '100%', pointerEvents: 'none' }}
-                      dangerouslySetInnerHTML={{ __html: svgPreview }}
-                    />
-
-                    {/* Instance Count Badge */}
-                    {instanceCount > 0 && (
+                  {/* Template Header / Parent Row */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 14, minWidth: 260 }}>
                       <div
                         style={{
-                          position: 'absolute',
-                          top: 8,
-                          left: 8,
-                          background: 'rgba(16, 185, 129, 0.95)',
-                          color: '#FFFFFF',
-                          fontSize: 10,
-                          fontWeight: 700,
-                          padding: '2px 8px',
-                          borderRadius: 999,
-                          backdropFilter: 'blur(4px)',
-                          boxShadow: '0 2px 6px rgba(0,0,0,0.4)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 4
+                          width: 140,
+                          aspectRatio: '16 / 9',
+                          borderRadius: 8,
+                          overflow: 'hidden',
+                          border: '1px solid #33333F',
+                          background: '#0B0B0E',
+                          flexShrink: 0
                         }}
                       >
-                        <Check size={10} />
-                        <span>{instanceCount} Created</span>
+                        <div
+                          style={{ width: '100%', height: '100%', pointerEvents: 'none' }}
+                          dangerouslySetInnerHTML={{ __html: svgPreview }}
+                        />
                       </div>
-                    )}
-
-                    <div
-                      style={{
-                        position: 'absolute',
-                        top: 8,
-                        right: 8,
-                        background: 'rgba(13, 153, 255, 0.9)',
-                        color: '#FFFFFF',
-                        fontSize: 10,
-                        fontWeight: 700,
-                        padding: '2px 8px',
-                        borderRadius: 999,
-                        backdropFilter: 'blur(4px)',
-                        boxShadow: '0 2px 6px rgba(0,0,0,0.4)'
-                      }}
-                    >
-                      {editableFields.length} Editable Fields
-                    </div>
-                  </div>
-
-                  {/* Card Body */}
-                  <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
-                    <h4
-                      style={{
-                        margin: 0,
-                        fontSize: 14,
-                        fontWeight: 700,
-                        color: '#FFFFFF',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap'
-                      }}
-                    >
-                      {template.title}
-                    </h4>
-
-                    {/* Chips showing editable fields */}
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, minHeight: 38 }}>
-                      {editableFields.slice(0, 4).map((f) => (
-                        <span
-                          key={f.id}
-                          style={{
-                            fontSize: 10,
-                            padding: '2px 6px',
-                            borderRadius: 4,
-                            background: '#22222A',
-                            color: '#9E9EB0',
-                            border: '1px solid #2E2E3A'
-                          }}
-                        >
-                          {f.editableLabel || f.templateLabel || f.name}
-                        </span>
-                      ))}
-                      {editableFields.length > 4 && (
-                        <span
-                          style={{
-                            fontSize: 10,
-                            padding: '2px 6px',
-                            borderRadius: 4,
-                            background: '#22222A',
-                            color: '#0D99FF'
-                          }}
-                        >
-                          +{editableFields.length - 4} more
-                        </span>
-                      )}
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#FFFFFF' }}>{template.title}</h3>
+                          <span
+                            style={{
+                              fontSize: 10,
+                              fontWeight: 700,
+                              padding: '2px 8px',
+                              borderRadius: 999,
+                              background: 'rgba(13,153,255,0.15)',
+                              color: '#0D99FF',
+                              border: '1px solid rgba(13,153,255,0.3)'
+                            }}
+                          >
+                            {editableFields.length} Customizable Fields
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 6 }}>
+                          {editableFields.map((f) => (
+                            <span
+                              key={f.id}
+                              style={{
+                                fontSize: 10,
+                                padding: '1px 6px',
+                                borderRadius: 4,
+                                background: '#1E1E26',
+                                color: '#9E9EB0',
+                                border: '1px solid #2B2B36'
+                              }}
+                            >
+                              {f.editableLabel || f.templateLabel || f.name}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
                     </div>
 
                     {/* Action buttons */}
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 8,
-                        marginTop: 'auto',
-                        paddingTop: 8,
-                        borderTop: '1px solid #22222A'
-                      }}
-                      onClick={(e) => e.stopPropagation()}
-                    >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                       <button
                         type="button"
                         onClick={() => {
-                          setSelectedTemplateForHub(template);
-                          setIsHubModalOpen(true);
+                          setSelectedTemplateForModal(template);
+                          setIsQuickTemplateOpen(true);
                         }}
                         style={{
-                          flex: 1,
                           display: 'flex',
                           alignItems: 'center',
-                          justifyContent: 'center',
                           gap: 6,
-                          padding: '7px 12px',
+                          padding: '8px 16px',
                           background: 'linear-gradient(135deg, #0D99FF 0%, #0077CC 100%)',
                           color: '#FFFFFF',
                           border: 'none',
@@ -928,8 +882,8 @@ export const AssetGrid: React.FC<AssetGridProps> = ({
                           boxShadow: '0 2px 8px rgba(13,153,255,0.3)'
                         }}
                       >
-                        <Layers size={12} />
-                        <span>{instanceCount > 0 ? `View Images (${instanceCount})` : 'Select Template'}</span>
+                        <Plus size={14} />
+                        <span>Create Graphic</span>
                       </button>
 
                       {onOpenConfigurator && (
@@ -940,19 +894,61 @@ export const AssetGrid: React.FC<AssetGridProps> = ({
                           style={{
                             display: 'flex',
                             alignItems: 'center',
-                            justifyContent: 'center',
-                            padding: '7px 9px',
+                            gap: 6,
+                            padding: '8px 12px',
                             background: '#22222A',
                             border: '1px solid #333340',
                             color: '#CCCCCC',
                             borderRadius: 6,
+                            fontSize: 12,
+                            fontWeight: 600,
                             cursor: 'pointer'
                           }}
                         >
                           <Edit3 size={13} />
+                          <span>Edit Template</span>
                         </button>
                       )}
                     </div>
+                  </div>
+
+                  {/* Child Asset Cards Grid */}
+                  <div style={{ borderTop: '1px solid #1E1E26', paddingTop: 12 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10, fontSize: 11, fontWeight: 700, color: '#A0A0B2', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                      <Check size={12} style={{ color: childAssets.length > 0 ? '#10B981' : '#666' }} />
+                      <span>
+                        {childAssets.length > 0
+                          ? `Graphics Created From This Template (${childAssets.length})`
+                          : 'No Graphics Created Yet'}
+                      </span>
+                    </div>
+
+                    {childAssets.length > 0 ? (
+                      <div className="asset-grid">
+                        {childAssets.map((child) => (
+                          <AssetCard key={child.AssetID} asset={child} />
+                        ))}
+                      </div>
+                    ) : (
+                      <div
+                        onClick={() => {
+                          setSelectedTemplateForModal(template);
+                          setIsQuickTemplateOpen(true);
+                        }}
+                        style={{
+                          padding: '16px',
+                          background: 'rgba(255, 255, 255, 0.02)',
+                          border: '1px dashed #2E2E3A',
+                          borderRadius: 8,
+                          textAlign: 'center',
+                          color: '#6B6B78',
+                          fontSize: 12,
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Click "Create Graphic" to generate your first stage-ready image using this template.
+                      </div>
+                    )}
                   </div>
                 </div>
               );

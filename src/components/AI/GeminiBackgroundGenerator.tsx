@@ -308,7 +308,9 @@ export const GeminiBackgroundGenerator: React.FC<GeminiBackgroundGeneratorProps>
             prompt: finalPrompt,
             width: Math.round(targetWidth),
             height: Math.round(targetHeight),
-            steps: 4
+            steps: 4,
+            accountId,
+            apiToken
           })
         });
 

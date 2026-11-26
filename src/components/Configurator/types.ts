@@ -32,6 +32,7 @@ export interface BaseLayer {
   editableLabel?: string;
   isTemplateField?: boolean;
   templateLabel?: string;
+  enableAI?: boolean; // Default true: shows AI generation button in template customizer
   cornerRadius?: number;
   // Stroke styling (Figma style)
   stroke?: string;

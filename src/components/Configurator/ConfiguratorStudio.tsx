@@ -2063,28 +2063,48 @@ export const ConfiguratorStudio: React.FC<ConfiguratorStudioProps> = ({ isOpen, 
                       Editable in Template
                     </span>
                   </div>
-                  <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', gap: 6, margin: 0 }}>
-                    <input
-                      type="checkbox"
-                      checked={Boolean(selectedLayer.isEditable || selectedLayer.isTemplateField)}
-                      onChange={(e) => {
-                        const checked = e.target.checked;
-                        handleUpdateLayer(
-                          selectedLayer.id,
-                          {
-                            isEditable: checked,
-                            isTemplateField: checked,
-                            editableLabel: selectedLayer.editableLabel || selectedLayer.templateLabel || selectedLayer.name
-                          },
-                          true
-                        );
-                      }}
-                      style={{ cursor: 'pointer', accentColor: '#0D99FF', width: 14, height: 14 }}
-                    />
-                    <span style={{ fontSize: 11, fontWeight: 600, color: (selectedLayer.isEditable || selectedLayer.isTemplateField) ? '#0D99FF' : '#777777' }}>
-                      {(selectedLayer.isEditable || selectedLayer.isTemplateField) ? 'Editable' : 'Locked'}
-                    </span>
-                  </label>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    {/* AI Toggle: default true */}
+                    <label
+                      title="Enable AI image or text generation for this field in template customizer"
+                      style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', gap: 4, margin: 0 }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedLayer.enableAI !== false}
+                        onChange={(e) => {
+                          handleUpdateLayer(selectedLayer.id, { enableAI: e.target.checked }, true);
+                        }}
+                        style={{ cursor: 'pointer', accentColor: '#10B981', width: 13, height: 13 }}
+                      />
+                      <span style={{ fontSize: 11, fontWeight: 700, color: selectedLayer.enableAI !== false ? '#10B981' : '#777777' }}>
+                        AI
+                      </span>
+                    </label>
+
+                    <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', gap: 6, margin: 0 }}>
+                      <input
+                        type="checkbox"
+                        checked={Boolean(selectedLayer.isEditable || selectedLayer.isTemplateField)}
+                        onChange={(e) => {
+                          const checked = e.target.checked;
+                          handleUpdateLayer(
+                            selectedLayer.id,
+                            {
+                              isEditable: checked,
+                              isTemplateField: checked,
+                              editableLabel: selectedLayer.editableLabel || selectedLayer.templateLabel || selectedLayer.name
+                            },
+                            true
+                          );
+                        }}
+                        style={{ cursor: 'pointer', accentColor: '#0D99FF', width: 14, height: 14 }}
+                      />
+                      <span style={{ fontSize: 11, fontWeight: 600, color: (selectedLayer.isEditable || selectedLayer.isTemplateField) ? '#0D99FF' : '#777777' }}>
+                        {(selectedLayer.isEditable || selectedLayer.isTemplateField) ? 'Editable' : 'Locked'}
+                      </span>
+                    </label>
+                  </div>
                 </div>
 
                 {Boolean(selectedLayer.isEditable || selectedLayer.isTemplateField) && (

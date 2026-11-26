@@ -25,6 +25,8 @@ export interface ModelMetadata {
   taxonomy?: string;
   annotations?: string;
   description?: string;
+  templateId?: string;
+  projectFile?: string;
   details?: MetadataDetailItem[];
   license?: string;
   sourceUrl?: string;

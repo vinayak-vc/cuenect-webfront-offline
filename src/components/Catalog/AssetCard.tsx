@@ -32,7 +32,11 @@ export const AssetCard: React.FC<AssetCardProps> = ({ asset }) => {
 
   const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
   const cardRef = React.useRef<HTMLDivElement>(null);
-  const thumbUrl = thumbnails[asset.AssetID];
+  const thumbUrl =
+    thumbnails[asset.AssetID] ||
+    (asset.ThumbnailImagePath && (asset.ThumbnailImagePath.startsWith('data:') || asset.ThumbnailImagePath.startsWith('http') || asset.ThumbnailImagePath.startsWith('/'))
+      ? asset.ThumbnailImagePath
+      : undefined);
   const isActive = activeAsset?.AssetID === asset.AssetID;
   const isInCustomPlaylist = customPlaylistIds.includes(asset.AssetID);
   const isFavourite = favouriteAssetIds.includes(asset.AssetID);

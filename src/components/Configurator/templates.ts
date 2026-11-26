@@ -45,6 +45,7 @@ export const STARTER_TEMPLATES: ConfiguratorProject[] = [
         text: '👕 🧦 👚 🧦 👗 — — — — — — — — — — — — — — — — — — — — — — 👗 🧦 👚',
         x: 320,
         y: 45,
+        width: 1280,
         rotation: 0,
         scaleX: 1,
         scaleY: 1,
@@ -76,6 +77,7 @@ export const STARTER_TEMPLATES: ConfiguratorProject[] = [
         editableLabel: 'Baby Photo',
         isTemplateField: true,
         templateLabel: 'Baby Photo',
+        enableAI: false, // User requested no AI photo gen button on baby photo by default
         borderWidth: 16,
         borderColor: '#FFFFFF',
         shadowColor: 'rgba(0, 0, 0, 0.18)',
@@ -149,6 +151,7 @@ export const STARTER_TEMPLATES: ConfiguratorProject[] = [
         text: 'Welcome to the world, little one! Wishing you a lifetime of love, laughter and endless joy.',
         x: 350,
         y: 725,
+        width: 1220,
         rotation: 0,
         scaleX: 1,
         scaleY: 1,

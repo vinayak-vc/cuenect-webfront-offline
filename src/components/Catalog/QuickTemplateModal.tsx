@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import {
   X,
   Sparkles,
@@ -19,6 +20,7 @@ import { useStage } from '../../context/StageContext';
 import { GeminiWishGenerator } from '../AI/GeminiWishGenerator';
 import { GeminiBackgroundGenerator } from '../AI/GeminiBackgroundGenerator';
 import { saveTemplateInstance } from '../Configurator/templateStorage';
+import { stageSocket } from '../../services/socketService';
 
 interface QuickTemplateModalProps {
   isOpen: boolean;
@@ -33,15 +35,17 @@ export const QuickTemplateModal: React.FC<QuickTemplateModalProps> = ({
   onClose,
   onOpenInEditor
 }) => {
-  const { loadAsset, addToast } = useStage();
+  const { loadAsset, addToast, refreshAssets } = useStage();
 
   // Working copy of layer values: mapping layerId -> custom value (string)
   const [fieldValues, setFieldValues] = useState<Record<string, string>>({});
+  const [customBgImage, setCustomBgImage] = useState<string | null>(null);
   const [isPushing, setIsPushing] = useState<boolean>(false);
   const [pushSuccess, setPushSuccess] = useState<boolean>(false);
   const [createdCount, setCreatedCount] = useState<number>(0);
 
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const bgFileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Initialize editable fields whenever template changes
   useEffect(() => {
@@ -57,6 +61,7 @@ export const QuickTemplateModal: React.FC<QuickTemplateModalProps> = ({
       }
     });
     setFieldValues(initialValues);
+    setCustomBgImage(template.background.imageUrl || null);
     setPushSuccess(false);
   }, [template]);
 
@@ -71,6 +76,11 @@ export const QuickTemplateModal: React.FC<QuickTemplateModalProps> = ({
     if (!template) return null;
     return {
       ...template,
+      background: customBgImage
+        ? { ...template.background, type: 'image', imageUrl: customBgImage }
+        : customBgImage === ''
+        ? { ...template.background, type: 'color', imageUrl: undefined }
+        : template.background,
       layers: template.layers.map((l) => {
         if ((l.isEditable || l.isTemplateField) && fieldValues[l.id] !== undefined) {
           if (l.type === 'text') {
@@ -82,12 +92,12 @@ export const QuickTemplateModal: React.FC<QuickTemplateModalProps> = ({
         return l;
       })
     };
-  }, [template, fieldValues]);
+  }, [template, fieldValues, customBgImage]);
 
   // Live SVG representation for real-time preview
   const liveSvgMarkup = useMemo(() => {
     if (!customizedProject) return '';
-    return generateProjectSVG(customizedProject);
+    return generateProjectSVG(customizedProject, true);
   }, [customizedProject]);
 
   if (!isOpen || !template || !customizedProject) return null;
@@ -116,19 +126,24 @@ export const QuickTemplateModal: React.FC<QuickTemplateModalProps> = ({
       const title = customizedProject.title || 'Template Graphic';
       const safeName = title.replace(/[^a-zA-Z0-9_\- ]/g, '').replace(/\s+/g, '_');
 
+      const baseUrl = stageSocket?.getHttpBaseUrl() || '';
+      const endpoint = baseUrl ? `${baseUrl}/api/assets/upload` : '/api/assets/upload';
+
       const payload = {
         assetName: title,
         fileName: `${safeName}_${Date.now()}.png`,
         imageData: dataUrl,
+        thumbnailData: dataUrl,
         category: 1, // Image
         playlistName: 'Occasions',
+        templateId: template.id,
         loadImmediately: true,
         projectData: customizedProject,
         width: customizedProject.width,
         height: customizedProject.height
       };
 
-      const res = await fetch('/api/assets/upload', {
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -150,6 +165,10 @@ export const QuickTemplateModal: React.FC<QuickTemplateModalProps> = ({
           fieldValues: { ...fieldValues },
           projectData: customizedProject
         });
+
+        if (refreshAssets) {
+          refreshAssets();
+        }
 
         if (loadAsset) {
           loadAsset(result.asset);
@@ -215,7 +234,7 @@ export const QuickTemplateModal: React.FC<QuickTemplateModalProps> = ({
     }
   };
 
-  return (
+  return createPortal(
     <div
       style={{
         position: 'fixed',
@@ -333,21 +352,21 @@ export const QuickTemplateModal: React.FC<QuickTemplateModalProps> = ({
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: '420px 1fr',
+            gridTemplateColumns: '400px 1fr',
             flex: 1,
-            overflow: 'hidden',
-            minHeight: 520
+            minHeight: 0,
+            overflow: 'hidden'
           }}
         >
           {/* Left Column: Form Fields */}
           <div
             style={{
-              padding: '20px 24px',
+              padding: '16px 20px',
               borderRight: '1px solid #26262A',
               overflowY: 'auto',
               display: 'flex',
               flexDirection: 'column',
-              gap: 18,
+              gap: 14,
               background: '#161618'
             }}
           >
@@ -356,6 +375,91 @@ export const QuickTemplateModal: React.FC<QuickTemplateModalProps> = ({
                 Enter Details
               </span>
               <span style={{ fontSize: 11, color: '#777782' }}>Updates preview in real-time</span>
+            </div>
+
+            {/* Background Graphic Customization (Upload BG & AI Generate Flux) */}
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 8,
+                background: '#1A1A20',
+                border: '1px solid #2B2B36',
+                borderRadius: 8,
+                padding: '10px 12px'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: 12, fontWeight: 700, color: '#FFFFFF', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <ImageIcon size={13} style={{ color: '#0D99FF' }} />
+                  <span>Background Graphic</span>
+                </span>
+                {customBgImage && (
+                  <button
+                    type="button"
+                    onClick={() => setCustomBgImage('')}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      color: '#F43F5E',
+                      fontSize: 11,
+                      cursor: 'pointer',
+                      padding: 0
+                    }}
+                  >
+                    Reset Background
+                  </button>
+                )}
+              </div>
+
+              <input
+                type="file"
+                accept="image/*"
+                ref={bgFileInputRef}
+                style={{ display: 'none' }}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    const reader = new FileReader();
+                    reader.onload = () => setCustomBgImage(reader.result as string);
+                    reader.readAsDataURL(file);
+                  }
+                }}
+              />
+
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  type="button"
+                  onClick={() => bgFileInputRef.current?.click()}
+                  style={{
+                    flex: 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 6,
+                    padding: '8px 10px',
+                    background: '#2A2A32',
+                    border: '1px solid #3F3F4D',
+                    borderRadius: 6,
+                    color: '#FFFFFF',
+                    fontSize: 12,
+                    fontWeight: 600,
+                    cursor: 'pointer'
+                  }}
+                >
+                  <Upload size={13} />
+                  <span>Upload BG Image</span>
+                </button>
+
+                <div style={{ flex: 1 }}>
+                  <GeminiBackgroundGenerator
+                    targetWidth={template.width || 1920}
+                    targetHeight={template.height || 1080}
+                    triggerButtonText="AI Generate BG (Flux)"
+                    onApplyImage={(generated) => setCustomBgImage(generated)}
+                  />
+                </div>
+              </div>
             </div>
 
             {editableLayers.length === 0 ? (
@@ -504,17 +608,19 @@ export const QuickTemplateModal: React.FC<QuickTemplateModalProps> = ({
                               <span>Upload Photo</span>
                             </button>
 
-                            <GeminiBackgroundGenerator
-                              targetWidth={(layer as ImageLayer).width * (layer.scaleX || 1)}
-                              targetHeight={(layer as ImageLayer).height * (layer.scaleY || 1)}
-                              triggerButtonText="AI Background (Flux)"
-                              onApplyImage={(generated) => {
-                                setFieldValues((prev) => ({
-                                  ...prev,
-                                  [layer.id]: generated
-                                }));
-                              }}
-                            />
+                            {layer.enableAI !== false && !layer.id.includes('polaroid') && !(layer.editableLabel || layer.name || '').toLowerCase().includes('baby') && (
+                              <GeminiBackgroundGenerator
+                                targetWidth={(layer as ImageLayer).width * (layer.scaleX || 1)}
+                                targetHeight={(layer as ImageLayer).height * (layer.scaleY || 1)}
+                                triggerButtonText="AI Background (Flux)"
+                                onApplyImage={(generated) => {
+                                  setFieldValues((prev) => ({
+                                    ...prev,
+                                    [layer.id]: generated
+                                  }));
+                                }}
+                              />
+                            )}
                           </div>
                         </div>
                       </div>
@@ -525,47 +631,49 @@ export const QuickTemplateModal: React.FC<QuickTemplateModalProps> = ({
               })
             )}
 
-            {/* AI Wish Generator Tool Box */}
-            <div
-              style={{
-                marginTop: 'auto',
-                background: 'linear-gradient(135deg, rgba(13,153,255,0.08) 0%, rgba(224,69,143,0.08) 100%)',
-                border: '1px dashed rgba(13,153,255,0.3)',
-                borderRadius: 8,
-                padding: 12,
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 8
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <Sparkles size={14} style={{ color: '#0D99FF' }} />
-                <span style={{ fontSize: 11, fontWeight: 700, color: '#FFFFFF' }}>AI Wish Generator</span>
-              </div>
-              <p style={{ margin: 0, fontSize: 11, color: '#A0A0B0', lineHeight: 1.4 }}>
-                Need inspirational words for newborns, birthdays, or new joinees? Generate a heartfelt message:
-              </p>
-              <GeminiWishGenerator
-                triggerButtonText="Generate AI Greeting / Wish"
-                onApplyText={(wish: string) => {
-                  // Find first editable text layer that looks like a message/wish or any text layer
-                  const targetLayer = editableLayers.find((l) => {
-                    const lbl = (l.editableLabel || l.templateLabel || l.name).toLowerCase();
-                    return l.type === 'text' && (lbl.includes('message') || lbl.includes('wish') || lbl.includes('quote') || lbl.includes('appreciation'));
-                  }) || editableLayers.find((l) => l.type === 'text');
-
-                  if (targetLayer) {
-                    setFieldValues((prev) => ({
-                      ...prev,
-                      [targetLayer.id]: wish
-                    }));
-                    if (addToast) {
-                      addToast('AI Message Applied', `Pasted into "${targetLayer.editableLabel || targetLayer.name}"`, 'success');
-                    }
-                  }
+            {/* AI Wish Generator Tool Box - Only visible if text fields have AI enabled */}
+            {editableLayers.some((l) => l.type === 'text' && l.enableAI !== false) && (
+              <div
+                style={{
+                  marginTop: 'auto',
+                  background: 'linear-gradient(135deg, rgba(13,153,255,0.08) 0%, rgba(224,69,143,0.08) 100%)',
+                  border: '1px dashed rgba(13,153,255,0.3)',
+                  borderRadius: 8,
+                  padding: 12,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 8
                 }}
-              />
-            </div>
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Sparkles size={14} style={{ color: '#0D99FF' }} />
+                  <span style={{ fontSize: 11, fontWeight: 700, color: '#FFFFFF' }}>AI Wish Generator</span>
+                </div>
+                <p style={{ margin: 0, fontSize: 11, color: '#A0A0B0', lineHeight: 1.4 }}>
+                  Need inspirational words for newborns, birthdays, or new joinees? Generate a heartfelt message:
+                </p>
+                <GeminiWishGenerator
+                  triggerButtonText="Generate AI Greeting / Wish"
+                  onApplyText={(wish: string) => {
+                    // Find first editable text layer with AI enabled that looks like a message/wish or any text layer
+                    const targetLayer = editableLayers.find((l) => {
+                      const lbl = (l.editableLabel || l.templateLabel || l.name).toLowerCase();
+                      return l.type === 'text' && l.enableAI !== false && (lbl.includes('message') || lbl.includes('wish') || lbl.includes('quote') || lbl.includes('appreciation'));
+                    }) || editableLayers.find((l) => l.type === 'text' && l.enableAI !== false);
+
+                    if (targetLayer) {
+                      setFieldValues((prev) => ({
+                        ...prev,
+                        [targetLayer.id]: wish
+                      }));
+                      if (addToast) {
+                        addToast('AI Message Applied', `Pasted into "${targetLayer.editableLabel || targetLayer.name}"`, 'success');
+                      }
+                    }
+                  }}
+                />
+              </div>
+            )}
           </div>
 
           {/* Right Column: Live Stage Preview */}
@@ -623,6 +731,7 @@ export const QuickTemplateModal: React.FC<QuickTemplateModalProps> = ({
             <div
               style={{
                 flex: 1,
+                minHeight: 0,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -637,6 +746,7 @@ export const QuickTemplateModal: React.FC<QuickTemplateModalProps> = ({
               <div
                 style={{
                   width: '100%',
+                  maxWidth: 'calc((90vh - 180px) * 16 / 9)',
                   aspectRatio: '16 / 9',
                   maxHeight: '100%',
                   borderRadius: 6,
@@ -650,8 +760,28 @@ export const QuickTemplateModal: React.FC<QuickTemplateModalProps> = ({
               >
                 {liveSvgMarkup ? (
                   <div
-                    style={{ width: '100%', height: '100%' }}
-                    dangerouslySetInnerHTML={{ __html: liveSvgMarkup }}
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      overflow: 'hidden'
+                    }}
+                    dangerouslySetInnerHTML={{
+                      __html: liveSvgMarkup.replace(/<svg\b([^>]*)>/i, (_match, attrs) => {
+                        let clean = attrs
+                          .replace(/\bwidth="[^"]*"/i, 'width="100%"')
+                          .replace(/\bheight="[^"]*"/i, 'height="100%"');
+                        if (!clean.includes('style=')) {
+                          clean += ' style="width: 100%; height: 100%; display: block;"';
+                        }
+                        if (!clean.includes('preserveAspectRatio=')) {
+                          clean += ' preserveAspectRatio="xMidYMid meet"';
+                        }
+                        return `<svg ${clean}>`;
+                      })
+                    }}
                   />
                 ) : (
                   <div style={{ color: '#666' }}>Rendering preview...</div>
@@ -780,6 +910,7 @@ export const QuickTemplateModal: React.FC<QuickTemplateModalProps> = ({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

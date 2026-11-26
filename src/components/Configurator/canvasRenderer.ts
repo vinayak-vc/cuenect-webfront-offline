@@ -113,7 +113,7 @@ export const renderProjectDirectCanvas = async (project: ConfiguratorProject): P
  */
 export const renderProjectToDataUrl = async (project: ConfiguratorProject): Promise<string> => {
   try {
-    const svgString = generateProjectSVG(project);
+    const svgString = generateProjectSVG(project, false);
     const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
     const url = URL.createObjectURL(svgBlob);
     const img = new Image();
