@@ -32,7 +32,8 @@ export const generateProjectSVG = (project: ConfiguratorProject, responsive: boo
   // Background
   elements += `  <rect width="100%" height="100%" fill="${background.color || '#FFFFFF'}" />\n`;
   if (background.imageUrl) {
-    elements += `  <image href="${background.imageUrl}" width="${width}" height="${height}" opacity="${background.opacity ?? 1}" preserveAspectRatio="xMidYMid slice" />\n`;
+    const safeBgUrl = escapeXml(background.imageUrl);
+    elements += `  <image href="${safeBgUrl}" xlink:href="${safeBgUrl}" width="${width}" height="${height}" opacity="${background.opacity ?? 1}" preserveAspectRatio="xMidYMid slice" />\n`;
   }
 
   // Layers
@@ -66,14 +67,24 @@ export const generateProjectSVG = (project: ConfiguratorProject, responsive: boo
         }
       }
 
-      elements += `  <text x="${textX}" y="${tl.y + tl.fontSize}" font-family="${tl.fontFamily}, sans-serif" font-size="${tl.fontSize}px" font-weight="${fontWeight}" font-style="${fontStyle}" fill="${fill}" text-anchor="${textAnchor}" opacity="${opacity}"${transform}>${escapeXml(tl.text)}</text>\n`;
+      const rawText = tl.text || '';
+      if (rawText.includes('\n')) {
+        const lines = rawText.split('\n');
+        const tspans = lines
+          .map((line, idx) => `<tspan x="${textX}" dy="${idx === 0 ? 0 : '1.2em'}">${escapeXml(line)}</tspan>`)
+          .join('');
+        elements += `  <text x="${textX}" y="${tl.y + tl.fontSize}" font-family="${tl.fontFamily}, sans-serif" font-size="${tl.fontSize}px" font-weight="${fontWeight}" font-style="${fontStyle}" fill="${fill}" text-anchor="${textAnchor}" opacity="${opacity}"${transform}>${tspans}</text>\n`;
+      } else {
+        elements += `  <text x="${textX}" y="${tl.y + tl.fontSize}" font-family="${tl.fontFamily}, sans-serif" font-size="${tl.fontSize}px" font-weight="${fontWeight}" font-style="${fontStyle}" fill="${fill}" text-anchor="${textAnchor}" opacity="${opacity}"${transform}>${escapeXml(rawText)}</text>\n`;
+      }
     } else if (layer.type === 'image') {
       const il = layer as ImageLayer;
       const bw = il.borderWidth || 0;
       if (bw > 0) {
         elements += `  <rect x="${il.x - bw}" y="${il.y - bw}" width="${il.width * (il.scaleX || 1) + bw * 2}" height="${il.height * (il.scaleY || 1) + bw * 2}" fill="${il.borderColor || '#FFFFFF'}" rx="4"${transform} />\n`;
       }
-      elements += `  <image href="${il.src}" x="${il.x}" y="${il.y}" width="${il.width * (il.scaleX || 1)}" height="${il.height * (il.scaleY || 1)}" opacity="${opacity}"${transform} preserveAspectRatio="none" />\n`;
+      const safeSrc = escapeXml(il.src || '');
+      elements += `  <image href="${safeSrc}" xlink:href="${safeSrc}" x="${il.x}" y="${il.y}" width="${il.width * (il.scaleX || 1)}" height="${il.height * (il.scaleY || 1)}" opacity="${opacity}"${transform} preserveAspectRatio="none" />\n`;
     } else if (layer.type === 'shape') {
       const sl = layer as ShapeLayer;
       const fill = sl.fillType === 'linear' ? `url(#grad_${sl.id})` : sl.fill;
@@ -115,7 +126,7 @@ export const generateProjectSVG = (project: ConfiguratorProject, responsive: boo
   const styleAttr = responsive ? ' style="width: 100%; height: 100%; display: block;"' : '';
 
   return `<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" ${widthAttr} ${heightAttr}${styleAttr} preserveAspectRatio="xMidYMid meet">
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${width} ${height}" ${widthAttr} ${heightAttr}${styleAttr} preserveAspectRatio="xMidYMid meet">
   <defs>${defs}
   </defs>
 ${elements}</svg>`;

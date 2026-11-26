@@ -23,7 +23,8 @@ import {
   Sparkles,
   Camera,
   Layers,
-  UploadCloud
+  UploadCloud,
+  Globe
 } from 'lucide-react';
 
 interface MoreSheetProps {
@@ -33,6 +34,7 @@ interface MoreSheetProps {
   onOpenProjection?: () => void;
   onOpenConfigurator?: () => void;
   onOpenUploadModal?: () => void;
+  onOpenWebview?: () => void;
 }
 
 /**
@@ -49,7 +51,8 @@ export const MoreSheet: React.FC<MoreSheetProps> = ({
   onOpenConnection,
   onOpenProjection: _onOpenProjection,
   onOpenConfigurator,
-  onOpenUploadModal
+  onOpenUploadModal,
+  onOpenWebview
 }) => {
   const {
     connectionState,
@@ -185,6 +188,23 @@ export const MoreSheet: React.FC<MoreSheetProps> = ({
                   <span>
                     <strong>Image Configurator Studio</strong>
                     <em>Create & upload 2D graphics to stage exe</em>
+                  </span>
+                </button>
+              )}
+
+              {onOpenWebview && (
+                <button
+                  type="button"
+                  className="sheet-action"
+                  onClick={() => {
+                    onClose();
+                    onOpenWebview();
+                  }}
+                >
+                  <Globe size={17} style={{ color: '#10B981' }} />
+                  <span>
+                    <strong>Stage Webview & Audio Player</strong>
+                    <em>Play YouTube music, video, or open websites in background</em>
                   </span>
                 </button>
               )}

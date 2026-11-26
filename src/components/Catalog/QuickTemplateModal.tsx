@@ -608,7 +608,7 @@ export const QuickTemplateModal: React.FC<QuickTemplateModalProps> = ({
                               <span>Upload Photo</span>
                             </button>
 
-                            {layer.enableAI !== false && !layer.id.includes('polaroid') && !(layer.editableLabel || layer.name || '').toLowerCase().includes('baby') && (
+                            {layer.enableAI !== false && (
                               <GeminiBackgroundGenerator
                                 targetWidth={(layer as ImageLayer).width * (layer.scaleX || 1)}
                                 targetHeight={(layer as ImageLayer).height * (layer.scaleY || 1)}
@@ -769,7 +769,9 @@ export const QuickTemplateModal: React.FC<QuickTemplateModalProps> = ({
                       overflow: 'hidden'
                     }}
                     dangerouslySetInnerHTML={{
-                      __html: liveSvgMarkup.replace(/<svg\b([^>]*)>/i, (_match, attrs) => {
+                      __html: liveSvgMarkup
+                        .replace(/<\?xml[\s\S]*?\?>/i, '')
+                        .replace(/<svg\b([^>]*)>/i, (_match, attrs) => {
                         let clean = attrs
                           .replace(/\bwidth="[^"]*"/i, 'width="100%"')
                           .replace(/\bheight="[^"]*"/i, 'height="100%"');

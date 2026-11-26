@@ -1104,8 +1104,14 @@ export const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
 
           const childRect = (node as any).findOne?.('Rect');
           if (childRect) {
+            childRect.width(newWidth);
+            childRect.height(newHeight);
             childRect.scaleX(1);
             childRect.scaleY(1);
+            const cr = (layer as any).cornerRadius ?? ((layer as any).shapeType === 'rounded-rect' ? 20 : 0);
+            if (cr > 0) {
+              childRect.cornerRadius(cr);
+            }
           }
           const childImg = (node as any).findOne?.('Image');
           if (childImg) {
@@ -1515,6 +1521,7 @@ export const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
             borderStroke="#0D99FF"
             borderStrokeWidth={1.5}
             rotateAnchorOffset={24}
+            onTransformEnd={handleMultiTransformEnd}
             boundBoxFunc={(oldBox, newBox) => {
               if (Math.abs(newBox.width) < 10 || Math.abs(newBox.height) < 10) return oldBox;
               return newBox;

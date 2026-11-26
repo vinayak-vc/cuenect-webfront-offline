@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useStage } from '../../context/StageContext';
-import { ListMusic, Download, MoreVertical, Layers, Sparkles, UploadCloud } from 'lucide-react';
+import { ListMusic, Download, MoreVertical, Layers, Sparkles, UploadCloud, Globe } from 'lucide-react';
 import { usePWAInstall } from '../../services/pwaService';
 import { ConnectionStatus } from './ConnectionStatus';
 import StageStatusTrigger from '../Stage/StageStatusTrigger';
@@ -11,6 +11,7 @@ interface HeaderProps {
   onOpenPlaylistMaker: () => void;
   onOpenConfigurator?: () => void;
   onOpenUploadModal?: () => void;
+  onOpenWebview?: () => void;
   onOpenMore?: () => void;
 }
 
@@ -26,6 +27,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenPlaylistMaker,
   onOpenConfigurator,
   onOpenUploadModal,
+  onOpenWebview,
   onOpenMore
 }) => {
   const {
@@ -111,6 +113,28 @@ export const Header: React.FC<HeaderProps> = ({
           >
             <Sparkles size={15} />
             <span>Image Studio</span>
+          </button>
+        )}
+
+        {/* Web / Live URL Stage Trigger */}
+        {onOpenWebview && (
+          <button
+            type="button"
+            className="btn btn-secondary hide-on-mobile"
+            onClick={onOpenWebview}
+            title="Open YouTube / Music / Web URL on Stage"
+            style={{
+              height: 36,
+              padding: '0 12px',
+              fontSize: '0.78rem',
+              gap: 6,
+              borderRadius: 'var(--radius-full)',
+              color: '#10B981',
+              borderColor: 'rgba(16, 185, 129, 0.4)'
+            }}
+          >
+            <Globe size={15} />
+            <span>Web / URL</span>
           </button>
         )}
 

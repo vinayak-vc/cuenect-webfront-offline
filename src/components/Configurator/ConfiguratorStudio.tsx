@@ -66,11 +66,13 @@ import {
   getOccasionTemplates,
   savePermanentTemplate,
   saveDraftProject,
+  saveTemplateInstance,
   TEMPLATES_CHANGED_EVENT
 } from './templateStorage';
 import { SaveTemplateModal } from './SaveTemplateModal';
 import { useHistory } from './useHistory';
 import { useStage } from '../../context/StageContext';
+import { stageSocket } from '../../services/socketService';
 import { GeminiWishGenerator } from '../AI/GeminiWishGenerator';
 import { GeminiBackgroundGenerator } from '../AI/GeminiBackgroundGenerator';
 
@@ -107,7 +109,7 @@ const GRADIENT_PRESETS = [
 ];
 
 export const ConfiguratorStudio: React.FC<ConfiguratorStudioProps> = ({ isOpen, onClose, initialProject }) => {
-  const { loadAsset, addToast } = useStage();
+  const { loadAsset, addToast, refreshAssets } = useStage();
 
   // Undo / Redo History Hook
   const {
@@ -840,19 +842,24 @@ export const ConfiguratorStudio: React.FC<ConfiguratorStudioProps> = ({ isOpen, 
     setPushSuccess(false);
 
     try {
+      const baseUrl = stageSocket?.getHttpBaseUrl() || '';
+      const endpoint = baseUrl ? `${baseUrl}/api/assets/upload` : '/api/assets/upload';
+
       const payload = {
         assetName: project.title || 'Configured Graphic',
-        fileName: `${project.title.replace(/[^a-zA-Z0-9_\- ]/g, '').replace(/\s+/g, '_')}.png`,
+        fileName: `${(project.title || 'graphic').replace(/[^a-zA-Z0-9_\- ]/g, '').replace(/\s+/g, '_')}_${Date.now()}.png`,
         imageData: dataUrl,
+        thumbnailData: dataUrl,
         category: 1, // DataType.Image
         playlistName: 'Occasions',
+        templateId: project.id,
         loadImmediately: true,
         projectData: project,
         width: project.width,
         height: project.height
       };
 
-      const res = await fetch('/api/assets/upload', {
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -861,6 +868,18 @@ export const ConfiguratorStudio: React.FC<ConfiguratorStudioProps> = ({ isOpen, 
       const result = await res.json();
       if (result.ok && result.asset) {
         setPushSuccess(true);
+        saveTemplateInstance({
+          id: `inst_${result.asset.AssetID || Date.now()}`,
+          templateId: project.id,
+          assetId: result.asset.AssetID,
+          assetName: result.asset.AssetName || project.title,
+          thumbUrl: dataUrl,
+          createdAt: Date.now(),
+          projectData: project
+        });
+        if (refreshAssets) {
+          refreshAssets();
+        }
         if (loadAsset) {
           loadAsset(result.asset);
         }

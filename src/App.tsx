@@ -21,6 +21,7 @@ import { ContextMenu } from './components/Common/ContextMenu';
 import { ConfiguratorStudio } from './components/Configurator/ConfiguratorStudio';
 import { ConfiguratorProject } from './components/Configurator/types';
 import { AssetUploadModal } from './components/Catalog/AssetUploadModal';
+import { WebviewModal } from './components/Stage/WebviewModal';
 import { Gamepad2, Loader2 } from 'lucide-react';
 import { EnvironmentPreset, MoveableAssetType } from './types/protocol';
 import { useStage } from './context/StageContext';
@@ -53,6 +54,7 @@ export const App: React.FC = () => {
   const [isNoAssetSheetOpen, setIsNoAssetSheetOpen] = useState<boolean>(false);
   const [isMoreSheetOpen, setIsMoreSheetOpen] = useState<boolean>(false);
   const [isProjectionSheetOpen, setIsProjectionSheetOpen] = useState<boolean>(false);
+  const [isWebviewModalOpen, setIsWebviewModalOpen] = useState<boolean>(false);
   const [query, setQuery] = useState<string>('');
 
   const isMobile = useIsMobile();
@@ -158,6 +160,7 @@ export const App: React.FC = () => {
         onOpenPlaylistMaker={() => setIsPlaylistMakerOpen(true)}
         onOpenConfigurator={() => setIsConfiguratorOpen(true)}
         onOpenUploadModal={() => setIsAssetUploadOpen(true)}
+        onOpenWebview={() => setIsWebviewModalOpen(true)}
         onOpenMore={() => setIsMoreSheetOpen(true)}
       />
 
@@ -319,11 +322,17 @@ export const App: React.FC = () => {
         onOpenProjection={() => setIsProjectionSheetOpen(true)}
         onOpenConfigurator={() => setIsConfiguratorOpen(true)}
         onOpenUploadModal={() => setIsAssetUploadOpen(true)}
+        onOpenWebview={() => setIsWebviewModalOpen(true)}
       />
 
       <ProjectionSheet
         isOpen={isProjectionSheetOpen}
         onClose={() => setIsProjectionSheetOpen(false)}
+      />
+
+      <WebviewModal
+        isOpen={isWebviewModalOpen}
+        onClose={() => setIsWebviewModalOpen(false)}
       />
 
       <ConfiguratorStudio

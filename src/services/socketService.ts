@@ -748,6 +748,29 @@ export class StageSocketService {
     this.emitEvent('hologram-model-action', { action });
   }
 
+  // Webview & Live URL Stage Controls
+  public openWebview(url: string, background: boolean = false): void {
+    const payload = JSON.stringify({ url, background });
+    this.emitEvent('stage-message', `WebviewOpen#${payload}`);
+  }
+
+  public sendWebviewAction(action: string, extra?: Record<string, any>): void {
+    const payload = JSON.stringify({ action, ...(extra || {}) });
+    this.emitEvent('stage-message', `WebviewAction#${payload}`);
+  }
+
+  public closeWebview(): void {
+    this.emitEvent('stage-message', 'WebviewClose#');
+  }
+
+  public skipWebviewAd(): void {
+    this.emitEvent('stage-message', 'WebviewSkipAd#');
+  }
+
+  public scrollWebview(deltaY: number = 300): void {
+    this.emitEvent('stage-message', `WebviewScroll#${deltaY}`);
+  }
+
   public sendVideoControl(control: Partial<VideoControl>): void {
     const payload: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(control)) {
