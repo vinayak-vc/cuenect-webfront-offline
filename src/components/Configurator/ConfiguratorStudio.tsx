@@ -2114,7 +2114,8 @@ export const ConfiguratorStudio: React.FC<ConfiguratorStudioProps> = ({ isOpen, 
                           value={Math.round((selectedLayer as ImageLayer).width * (selectedLayer.scaleX || 1))}
                           onChange={(e) => {
                             const newW = Number(e.target.value);
-                            if (newW > 0) handleUpdateLayer(selectedLayer.id, { width: newW, scaleX: 1 }, true);
+                            const currentH = Math.round((selectedLayer as ImageLayer).height * (selectedLayer.scaleY || 1));
+                            if (newW > 0) handleUpdateLayer(selectedLayer.id, { width: newW, height: currentH, scaleX: 1, scaleY: 1 }, true);
                           }}
                           style={{ width: '100%', background: 'transparent', border: 'none', color: '#FFFFFF', fontSize: 12, outline: 'none' }}
                         />
@@ -2126,7 +2127,8 @@ export const ConfiguratorStudio: React.FC<ConfiguratorStudioProps> = ({ isOpen, 
                           value={Math.round((selectedLayer as ImageLayer).height * (selectedLayer.scaleY || 1))}
                           onChange={(e) => {
                             const newH = Number(e.target.value);
-                            if (newH > 0) handleUpdateLayer(selectedLayer.id, { height: newH, scaleY: 1 }, true);
+                            const currentW = Math.round((selectedLayer as ImageLayer).width * (selectedLayer.scaleX || 1));
+                            if (newH > 0) handleUpdateLayer(selectedLayer.id, { width: currentW, height: newH, scaleX: 1, scaleY: 1 }, true);
                           }}
                           style={{ width: '100%', background: 'transparent', border: 'none', color: '#FFFFFF', fontSize: 12, outline: 'none' }}
                         />
@@ -2525,7 +2527,8 @@ export const ConfiguratorStudio: React.FC<ConfiguratorStudioProps> = ({ isOpen, 
                           value={Math.round((selectedLayer as ShapeLayer).width * (selectedLayer.scaleX || 1))}
                           onChange={(e) => {
                             const newW = Number(e.target.value);
-                            if (newW > 0) handleUpdateLayer(selectedLayer.id, { width: newW, scaleX: 1 }, true);
+                            const currentH = Math.round((selectedLayer as ShapeLayer).height * (selectedLayer.scaleY || 1));
+                            if (newW > 0) handleUpdateLayer(selectedLayer.id, { width: newW, height: currentH, scaleX: 1, scaleY: 1 }, true);
                           }}
                           style={{ width: '100%', background: 'transparent', border: 'none', color: '#FFFFFF', fontSize: 12, outline: 'none' }}
                         />
@@ -2537,7 +2540,8 @@ export const ConfiguratorStudio: React.FC<ConfiguratorStudioProps> = ({ isOpen, 
                           value={Math.round((selectedLayer as ShapeLayer).height * (selectedLayer.scaleY || 1))}
                           onChange={(e) => {
                             const newH = Number(e.target.value);
-                            if (newH > 0) handleUpdateLayer(selectedLayer.id, { height: newH, scaleY: 1 }, true);
+                            const currentW = Math.round((selectedLayer as ShapeLayer).width * (selectedLayer.scaleX || 1));
+                            if (newH > 0) handleUpdateLayer(selectedLayer.id, { width: currentW, height: newH, scaleX: 1, scaleY: 1 }, true);
                           }}
                           style={{ width: '100%', background: 'transparent', border: 'none', color: '#FFFFFF', fontSize: 12, outline: 'none' }}
                         />

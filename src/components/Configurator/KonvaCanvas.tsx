@@ -155,15 +155,20 @@ const URLImage: React.FC<{
     };
   }, [layer.src]);
 
+  const sw = Math.round(layer.width * (layer.scaleX || 1));
+  const sh = Math.round(layer.height * (layer.scaleY || 1));
+
   return (
     <Group
       id={layer.id}
       ref={shapeRef}
       x={layer.x}
       y={layer.y}
+      width={sw}
+      height={sh}
       rotation={layer.rotation || 0}
-      scaleX={layer.scaleX || 1}
-      scaleY={layer.scaleY || 1}
+      scaleX={1}
+      scaleY={1}
       draggable={!layer.isLocked}
       onClick={onSelect}
       onTap={onSelect}
@@ -172,28 +177,51 @@ const URLImage: React.FC<{
       onDragStart={onDragStart}
       onDragMove={onDragMove}
       onDragEnd={onDragEnd}
+      onTransform={(e) => {
+        const group = e.target as Konva.Group;
+        if (!group) return;
+        const sx = group.scaleX();
+        const sy = group.scaleY();
+        if (sx && sy) {
+          const imgNode = group.findOne('Image') as Konva.Image;
+          if (imgNode) {
+            imgNode.width(Math.max(5, sw * sx));
+            imgNode.height(Math.max(5, sh * sy));
+            imgNode.scaleX(1 / sx);
+            imgNode.scaleY(1 / sy);
+          }
+          const borderRect = group.findOne('Rect') as Konva.Rect;
+          if (borderRect) {
+            const bw = layer.borderWidth || 0;
+            borderRect.width(Math.max(5, sw * sx) + bw * 2);
+            borderRect.height(Math.max(5, sh * sy) + bw * 2);
+            borderRect.scaleX(1 / sx);
+            borderRect.scaleY(1 / sy);
+          }
+        }
+      }}
       onTransformEnd={onTransformEnd}
     >
       {Boolean(layer.borderWidth && layer.borderWidth > 0) && (
         <Rect
           x={-(layer.borderWidth || 0)}
           y={-(layer.borderWidth || 0)}
-          width={layer.width + (layer.borderWidth || 0) * 2}
-          height={layer.height + (layer.borderWidth || 0) * 2}
+          width={sw + (layer.borderWidth || 0) * 2}
+          height={sh + (layer.borderWidth || 0) * 2}
           fill={layer.borderColor || '#ffffff'}
           shadowColor={layer.shadowColor || 'rgba(0,0,0,0.25)'}
           shadowBlur={layer.shadowBlur || 15}
           shadowOffset={{ x: 0, y: 5 }}
           shadowOpacity={0.35}
-          cornerRadius={2}
+          cornerRadius={layer.cornerRadius || 2}
         />
       )}
 
       {imageObj ? (
         <KonvaImage
           image={imageObj}
-          width={layer.width}
-          height={layer.height}
+          width={sw}
+          height={sh}
           opacity={layer.opacity}
           cornerRadius={layer.cornerRadius || 0}
           shadowColor={layer.shadowColor || '#000000'}
@@ -314,8 +342,9 @@ const KonvaShapeLayer: React.FC<{
   onTransformEnd: () => void;
 }> = ({ layer, onSelect, onMouseEnter, onMouseLeave, onDragStart, onDragMove, onDragEnd, onTransformEnd }) => {
   const isGradient = layer.fillType === 'linear';
-  const sw = layer.width;
-  const sh = layer.height;
+  // Absorb any scale into width and height so the coordinate space is always 1:1 and cornerRadius is never distorted
+  const sw = Math.round(layer.width * (layer.scaleX || 1));
+  const sh = Math.round(layer.height * (layer.scaleY || 1));
   const angle = layer.gradientAngle || 0;
 
   let endPoint = { x: sw, y: 0 };
@@ -428,9 +457,11 @@ const KonvaShapeLayer: React.FC<{
       id={layer.id}
       x={layer.x}
       y={layer.y}
+      width={sw}
+      height={sh}
       rotation={layer.rotation || 0}
-      scaleX={layer.scaleX || 1}
-      scaleY={layer.scaleY || 1}
+      scaleX={1}
+      scaleY={1}
       draggable={!layer.isLocked}
       onClick={onSelect}
       onTap={onSelect}
@@ -439,6 +470,19 @@ const KonvaShapeLayer: React.FC<{
       onDragStart={onDragStart}
       onDragMove={onDragMove}
       onDragEnd={onDragEnd}
+      onTransform={(e) => {
+        const group = e.target as Konva.Group;
+        if (!group) return;
+        const sx = group.scaleX();
+        const sy = group.scaleY();
+        const rect = group.findOne('Rect') as Konva.Rect;
+        if (rect && sx && sy) {
+          rect.width(Math.max(5, sw * sx));
+          rect.height(Math.max(5, sh * sy));
+          rect.scaleX(1 / sx);
+          rect.scaleY(1 / sy);
+        }
+      }}
       onTransformEnd={onTransformEnd}
     >
       {renderShape()}
@@ -1036,28 +1080,72 @@ export const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
     }, 10);
   };
 
-  // Multi-transform End (Commit non-uniform stretched dimensions and scales)
+  // Multi-transform End (Commit non-uniform stretched dimensions and normalize scales)
   const handleMultiTransformEnd = () => {
     if (selectedLayerIds.length === 0) return;
 
     const updates: { id: string; updates: Partial<ConfiguratorLayer> }[] = [];
     for (const id of selectedLayerIds) {
       const node = stageRef.current?.findOne('#' + id);
-      if (node) {
-        updates.push({
-          id,
-          updates: {
-            x: Math.round(node.x()),
-            y: Math.round(node.y()),
-            rotation: Math.round(node.rotation()),
-            scaleX: Number(node.scaleX().toFixed(3)),
-            scaleY: Number(node.scaleY().toFixed(3))
+      const layer = project.layers.find((l) => l.id === id);
+      if (node && layer) {
+        const sx = node.scaleX();
+        const sy = node.scaleY();
+
+        if (layer.type === 'shape' || layer.type === 'image') {
+          const baseW = Math.round((layer as any).width * (layer.scaleX || 1)) || 100;
+          const baseH = Math.round((layer as any).height * (layer.scaleY || 1)) || 100;
+          const newWidth = Math.max(5, Math.round(baseW * Math.abs(sx)));
+          const newHeight = Math.max(5, Math.round(baseH * Math.abs(sy)));
+
+          // Reset Konva node scales back to 1:1 so geometry absorbs the stretch directly
+          node.scaleX(1);
+          node.scaleY(1);
+
+          const childRect = (node as any).findOne?.('Rect');
+          if (childRect) {
+            childRect.scaleX(1);
+            childRect.scaleY(1);
           }
-        });
+          const childImg = (node as any).findOne?.('Image');
+          if (childImg) {
+            childImg.scaleX(1);
+            childImg.scaleY(1);
+          }
+
+          updates.push({
+            id,
+            updates: {
+              x: Math.round(node.x()),
+              y: Math.round(node.y()),
+              rotation: Math.round(node.rotation()),
+              width: newWidth,
+              height: newHeight,
+              scaleX: 1,
+              scaleY: 1
+            }
+          });
+        } else {
+          // Text layer: keep scaleX & scaleY
+          updates.push({
+            id,
+            updates: {
+              x: Math.round(node.x()),
+              y: Math.round(node.y()),
+              rotation: Math.round(node.rotation()),
+              scaleX: Number(sx.toFixed(3)),
+              scaleY: Number(sy.toFixed(3))
+            }
+          });
+        }
       }
     }
 
     onUpdateMultipleLayers(updates, true);
+    setTimeout(() => {
+      trRef.current?.forceUpdate();
+      trRef.current?.getLayer()?.batchDraw();
+    }, 10);
   };
 
   const isHandCursor = activeTool === 'hand' || isSpacePressed;

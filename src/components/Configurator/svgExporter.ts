@@ -87,7 +87,9 @@ export const generateProjectSVG = (project: ConfiguratorProject): string => {
         elements += `  </g>\n`;
       } else {
         // Default rectangle
-        elements += `  <rect x="${sl.x}" y="${sl.y}" width="${sw}" height="${sh}" fill="${fill}" opacity="${opacity}"${strokeAttr}${transform} />\n`;
+        const cr = sl.cornerRadius || 0;
+        const rxAttr = cr > 0 ? ` rx="${cr}"` : '';
+        elements += `  <rect x="${sl.x}" y="${sl.y}" width="${sw}" height="${sh}"${rxAttr} fill="${fill}" opacity="${opacity}"${strokeAttr}${transform} />\n`;
       }
     }
   });

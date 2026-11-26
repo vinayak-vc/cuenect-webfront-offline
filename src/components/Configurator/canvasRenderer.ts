@@ -91,7 +91,14 @@ export const renderProjectDirectCanvas = async (project: ConfiguratorProject): P
         ctx.ellipse(sl.x + w / 2, sl.y + h / 2, w / 2, h / 2, 0, 0, Math.PI * 2);
         ctx.fill();
       } else {
-        ctx.fillRect(sl.x, sl.y, w, h);
+        const cr = sl.cornerRadius ?? (sl.shapeType === 'rounded-rect' ? 20 : 0);
+        if (cr > 0 && typeof (ctx as any).roundRect === 'function') {
+          ctx.beginPath();
+          (ctx as any).roundRect(sl.x, sl.y, w, h, cr);
+          ctx.fill();
+        } else {
+          ctx.fillRect(sl.x, sl.y, w, h);
+        }
       }
     }
     ctx.restore();
