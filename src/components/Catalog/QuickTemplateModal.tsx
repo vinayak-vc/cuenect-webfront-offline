@@ -18,6 +18,7 @@ import { renderProjectToDataUrl } from '../Configurator/canvasRenderer';
 import { useStage } from '../../context/StageContext';
 import { GeminiWishGenerator } from '../AI/GeminiWishGenerator';
 import { GeminiBackgroundGenerator } from '../AI/GeminiBackgroundGenerator';
+import { saveTemplateInstance } from '../Configurator/templateStorage';
 
 interface QuickTemplateModalProps {
   isOpen: boolean;
@@ -137,6 +138,19 @@ export const QuickTemplateModal: React.FC<QuickTemplateModalProps> = ({
       if (result.ok && result.asset) {
         setPushSuccess(true);
         setCreatedCount((prev) => prev + 1);
+
+        // Record template instance for hub and playlist management
+        saveTemplateInstance({
+          id: `inst_${result.asset.AssetID || Date.now()}`,
+          templateId: template.id,
+          assetId: result.asset.AssetID,
+          assetName: result.asset.AssetName || title,
+          thumbUrl: dataUrl,
+          createdAt: Date.now(),
+          fieldValues: { ...fieldValues },
+          projectData: customizedProject
+        });
+
         if (loadAsset) {
           loadAsset(result.asset);
         }

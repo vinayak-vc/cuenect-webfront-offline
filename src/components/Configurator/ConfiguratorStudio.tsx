@@ -30,6 +30,7 @@ import {
   UserPlus,
   Award,
   Presentation,
+  Layers,
   AlignLeft,
   AlignCenter,
   AlignRight,
@@ -60,7 +61,14 @@ import {
 } from './types';
 import { generateProjectSVG } from './svgExporter';
 import { parseFigmaSvg } from './figmaSvgImporter';
-import { STARTER_TEMPLATES } from './templates';
+import { STARTER_TEMPLATES, BLANK_TEMPLATE } from './templates';
+import {
+  getOccasionTemplates,
+  savePermanentTemplate,
+  saveDraftProject,
+  TEMPLATES_CHANGED_EVENT
+} from './templateStorage';
+import { SaveTemplateModal } from './SaveTemplateModal';
 import { useHistory } from './useHistory';
 import { useStage } from '../../context/StageContext';
 import { GeminiWishGenerator } from '../AI/GeminiWishGenerator';
@@ -126,6 +134,14 @@ export const ConfiguratorStudio: React.FC<ConfiguratorStudioProps> = ({ isOpen, 
   const exportMenuRef = useRef<HTMLDivElement>(null);
   const [isEffectsMenuOpen, setIsEffectsMenuOpen] = useState(false);
   const effectsMenuRef = useRef<HTMLDivElement>(null);
+  const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
+  const [templatesList, setTemplatesList] = useState<ConfiguratorProject[]>(getOccasionTemplates);
+
+  useEffect(() => {
+    const refresh = () => setTemplatesList(getOccasionTemplates());
+    window.addEventListener(TEMPLATES_CHANGED_EVENT, refresh);
+    return () => window.removeEventListener(TEMPLATES_CHANGED_EVENT, refresh);
+  }, []);
 
   // Resolution State
   const [selectedPresetId, setSelectedPresetId] = useState<string>('1080p_landscape');
@@ -677,29 +693,9 @@ export const ConfiguratorStudio: React.FC<ConfiguratorStudioProps> = ({ isOpen, 
     handleFitToScreen
   ]);
 
-  // Save Project Template
+  // Save Project Template (Opens save dialog with Permanent vs Draft choices)
   const handleSaveProject = () => {
-    const savedList = JSON.parse(localStorage.getItem('cuenect_saved_projects') || '[]');
-    const existingIdx = savedList.findIndex((p: ConfiguratorProject) => p.id === project.id);
-    const updatedProject = { ...project, updatedAt: Date.now() };
-    if (existingIdx >= 0) {
-      savedList[existingIdx] = updatedProject;
-    } else {
-      savedList.unshift(updatedProject);
-    }
-    localStorage.setItem('cuenect_saved_projects', JSON.stringify(savedList));
-
-    const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(updatedProject, null, 2));
-    const downloadAnchor = document.createElement('a');
-    downloadAnchor.setAttribute('href', dataStr);
-    downloadAnchor.setAttribute('download', `${project.title.replace(/\s+/g, '_')}.cuenect-project.json`);
-    document.body.appendChild(downloadAnchor);
-    downloadAnchor.click();
-    downloadAnchor.remove();
-
-    if (addToast) {
-      addToast('Project Saved', `Saved "${project.title}" template.`, 'success');
-    }
+    setIsSaveModalOpen(true);
   };
 
   // Load Project JSON
@@ -1352,17 +1348,57 @@ export const ConfiguratorStudio: React.FC<ConfiguratorStudioProps> = ({ isOpen, 
             {/* OCCASIONS (Figma Pages from video) */}
             {activeLeftTab === 'occasions' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <span style={{ fontSize: 10, fontWeight: 700, color: '#777777', textTransform: 'uppercase', marginBottom: 4 }}>
+                <span style={{ fontSize: 10, fontWeight: 700, color: '#777777', textTransform: 'uppercase', marginBottom: 2 }}>
                   Select Event Template:
                 </span>
-                {STARTER_TEMPLATES.map((tmpl) => {
+
+                {/* Empty / Blank Canvas Preset (Create from Scratch) */}
+                <div
+                  onClick={() => {
+                    const newBlank: ConfiguratorProject = {
+                      ...BLANK_TEMPLATE,
+                      id: `custom_${Date.now()}`,
+                      title: 'Untitled Custom Occasion',
+                      createdAt: Date.now(),
+                      updatedAt: Date.now()
+                    };
+                    resetProjectHistory(newBlank);
+                    setSelectedLayerIds([]);
+                    setTimeout(handleFitToScreen, 50);
+                  }}
+                  style={{
+                    padding: '9px 10px',
+                    borderRadius: 6,
+                    background: 'rgba(13, 153, 255, 0.08)',
+                    border: '1.5px dashed #0D99FF',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    marginBottom: 4
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(13, 153, 255, 0.16)')}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(13, 153, 255, 0.08)')}
+                >
+                  <Plus size={16} color="#0D99FF" />
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: '#0D99FF' }}>
+                      Blank Canvas (Create New)
+                    </div>
+                    <div style={{ fontSize: 10, color: '#8E9AAA' }}>
+                      Start empty occasion from scratch
+                    </div>
+                  </div>
+                </div>
+
+                {templatesList.map((tmpl) => {
                   const isCurrent = project.id === tmpl.id;
                   return (
                     <div
                       key={tmpl.id}
                       onClick={() => {
                         resetProjectHistory({ ...tmpl, id: tmpl.id });
-                        setSelectedLayerIds(tmpl.layers[1] ? [tmpl.layers[1].id] : []);
+                        setSelectedLayerIds(tmpl.layers[1] ? [tmpl.layers[1].id] : tmpl.layers[0] ? [tmpl.layers[0].id] : []);
                         setTimeout(handleFitToScreen, 50);
                       }}
                       style={{
@@ -1381,13 +1417,20 @@ export const ConfiguratorStudio: React.FC<ConfiguratorStudioProps> = ({ isOpen, 
                       {tmpl.id.includes('joinee') && <UserPlus size={15} color="#38BDF8" />}
                       {tmpl.id.includes('anniversary') && <Award size={15} color="#F59E0B" />}
                       {tmpl.id.includes('welcome') && <Presentation size={15} color="#68D9D0" />}
+                      {!tmpl.id.includes('baby') &&
+                        !tmpl.id.includes('birthday') &&
+                        !tmpl.id.includes('joinee') &&
+                        !tmpl.id.includes('anniversary') &&
+                        !tmpl.id.includes('welcome') && <Layers size={15} color="#0D99FF" />}
 
                       <div style={{ minWidth: 0, flex: 1 }}>
                         <div style={{ fontSize: 12, fontWeight: 600, color: isCurrent ? '#0D99FF' : '#E0E0E0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                           {tmpl.title}
                         </div>
-                        <div style={{ fontSize: 10, color: '#777777' }}>
-                          {tmpl.width}x{tmpl.height}
+                        <div style={{ fontSize: 10, color: '#777777', display: 'flex', gap: 6 }}>
+                          <span>{tmpl.width}x{tmpl.height}</span>
+                          <span>•</span>
+                          <span>{tmpl.layers.length} layers</span>
                         </div>
                       </div>
                     </div>
@@ -3383,6 +3426,31 @@ export const ConfiguratorStudio: React.FC<ConfiguratorStudioProps> = ({ isOpen, 
         }}
         onSelectAll={() => setSelectedLayerIds(project.layers.map((l) => l.id))}
       />
+
+      {/* Save Template Modal (Permanent Occasion vs Draft) */}
+      {isSaveModalOpen && (
+        <SaveTemplateModal
+          isOpen={isSaveModalOpen}
+          onClose={() => setIsSaveModalOpen(false)}
+          project={project}
+          onSavePermanent={(updatedTitle) => {
+            const toSave = { ...project, title: updatedTitle || project.title, updatedAt: Date.now() };
+            savePermanentTemplate(toSave);
+            setProject(toSave, true);
+            setIsSaveModalOpen(false);
+            if (addToast) {
+              addToast('Template Saved', `"${toSave.title}" is now the permanent default for this occasion.`, 'success');
+            }
+          }}
+          onSaveDraft={(triggerDownload) => {
+            saveDraftProject(project, triggerDownload);
+            setIsSaveModalOpen(false);
+            if (addToast) {
+              addToast('Draft Saved', triggerDownload ? 'Saved draft and downloaded JSON backup.' : 'Saved draft project.', 'info');
+            }
+          }}
+        />
+      )}
     </div>
   );
 };

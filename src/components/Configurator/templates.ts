@@ -8,6 +8,21 @@ export const OCCASION_CATEGORIES = [
   { id: 'quarterly_welcome', label: 'Quarterly Welcome' }
 ];
 
+export const BLANK_TEMPLATE: ConfiguratorProject = {
+  id: 'blank-occasion',
+  title: 'Blank Canvas (New Occasion)',
+  createdAt: Date.now(),
+  updatedAt: Date.now(),
+  width: 1920,
+  height: 1080,
+  background: {
+    type: 'color',
+    color: '#0F172A',
+    opacity: 1
+  },
+  layers: []
+};
+
 export const STARTER_TEMPLATES: ConfiguratorProject[] = [
   // 1. BABY BORN (Directly matching Figma Option 1 Girl from the video)
   {

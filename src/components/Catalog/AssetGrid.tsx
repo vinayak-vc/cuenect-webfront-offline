@@ -20,12 +20,18 @@ import {
   ChevronLeft,
   ChevronRight,
   Edit3,
-  Send
+  Check
 } from 'lucide-react';
 import { ConfiguratorProject } from '../Configurator/types';
-import { STARTER_TEMPLATES } from '../Configurator/templates';
 import { generateProjectSVG } from '../Configurator/svgExporter';
 import { QuickTemplateModal } from './QuickTemplateModal';
+import { TemplateHubModal } from './TemplateHubModal';
+import {
+  getOccasionTemplates,
+  getTemplateInstances,
+  TEMPLATES_CHANGED_EVENT,
+  INSTANCES_CHANGED_EVENT
+} from '../Configurator/templateStorage';
 
 interface AssetGridProps {
   onOpenConnection: () => void;
@@ -85,22 +91,24 @@ export const AssetGrid: React.FC<AssetGridProps> = ({
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
   const [selectedTemplateForModal, setSelectedTemplateForModal] = useState<ConfiguratorProject | null>(null);
   const [isQuickTemplateOpen, setIsQuickTemplateOpen] = useState<boolean>(false);
+  const [selectedTemplateForHub, setSelectedTemplateForHub] = useState<ConfiguratorProject | null>(null);
+  const [isHubModalOpen, setIsHubModalOpen] = useState<boolean>(false);
+  const [templateVersion, setTemplateVersion] = useState(0);
 
-  // All occasion templates (pre-built starter templates + user saved projects from image editor)
-  const allTemplates = useMemo<ConfiguratorProject[]>(() => {
-    try {
-      const saved = JSON.parse(localStorage.getItem('cuenect_saved_projects') || '[]');
-      const combined = [...STARTER_TEMPLATES];
-      saved.forEach((p: ConfiguratorProject) => {
-        if (!combined.some((item) => item.id === p.id)) {
-          combined.push(p);
-        }
-      });
-      return combined;
-    } catch {
-      return STARTER_TEMPLATES;
-    }
+  useEffect(() => {
+    const handleRefresh = () => setTemplateVersion((v) => v + 1);
+    window.addEventListener(TEMPLATES_CHANGED_EVENT, handleRefresh);
+    window.addEventListener(INSTANCES_CHANGED_EVENT, handleRefresh);
+    return () => {
+      window.removeEventListener(TEMPLATES_CHANGED_EVENT, handleRefresh);
+      window.removeEventListener(INSTANCES_CHANGED_EVENT, handleRefresh);
+    };
   }, []);
+
+  // All occasion templates (pre-built starter templates + user permanent saves + custom templates)
+  const allTemplates = useMemo<ConfiguratorProject[]>(() => {
+    return getOccasionTemplates();
+  }, [templateVersion]);
 
   const filteredTemplates = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -742,14 +750,15 @@ export const AssetGrid: React.FC<AssetGridProps> = ({
             {filteredTemplates.map((template) => {
               const editableFields = template.layers.filter((l) => Boolean(l.isEditable || l.isTemplateField));
               const svgPreview = generateProjectSVG(template).replace(/width="\d+" height="\d+"/, 'width="100%" height="100%"');
+              const instanceCount = getTemplateInstances(template.id).length;
 
               return (
                 <div
                   key={template.id}
                   className="asset-card"
                   onClick={() => {
-                    setSelectedTemplateForModal(template);
-                    setIsQuickTemplateOpen(true);
+                    setSelectedTemplateForHub(template);
+                    setIsHubModalOpen(true);
                   }}
                   style={{
                     background: '#16161A',
@@ -791,6 +800,32 @@ export const AssetGrid: React.FC<AssetGridProps> = ({
                       style={{ width: '100%', height: '100%', pointerEvents: 'none' }}
                       dangerouslySetInnerHTML={{ __html: svgPreview }}
                     />
+
+                    {/* Instance Count Badge */}
+                    {instanceCount > 0 && (
+                      <div
+                        style={{
+                          position: 'absolute',
+                          top: 8,
+                          left: 8,
+                          background: 'rgba(16, 185, 129, 0.95)',
+                          color: '#FFFFFF',
+                          fontSize: 10,
+                          fontWeight: 700,
+                          padding: '2px 8px',
+                          borderRadius: 999,
+                          backdropFilter: 'blur(4px)',
+                          boxShadow: '0 2px 6px rgba(0,0,0,0.4)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 4
+                        }}
+                      >
+                        <Check size={10} />
+                        <span>{instanceCount} Created</span>
+                      </div>
+                    )}
+
                     <div
                       style={{
                         position: 'absolute',
@@ -873,8 +908,8 @@ export const AssetGrid: React.FC<AssetGridProps> = ({
                       <button
                         type="button"
                         onClick={() => {
-                          setSelectedTemplateForModal(template);
-                          setIsQuickTemplateOpen(true);
+                          setSelectedTemplateForHub(template);
+                          setIsHubModalOpen(true);
                         }}
                         style={{
                           flex: 1,
@@ -893,8 +928,8 @@ export const AssetGrid: React.FC<AssetGridProps> = ({
                           boxShadow: '0 2px 8px rgba(13,153,255,0.3)'
                         }}
                       >
-                        <Send size={12} />
-                        <span>Use Template</span>
+                        <Layers size={12} />
+                        <span>{instanceCount > 0 ? `View Images (${instanceCount})` : 'Select Template'}</span>
                       </button>
 
                       {onOpenConfigurator && (
@@ -959,6 +994,29 @@ export const AssetGrid: React.FC<AssetGridProps> = ({
             <AssetCard key={asset.AssetID} asset={asset} />
           ))}
         </div>
+      )}
+
+      {/* Template Instances / Hub Modal (View & Playlist Layer) */}
+      {selectedTemplateForHub && (
+        <TemplateHubModal
+          isOpen={isHubModalOpen}
+          template={selectedTemplateForHub}
+          onClose={() => {
+            setIsHubModalOpen(false);
+            setSelectedTemplateForHub(null);
+          }}
+          onCreateNew={() => {
+            setSelectedTemplateForModal(selectedTemplateForHub);
+            setIsQuickTemplateOpen(true);
+          }}
+          onEditInStudio={() => {
+            const tmpl = selectedTemplateForHub;
+            setIsHubModalOpen(false);
+            if (onOpenConfigurator) {
+              onOpenConfigurator(tmpl);
+            }
+          }}
+        />
       )}
 
       {/* Quick Template Customization Modal */}
