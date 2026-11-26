@@ -19,7 +19,13 @@ export default defineConfig({
   envPrefix: ['VITE_', 'GEMINI_'],
   server: {
     port: 3000,
-    host: true
+    host: true,
+    proxy: {
+      '/api': {
+        target: 'http://127.0.0.1:9000',
+        changeOrigin: true
+      }
+    }
   },
   preview: {
     port: 3000,

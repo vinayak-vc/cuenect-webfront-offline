@@ -3294,8 +3294,15 @@ export const ConfiguratorStudio: React.FC<ConfiguratorStudioProps> = ({ isOpen, 
                   onApplyImage={(generated) => {
                     setProject((prev) => ({
                       ...prev,
-                      background: { ...prev.background, imageUrl: generated }
+                      background: {
+                        ...prev.background,
+                        type: 'image',
+                        imageUrl: generated
+                      }
                     }), true);
+                    if (addToast) {
+                      addToast('Background Applied', 'Generated background image set on canvas', 'success');
+                    }
                   }}
                 />
 
@@ -3304,7 +3311,7 @@ export const ConfiguratorStudio: React.FC<ConfiguratorStudioProps> = ({ isOpen, 
                     onClick={() =>
                       setProject((prev) => ({
                         ...prev,
-                        background: { ...prev.background, imageUrl: undefined }
+                        background: { ...prev.background, type: 'color', imageUrl: undefined }
                       }), true)
                     }
                     style={{

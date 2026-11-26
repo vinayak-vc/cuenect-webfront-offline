@@ -84,7 +84,9 @@ async function resizeToExactBoundingBox(imageUri: string, targetW: number, targe
 
   return new Promise((resolve) => {
     const img = new Image();
-    img.crossOrigin = 'anonymous';
+    if (imageUri && !imageUri.startsWith('data:') && !imageUri.startsWith('blob:')) {
+      img.crossOrigin = 'anonymous';
+    }
     img.onload = () => {
       const canvas = document.createElement('canvas');
       canvas.width = Math.round(targetW);

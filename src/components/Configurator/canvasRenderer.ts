@@ -21,7 +21,9 @@ export const renderProjectDirectCanvas = async (project: ConfiguratorProject): P
   if (project.background.imageUrl) {
     await new Promise<void>((resolve) => {
       const img = new Image();
-      img.crossOrigin = 'anonymous';
+      if (!project.background.imageUrl!.startsWith('data:') && !project.background.imageUrl!.startsWith('blob:')) {
+        img.crossOrigin = 'anonymous';
+      }
       img.onload = () => {
         ctx.globalAlpha = project.background.opacity ?? 1;
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
@@ -62,7 +64,9 @@ export const renderProjectDirectCanvas = async (project: ConfiguratorProject): P
       const il = layer as ImageLayer;
       await new Promise<void>((resolve) => {
         const img = new Image();
-        img.crossOrigin = 'anonymous';
+        if (il.src && !il.src.startsWith('data:') && !il.src.startsWith('blob:')) {
+          img.crossOrigin = 'anonymous';
+        }
         img.onload = () => {
           const w = il.width * (il.scaleX || 1);
           const h = il.height * (il.scaleY || 1);

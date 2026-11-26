@@ -152,30 +152,30 @@ export const AssetCard: React.FC<AssetCardProps> = ({ asset }) => {
           </span>
         )}
 
-        {isActive ? (
-          <span className="asset-live-badge">
-            <span className="live-dot" />
-            LIVE
-          </span>
-        ) : isInCustomPlaylist ? (
-          <span className="asset-state-badge">
-            <Check size={11} />
-            IN PLAYLIST
-          </span>
-        ) : null}
-
-        {/* Card Actions Overlay (Bottom-Right: Delete + Favorite) */}
+        {/* Top-Right Badge & Action Container (prevents overlap) */}
         <div
           style={{
             position: 'absolute',
-            bottom: 8,
+            top: 8,
             right: 8,
             display: 'flex',
             alignItems: 'center',
             gap: 6,
-            zIndex: 3
+            zIndex: 4
           }}
         >
+          {isActive ? (
+            <span className="asset-live-badge" style={{ position: 'static' }}>
+              <span className="live-dot" />
+              LIVE
+            </span>
+          ) : isInCustomPlaylist ? (
+            <span className="asset-state-badge" style={{ position: 'static' }}>
+              <Check size={11} />
+              IN PLAYLIST
+            </span>
+          ) : null}
+
           <button
             type="button"
             className="asset-delete-btn"
@@ -186,55 +186,51 @@ export const AssetCard: React.FC<AssetCardProps> = ({ asset }) => {
             title={`Delete ${asset.AssetName} from database`}
             aria-label={`Delete ${asset.AssetName}`}
             style={{
-              width: 30,
-              height: 30,
+              width: 28,
+              height: 28,
               borderRadius: '50%',
-              background: 'rgba(20, 20, 25, 0.75)',
+              background: 'rgba(20, 20, 25, 0.85)',
               backdropFilter: 'blur(6px)',
-              border: '1px solid rgba(255, 255, 255, 0.12)',
+              border: '1px solid rgba(255, 255, 255, 0.15)',
               color: 'var(--text-secondary, #999)',
               display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',
               cursor: 'pointer',
-              transition: 'all 0.15s ease'
+              transition: 'all 0.15s ease',
+              flexShrink: 0
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.color = '#F43F5E';
-              e.currentTarget.style.borderColor = 'rgba(244, 63, 94, 0.5)';
-              e.currentTarget.style.background = 'rgba(244, 63, 94, 0.18)';
+              e.currentTarget.style.borderColor = 'rgba(244, 63, 94, 0.6)';
+              e.currentTarget.style.background = 'rgba(244, 63, 94, 0.22)';
               e.currentTarget.style.transform = 'scale(1.08)';
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.color = 'var(--text-secondary, #999)';
-              e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.12)';
-              e.currentTarget.style.background = 'rgba(20, 20, 25, 0.75)';
+              e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.15)';
+              e.currentTarget.style.background = 'rgba(20, 20, 25, 0.85)';
               e.currentTarget.style.transform = 'scale(1)';
             }}
           >
             <Trash2 size={13} />
           </button>
-
-          <button
-            type="button"
-            className={`asset-fav ${isFavourite ? 'on' : ''}`}
-            onClick={(e) => {
-              e.stopPropagation();
-              toggleFavourite(asset.AssetID);
-            }}
-            title={isFavourite ? 'Remove from favourites' : 'Add to favourites'}
-            aria-label={isFavourite ? 'Remove from favourites' : 'Add to favourites'}
-            aria-pressed={isFavourite}
-            style={{
-              position: 'relative',
-              bottom: 'auto',
-              right: 'auto',
-              opacity: 1
-            }}
-          >
-            <Heart size={14} fill={isFavourite ? 'currentColor' : 'none'} />
-          </button>
         </div>
+
+        {/* Favorite Button (Bottom-Right) */}
+        <button
+          type="button"
+          className={`asset-fav ${isFavourite ? 'on' : ''}`}
+          onClick={(e) => {
+            e.stopPropagation();
+            toggleFavourite(asset.AssetID);
+          }}
+          title={isFavourite ? 'Remove from favourites' : 'Add to favourites'}
+          aria-label={isFavourite ? 'Remove from favourites' : 'Add to favourites'}
+          aria-pressed={isFavourite}
+        >
+          <Heart size={14} fill={isFavourite ? 'currentColor' : 'none'} />
+        </button>
       </div>
 
       <div className="asset-info">

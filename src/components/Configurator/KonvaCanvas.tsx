@@ -140,7 +140,9 @@ const URLImage: React.FC<{
   useEffect(() => {
     let isMounted = true;
     const img = new window.Image();
-    img.crossOrigin = 'anonymous';
+    if (layer.src && !layer.src.startsWith('data:') && !layer.src.startsWith('blob:')) {
+      img.crossOrigin = 'anonymous';
+    }
     img.src = layer.src;
     img.onload = () => {
       if (isMounted) setImageObj(img);
@@ -552,9 +554,11 @@ export const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
 
   // Background image loader
   useEffect(() => {
-    if (project.background.type === 'image' && project.background.imageUrl) {
+    if ((project.background.type === 'image' || project.background.imageUrl) && project.background.imageUrl) {
       const img = new window.Image();
-      img.crossOrigin = 'anonymous';
+      if (!project.background.imageUrl.startsWith('data:') && !project.background.imageUrl.startsWith('blob:')) {
+        img.crossOrigin = 'anonymous';
+      }
       img.src = project.background.imageUrl;
       img.onload = () => setBgImageObj(img);
       img.onerror = () => setBgImageObj(null);
