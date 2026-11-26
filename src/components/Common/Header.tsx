@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useStage } from '../../context/StageContext';
-import { ListMusic, Download, MoreVertical, Layers } from 'lucide-react';
+import { ListMusic, Download, MoreVertical, Layers, Sparkles, UploadCloud } from 'lucide-react';
 import { usePWAInstall } from '../../services/pwaService';
 import { ConnectionStatus } from './ConnectionStatus';
 import StageStatusTrigger from '../Stage/StageStatusTrigger';
@@ -9,6 +9,8 @@ import { ProjectionSelector } from './ProjectionSelector';
 interface HeaderProps {
   onOpenConnection: () => void;
   onOpenPlaylistMaker: () => void;
+  onOpenConfigurator?: () => void;
+  onOpenUploadModal?: () => void;
   onOpenMore?: () => void;
 }
 
@@ -22,6 +24,8 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({
   onOpenConnection,
   onOpenPlaylistMaker,
+  onOpenConfigurator,
+  onOpenUploadModal,
   onOpenMore
 }) => {
   const {
@@ -65,6 +69,50 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Stage Link / Operator Pill */}
         <ConnectionStatus onClick={onOpenConnection} />
+
+        {/* Library Asset Manager Trigger */}
+        {onOpenUploadModal && (
+          <button
+            type="button"
+            className="btn btn-secondary hide-on-mobile"
+            onClick={onOpenUploadModal}
+            title="Upload Models, Videos, or Images to Stage"
+            style={{
+              height: 36,
+              padding: '0 12px',
+              fontSize: '0.78rem',
+              gap: 6,
+              borderRadius: 'var(--radius-full)',
+              color: '#0D99FF',
+              borderColor: 'rgba(13, 153, 255, 0.4)'
+            }}
+          >
+            <UploadCloud size={15} />
+            <span>Upload Asset</span>
+          </button>
+        )}
+
+        {/* Image Studio Configurator Trigger */}
+        {onOpenConfigurator && (
+          <button
+            type="button"
+            className="btn btn-secondary hide-on-mobile"
+            onClick={onOpenConfigurator}
+            title="Open Image Configurator Studio"
+            style={{
+              height: 36,
+              padding: '0 12px',
+              fontSize: '0.78rem',
+              gap: 6,
+              borderRadius: 'var(--radius-full)',
+              color: 'var(--accent-signature)',
+              borderColor: 'var(--line-interactive)'
+            }}
+          >
+            <Sparkles size={15} />
+            <span>Image Studio</span>
+          </button>
+        )}
 
         {/* Desktop Playlist Queue Button */}
         <button

@@ -5,6 +5,7 @@ import {
   User,
   ModelControl,
   VideoControl,
+  ImageControl,
   MovableActionEvent,
   CameraOrthographic,
   StereoAdjustSettings,
@@ -763,6 +764,10 @@ export class StageSocketService {
       payload.backForwardSeconds = s;
     }
     this.emitEvent('hologram-video-action', payload);
+  }
+
+  public sendImageControl(control: ImageControl): void {
+    this.emitEvent('hologram-image-action', control);
   }
 
   public sendMovableAction(action: MovableActionEvent | any): void {

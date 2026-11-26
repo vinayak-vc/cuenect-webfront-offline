@@ -191,6 +191,15 @@ export interface VideoControl {
   isLooping?: string;
 }
 
+export interface ImageControl {
+  action?: 'zoomIn' | 'zoomOut' | 'reset' | 'rotateRight' | 'rotateCw' | 'rotateLeft' | 'rotateCcw' | 'fit' | 'fill' | 'close';
+  scale?: number;
+  rotation?: number;
+  preserveAspect?: boolean;
+  deltaZoom?: number;
+  deltaRotation?: number;
+}
+
 export interface CameraOrthographic {
   isOrthographic: boolean;
 }

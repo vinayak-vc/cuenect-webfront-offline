@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useRef, useState, useEffect, useCallback } from 'react';
 import { useStage } from '../../context/StageContext';
 import { AssetCard } from './AssetCard';
 import { ExploreCard } from './ExploreCard';
@@ -14,19 +14,32 @@ import {
   SearchX,
   Compass,
   HardDrive,
-  Shuffle
+  Shuffle,
+  Sparkles,
+  UploadCloud,
+  ChevronLeft,
+  ChevronRight,
+  Edit3,
+  Send
 } from 'lucide-react';
+import { ConfiguratorProject } from '../Configurator/types';
+import { STARTER_TEMPLATES } from '../Configurator/templates';
+import { generateProjectSVG } from '../Configurator/svgExporter';
+import { QuickTemplateModal } from './QuickTemplateModal';
 
 interface AssetGridProps {
   onOpenConnection: () => void;
   query: string;
   onQueryChange: (value: string) => void;
+  onOpenConfigurator?: (project?: ConfiguratorProject) => void;
+  onOpenUploadModal?: () => void;
 }
 
-type TypeFilter = 'all' | 'recent' | 'favourites' | 'models' | 'videos' | 'images';
+type TypeFilter = 'all' | 'templates' | 'recent' | 'favourites' | 'models' | 'videos' | 'images';
 
 const TYPE_FILTERS: Array<{ id: TypeFilter; label: string }> = [
   { id: 'all', label: 'All' },
+  { id: 'templates', label: 'Templates' },
   { id: 'recent', label: 'Recent' },
   { id: 'favourites', label: 'Favorites' },
   { id: 'models', label: '3D Models' },
@@ -40,7 +53,13 @@ const TYPE_FILTERS: Array<{ id: TypeFilter; label: string }> = [
  * - "Explore" tab: shows 10 random CC0 models from the Smithsonian 3D API with search,
  *   shuffle, and background download progress.
  */
-export const AssetGrid: React.FC<AssetGridProps> = ({ onOpenConnection, query, onQueryChange }) => {
+export const AssetGrid: React.FC<AssetGridProps> = ({
+  onOpenConnection,
+  query,
+  onQueryChange,
+  onOpenConfigurator,
+  onOpenUploadModal
+}) => {
   const {
     assets,
     playlists,
@@ -63,7 +82,93 @@ export const AssetGrid: React.FC<AssetGridProps> = ({ onOpenConnection, query, o
     activeDownloads
   } = useStage();
 
-  const [typeFilter, setTypeFilter] = React.useState<TypeFilter>('all');
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
+  const [selectedTemplateForModal, setSelectedTemplateForModal] = useState<ConfiguratorProject | null>(null);
+  const [isQuickTemplateOpen, setIsQuickTemplateOpen] = useState<boolean>(false);
+
+  // All occasion templates (pre-built starter templates + user saved projects from image editor)
+  const allTemplates = useMemo<ConfiguratorProject[]>(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem('cuenect_saved_projects') || '[]');
+      const combined = [...STARTER_TEMPLATES];
+      saved.forEach((p: ConfiguratorProject) => {
+        if (!combined.some((item) => item.id === p.id)) {
+          combined.push(p);
+        }
+      });
+      return combined;
+    } catch {
+      return STARTER_TEMPLATES;
+    }
+  }, []);
+
+  const filteredTemplates = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return allTemplates;
+    return allTemplates.filter((t) =>
+      t.title.toLowerCase().includes(q) ||
+      t.layers.some((l) => (l.name || '').toLowerCase().includes(q) || (l.editableLabel || '').toLowerCase().includes(q))
+    );
+  }, [allTemplates, query]);
+
+  const filterRailRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+  const isDraggingRef = useRef(false);
+  const startXRef = useRef(0);
+  const scrollLeftRef = useRef(0);
+
+  const checkRailScroll = useCallback(() => {
+    const el = filterRailRef.current;
+    if (!el) return;
+    setCanScrollLeft(el.scrollLeft > 4);
+    setCanScrollRight(el.scrollLeft < el.scrollWidth - el.clientWidth - 4);
+  }, []);
+
+  useEffect(() => {
+    checkRailScroll();
+    const el = filterRailRef.current;
+    if (!el) return;
+    el.addEventListener('scroll', checkRailScroll, { passive: true });
+    window.addEventListener('resize', checkRailScroll);
+    return () => {
+      el.removeEventListener('scroll', checkRailScroll);
+      window.removeEventListener('resize', checkRailScroll);
+    };
+  }, [checkRailScroll, playlists, typeFilter]);
+
+  const handleFilterRailWheel = (e: React.WheelEvent<HTMLDivElement>) => {
+    if (e.deltaY !== 0) {
+      e.currentTarget.scrollLeft += e.deltaY;
+    }
+  };
+
+  const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    isDraggingRef.current = true;
+    startXRef.current = e.pageX - (filterRailRef.current?.offsetLeft || 0);
+    scrollLeftRef.current = filterRailRef.current?.scrollLeft || 0;
+  };
+
+  const handleMouseLeave = () => {
+    isDraggingRef.current = false;
+  };
+
+  const handleMouseUp = () => {
+    isDraggingRef.current = false;
+  };
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!isDraggingRef.current || !filterRailRef.current) return;
+    const x = e.pageX - (filterRailRef.current.offsetLeft || 0);
+    const walk = (x - startXRef.current) * 1.5;
+    filterRailRef.current.scrollLeft = scrollLeftRef.current - walk;
+  };
+
+  const scrollRail = (direction: 'left' | 'right') => {
+    if (!filterRailRef.current) return;
+    const amount = direction === 'left' ? -240 : 240;
+    filterRailRef.current.scrollBy({ left: amount, behavior: 'smooth' });
+  };
 
   const activeDownloadCount = Object.keys(activeDownloads).length;
 
@@ -80,13 +185,14 @@ export const AssetGrid: React.FC<AssetGridProps> = ({ onOpenConnection, query, o
     const known = new Set(assets.map((a) => a.AssetID));
     return {
       all: assets.length,
+      templates: allTemplates.length,
       recent: recentAssetIds.filter((id) => known.has(id)).length,
       favourites: favouriteAssetIds.filter((id) => known.has(id)).length,
       models,
       videos,
       images
     };
-  }, [assets, recentAssetIds, favouriteAssetIds]);
+  }, [assets, recentAssetIds, favouriteAssetIds, allTemplates]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -295,6 +401,56 @@ export const AssetGrid: React.FC<AssetGridProps> = ({ onOpenConnection, query, o
             </span>
           )}
         </button>
+
+        {onOpenConfigurator && (
+          <button
+            type="button"
+            onClick={() => onOpenConfigurator()}
+            title="Create Custom Graphic in Image Studio"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 7,
+              padding: '7px 16px',
+              borderRadius: 'var(--radius-full, 9999px)',
+              border: 'none',
+              fontSize: '0.82rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              background: 'transparent',
+              color: 'var(--accent-signature, #68D9D0)',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            <Sparkles size={14} />
+            <span>Image Studio</span>
+          </button>
+        )}
+
+        {onOpenUploadModal && (
+          <button
+            type="button"
+            onClick={onOpenUploadModal}
+            title="Upload Models, Videos, or Images to Stage"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 7,
+              padding: '7px 16px',
+              borderRadius: 'var(--radius-full, 9999px)',
+              border: 'none',
+              fontSize: '0.82rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              background: 'transparent',
+              color: '#0D99FF',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            <UploadCloud size={14} />
+            <span>Upload Asset</span>
+          </button>
+        )}
       </div>
 
       {catalogTab === 'explore' && (
@@ -457,43 +613,318 @@ export const AssetGrid: React.FC<AssetGridProps> = ({ onOpenConnection, query, o
           <SearchField value={query} onChange={onQueryChange} placeholder="Search downloaded models..." />
         </div>
 
-        <div className="filter-rail" role="group" aria-label="Filter by type">
-          {TYPE_FILTERS.map((f) => (
+        <div className="filter-rail-container" style={{ position: 'relative', width: '100%', display: 'flex', alignItems: 'center' }}>
+          {canScrollLeft && (
             <button
-              key={f.id}
               type="button"
-              className={`filter-chip ${typeFilter === f.id ? 'active' : ''}`}
-              onClick={() => setTypeFilter(f.id)}
+              onClick={() => scrollRail('left')}
+              title="Scroll categories left"
+              aria-label="Scroll categories left"
+              style={{
+                position: 'absolute',
+                left: 0,
+                zIndex: 4,
+                width: 30,
+                height: 30,
+                borderRadius: '50%',
+                background: 'rgba(20, 20, 25, 0.88)',
+                backdropFilter: 'blur(4px)',
+                border: '1px solid rgba(255, 255, 255, 0.25)',
+                color: '#fff',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.5)',
+                cursor: 'pointer'
+              }}
             >
-              {f.label}
-              <span className="filter-chip-count">{typeCounts[f.id]}</span>
+              <ChevronLeft size={16} />
             </button>
-          ))}
+          )}
 
-          {/* Playlist chips. "All" is omitted - the type rail already owns that
-              slot; clicking an active playlist clears back to the full catalog. */}
-          {playlists
-            .filter((name) => name !== 'All')
-            .map((name) => (
+          <div
+            className="filter-rail"
+            role="group"
+            aria-label="Filter by type"
+            ref={filterRailRef}
+            onWheel={handleFilterRailWheel}
+            onMouseDown={handleMouseDown}
+            onMouseLeave={handleMouseLeave}
+            onMouseUp={handleMouseUp}
+            onMouseMove={handleMouseMove}
+          >
+            {TYPE_FILTERS.map((f) => (
               <button
-                key={name}
+                key={f.id}
                 type="button"
-                className={`filter-chip ${selectedPlaylist === name ? 'active' : ''}`}
-                onClick={() => setSelectedPlaylist(selectedPlaylist === name ? 'All' : name)}
+                className={`filter-chip ${typeFilter === f.id ? 'active' : ''}`}
+                onClick={() => setTypeFilter(f.id)}
               >
-                {name}
+                {f.label}
+                <span className="filter-chip-count">{typeCounts[f.id]}</span>
               </button>
             ))}
+
+            {/* Playlist chips. "All" is omitted - the type rail already owns that
+                slot; clicking an active playlist clears back to the full catalog. */}
+            {playlists
+              .filter((name) => name !== 'All')
+              .map((name) => (
+                <button
+                  key={name}
+                  type="button"
+                  className={`filter-chip ${selectedPlaylist === name ? 'active' : ''}`}
+                  onClick={() => setSelectedPlaylist(selectedPlaylist === name ? 'All' : name)}
+                >
+                  {name}
+                </button>
+              ))}
+          </div>
+
+          {canScrollRight && (
+            <button
+              type="button"
+              onClick={() => scrollRail('right')}
+              title="Scroll categories right"
+              aria-label="Scroll categories right"
+              style={{
+                position: 'absolute',
+                right: 0,
+                zIndex: 4,
+                width: 30,
+                height: 30,
+                borderRadius: '50%',
+                background: 'rgba(20, 20, 25, 0.88)',
+                backdropFilter: 'blur(4px)',
+                border: '1px solid rgba(255, 255, 255, 0.25)',
+                color: '#fff',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.5)',
+                cursor: 'pointer'
+              }}
+            >
+              <ChevronRight size={16} />
+            </button>
+          )}
         </div>
 
-        <div className="catalog-toolbar-row">
+        <div className="catalog-toolbar-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span className="catalog-count">
-            {filtered.length} of {assets.length} downloaded assets
+            {typeFilter === 'templates'
+              ? `Showing ${filteredTemplates.length} occasion templates for instant stage display`
+              : `${filtered.length} of ${assets.length} downloaded assets`}
           </span>
         </div>
       </div>
 
-      {filtered.length === 0 ? (
+      {typeFilter === 'templates' ? (
+        filteredTemplates.length === 0 ? (
+          <StateView
+            icon={query ? <SearchX size={26} /> : <Layers size={26} />}
+            title={query ? `No templates found for "${query}"` : 'No templates available'}
+            description="Clear search or create a new template in the Image Studio."
+            actions={
+              query ? (
+                <button type="button" className="btn btn-primary" onClick={() => onQueryChange('')}>
+                  Clear Search
+                </button>
+              ) : onOpenConfigurator ? (
+                <button type="button" className="btn btn-primary" onClick={() => onOpenConfigurator()}>
+                  <Sparkles size={14} /> Create in Studio
+                </button>
+              ) : undefined
+            }
+          />
+        ) : (
+          <div className="asset-grid">
+            {filteredTemplates.map((template) => {
+              const editableFields = template.layers.filter((l) => Boolean(l.isEditable || l.isTemplateField));
+              const svgPreview = generateProjectSVG(template).replace(/width="\d+" height="\d+"/, 'width="100%" height="100%"');
+
+              return (
+                <div
+                  key={template.id}
+                  className="asset-card"
+                  onClick={() => {
+                    setSelectedTemplateForModal(template);
+                    setIsQuickTemplateOpen(true);
+                  }}
+                  style={{
+                    background: '#16161A',
+                    border: '1px solid #282830',
+                    borderRadius: 12,
+                    overflow: 'hidden',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    position: 'relative'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = '#0D99FF';
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = '0 8px 24px rgba(13, 153, 255, 0.2)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = '#282830';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
+                >
+                  {/* Aspect Ratio 16:9 Thumbnail SVG */}
+                  <div
+                    style={{
+                      width: '100%',
+                      aspectRatio: '16 / 9',
+                      background: '#0B0B0E',
+                      overflow: 'hidden',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      position: 'relative',
+                      borderBottom: '1px solid #22222A'
+                    }}
+                  >
+                    <div
+                      style={{ width: '100%', height: '100%', pointerEvents: 'none' }}
+                      dangerouslySetInnerHTML={{ __html: svgPreview }}
+                    />
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: 8,
+                        right: 8,
+                        background: 'rgba(13, 153, 255, 0.9)',
+                        color: '#FFFFFF',
+                        fontSize: 10,
+                        fontWeight: 700,
+                        padding: '2px 8px',
+                        borderRadius: 999,
+                        backdropFilter: 'blur(4px)',
+                        boxShadow: '0 2px 6px rgba(0,0,0,0.4)'
+                      }}
+                    >
+                      {editableFields.length} Editable Fields
+                    </div>
+                  </div>
+
+                  {/* Card Body */}
+                  <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
+                    <h4
+                      style={{
+                        margin: 0,
+                        fontSize: 14,
+                        fontWeight: 700,
+                        color: '#FFFFFF',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap'
+                      }}
+                    >
+                      {template.title}
+                    </h4>
+
+                    {/* Chips showing editable fields */}
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, minHeight: 38 }}>
+                      {editableFields.slice(0, 4).map((f) => (
+                        <span
+                          key={f.id}
+                          style={{
+                            fontSize: 10,
+                            padding: '2px 6px',
+                            borderRadius: 4,
+                            background: '#22222A',
+                            color: '#9E9EB0',
+                            border: '1px solid #2E2E3A'
+                          }}
+                        >
+                          {f.editableLabel || f.templateLabel || f.name}
+                        </span>
+                      ))}
+                      {editableFields.length > 4 && (
+                        <span
+                          style={{
+                            fontSize: 10,
+                            padding: '2px 6px',
+                            borderRadius: 4,
+                            background: '#22222A',
+                            color: '#0D99FF'
+                          }}
+                        >
+                          +{editableFields.length - 4} more
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Action buttons */}
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        marginTop: 'auto',
+                        paddingTop: 8,
+                        borderTop: '1px solid #22222A'
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedTemplateForModal(template);
+                          setIsQuickTemplateOpen(true);
+                        }}
+                        style={{
+                          flex: 1,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: 6,
+                          padding: '7px 12px',
+                          background: 'linear-gradient(135deg, #0D99FF 0%, #0077CC 100%)',
+                          color: '#FFFFFF',
+                          border: 'none',
+                          borderRadius: 6,
+                          fontSize: 12,
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          boxShadow: '0 2px 8px rgba(13,153,255,0.3)'
+                        }}
+                      >
+                        <Send size={12} />
+                        <span>Use Template</span>
+                      </button>
+
+                      {onOpenConfigurator && (
+                        <button
+                          type="button"
+                          onClick={() => onOpenConfigurator(template)}
+                          title="Open in full studio editor"
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            padding: '7px 9px',
+                            background: '#22222A',
+                            border: '1px solid #333340',
+                            color: '#CCCCCC',
+                            borderRadius: 6,
+                            cursor: 'pointer'
+                          }}
+                        >
+                          <Edit3 size={13} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )
+      ) : filtered.length === 0 ? (
         <StateView
           icon={query ? <SearchX size={26} /> : <Layers size={26} />}
           title={query ? `No matches for "${query}"` : 'Nothing in this filter'}
@@ -529,6 +960,19 @@ export const AssetGrid: React.FC<AssetGridProps> = ({ onOpenConnection, query, o
           ))}
         </div>
       )}
+
+      {/* Quick Template Customization Modal */}
+      <QuickTemplateModal
+        isOpen={isQuickTemplateOpen}
+        template={selectedTemplateForModal}
+        onClose={() => setIsQuickTemplateOpen(false)}
+        onOpenInEditor={(proj) => {
+          setIsQuickTemplateOpen(false);
+          if (onOpenConfigurator) {
+            onOpenConfigurator(proj);
+          }
+        }}
+      />
     </div>
   );
 };

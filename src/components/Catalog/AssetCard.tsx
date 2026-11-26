@@ -1,7 +1,8 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { AssetInformation, DataType, resolveCategory } from '../../types/protocol';
 import { useStage } from '../../context/StageContext';
-import { Play, Plus, Check, Box, Image as ImageIcon, Film, Sliders, Heart } from 'lucide-react';
+import { Play, Plus, Check, Box, Image as ImageIcon, Film, Sliders, Heart, Trash2 } from 'lucide-react';
+import { ConfirmDialog } from '../Common/ConfirmDialog';
 
 interface AssetCardProps {
   asset: AssetInformation;
@@ -25,9 +26,11 @@ export const AssetCard: React.FC<AssetCardProps> = ({ asset }) => {
     setIsControllerOpen,
     favouriteAssetIds,
     toggleFavourite,
-    setInspectedAsset
+    setInspectedAsset,
+    deleteAsset
   } = useStage();
 
+  const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
   const cardRef = React.useRef<HTMLDivElement>(null);
   const thumbUrl = thumbnails[asset.AssetID];
   const isActive = activeAsset?.AssetID === asset.AssetID;
@@ -161,19 +164,77 @@ export const AssetCard: React.FC<AssetCardProps> = ({ asset }) => {
           </span>
         ) : null}
 
-        <button
-          type="button"
-          className={`asset-fav ${isFavourite ? 'on' : ''}`}
-          onClick={(e) => {
-            e.stopPropagation();
-            toggleFavourite(asset.AssetID);
+        {/* Card Actions Overlay (Bottom-Right: Delete + Favorite) */}
+        <div
+          style={{
+            position: 'absolute',
+            bottom: 8,
+            right: 8,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            zIndex: 3
           }}
-          title={isFavourite ? 'Remove from favourites' : 'Add to favourites'}
-          aria-label={isFavourite ? 'Remove from favourites' : 'Add to favourites'}
-          aria-pressed={isFavourite}
         >
-          <Heart size={14} fill={isFavourite ? 'currentColor' : 'none'} />
-        </button>
+          <button
+            type="button"
+            className="asset-delete-btn"
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsConfirmDeleteOpen(true);
+            }}
+            title={`Delete ${asset.AssetName} from database`}
+            aria-label={`Delete ${asset.AssetName}`}
+            style={{
+              width: 30,
+              height: 30,
+              borderRadius: '50%',
+              background: 'rgba(20, 20, 25, 0.75)',
+              backdropFilter: 'blur(6px)',
+              border: '1px solid rgba(255, 255, 255, 0.12)',
+              color: 'var(--text-secondary, #999)',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = '#F43F5E';
+              e.currentTarget.style.borderColor = 'rgba(244, 63, 94, 0.5)';
+              e.currentTarget.style.background = 'rgba(244, 63, 94, 0.18)';
+              e.currentTarget.style.transform = 'scale(1.08)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = 'var(--text-secondary, #999)';
+              e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.12)';
+              e.currentTarget.style.background = 'rgba(20, 20, 25, 0.75)';
+              e.currentTarget.style.transform = 'scale(1)';
+            }}
+          >
+            <Trash2 size={13} />
+          </button>
+
+          <button
+            type="button"
+            className={`asset-fav ${isFavourite ? 'on' : ''}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleFavourite(asset.AssetID);
+            }}
+            title={isFavourite ? 'Remove from favourites' : 'Add to favourites'}
+            aria-label={isFavourite ? 'Remove from favourites' : 'Add to favourites'}
+            aria-pressed={isFavourite}
+            style={{
+              position: 'relative',
+              bottom: 'auto',
+              right: 'auto',
+              opacity: 1
+            }}
+          >
+            <Heart size={14} fill={isFavourite ? 'currentColor' : 'none'} />
+          </button>
+        </div>
       </div>
 
       <div className="asset-info">
@@ -216,6 +277,22 @@ export const AssetCard: React.FC<AssetCardProps> = ({ asset }) => {
           </button>
         </div>
       </div>
+
+      {isConfirmDeleteOpen && (
+        <ConfirmDialog
+          isOpen={isConfirmDeleteOpen}
+          title="Delete Asset from Database"
+          message={`Are you sure you want to permanently delete "${asset.AssetName}" from the stage database and disk files? This action cannot be undone.`}
+          confirmLabel="Delete Asset"
+          cancelLabel="Cancel"
+          destructive={true}
+          onConfirm={() => {
+            deleteAsset(asset.AssetID, true);
+            setIsConfirmDeleteOpen(false);
+          }}
+          onCancel={() => setIsConfirmDeleteOpen(false)}
+        />
+      )}
     </div>
   );
 };

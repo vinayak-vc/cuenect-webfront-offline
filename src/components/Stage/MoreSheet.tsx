@@ -22,7 +22,8 @@ import {
   Users,
   Sparkles,
   Camera,
-  Layers
+  Layers,
+  UploadCloud
 } from 'lucide-react';
 
 interface MoreSheetProps {
@@ -30,6 +31,8 @@ interface MoreSheetProps {
   onClose: () => void;
   onOpenConnection: () => void;
   onOpenProjection?: () => void;
+  onOpenConfigurator?: () => void;
+  onOpenUploadModal?: () => void;
 }
 
 /**
@@ -43,7 +46,10 @@ interface MoreSheetProps {
 export const MoreSheet: React.FC<MoreSheetProps> = ({
   isOpen,
   onClose,
-  onOpenConnection
+  onOpenConnection,
+  onOpenProjection: _onOpenProjection,
+  onOpenConfigurator,
+  onOpenUploadModal
 }) => {
   const {
     connectionState,
@@ -149,6 +155,40 @@ export const MoreSheet: React.FC<MoreSheetProps> = ({
             <span className="u-section-label">Presentation</span>
 
             <div className="sheet-action-list">
+              {onOpenUploadModal && (
+                <button
+                  type="button"
+                  className="sheet-action"
+                  onClick={() => {
+                    onClose();
+                    onOpenUploadModal();
+                  }}
+                >
+                  <UploadCloud size={17} style={{ color: '#0D99FF' }} />
+                  <span>
+                    <strong>Library Asset Manager</strong>
+                    <em>Upload 3D models, videos & images to stage host</em>
+                  </span>
+                </button>
+              )}
+
+              {onOpenConfigurator && (
+                <button
+                  type="button"
+                  className="sheet-action"
+                  onClick={() => {
+                    onClose();
+                    onOpenConfigurator();
+                  }}
+                >
+                  <Sparkles size={17} style={{ color: 'var(--accent-signature)' }} />
+                  <span>
+                    <strong>Image Configurator Studio</strong>
+                    <em>Create & upload 2D graphics to stage exe</em>
+                  </span>
+                </button>
+              )}
+
               <button
                 type="button"
                 className="sheet-action"

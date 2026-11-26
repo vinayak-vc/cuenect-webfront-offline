@@ -117,10 +117,15 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
   // Global right-click interceptor
   useEffect(() => {
     const handleContextMenu = (e: MouseEvent) => {
-      e.preventDefault();
-
       const target = e.target as HTMLElement | null;
       if (!target) return;
+
+      // Do NOT show stage context menu inside Image Editor Studio
+      if (target.closest('[data-configurator-studio]')) {
+        return;
+      }
+
+      e.preventDefault();
 
       // 1. Check if right-clicking an editable input or textarea
       const inputTarget =

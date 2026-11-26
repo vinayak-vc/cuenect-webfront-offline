@@ -9,6 +9,7 @@ import {
 } from '../../types/protocol';
 import { ModelControlPanel } from './ModelControlPanel';
 import { VideoControlPanel } from './VideoControlPanel';
+import { ImageControlPanel } from './ImageControlPanel';
 import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
 import { useIsDesktop } from '../../hooks/useMediaQuery';
 import { BottomSheet } from '../Common/BottomSheet';
@@ -202,14 +203,7 @@ export const FullScreenController: React.FC = () => {
     <>
       {category === DataType.Model && <ModelControlPanel />}
       {category === DataType.Video && <VideoControlPanel />}
-      {category === DataType.Image && (
-        <div className="controller-panel" style={{ textAlign: 'center' }}>
-          <span className="u-section-label">Active Image</span>
-          <p className="u-meta">
-            Still images have no transform controls. Use Clear to return to the company logo.
-          </p>
-        </div>
-      )}
+      {category === DataType.Image && <ImageControlPanel />}
     </>
   );
 

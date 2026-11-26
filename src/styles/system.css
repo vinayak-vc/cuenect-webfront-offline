@@ -553,18 +553,44 @@
   }
 }
 
-/* Filter rail: horizontally scrollable, no visible scrollbar. */
+/* Filter rail: horizontally scrollable with smooth scroll & drag */
 .filter-rail {
   display: flex;
   gap: var(--sp-2);
   overflow-x: auto;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-  padding-bottom: 2px;
+  overflow-y: hidden;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
+  padding-bottom: 6px;
+  cursor: grab;
+}
+
+.filter-rail:active {
+  cursor: grabbing;
 }
 
 .filter-rail::-webkit-scrollbar {
-  display: none;
+  height: 5px;
+  display: block;
+}
+
+.filter-rail::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+}
+
+.filter-rail::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.25);
+  border-radius: 4px;
+}
+
+.filter-rail::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.45);
 }
 
 .filter-chip {

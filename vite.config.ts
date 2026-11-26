@@ -16,6 +16,7 @@ export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify(packageJson.version)
   },
+  envPrefix: ['VITE_', 'GEMINI_'],
   server: {
     port: 3000,
     host: true

@@ -69,6 +69,7 @@ interface StageContextValue {
   activeAsset: AssetInformation | null;
   loadAsset: (asset: AssetInformation) => void;
   unloadAsset: () => void;
+  deleteAsset: (assetId: string, deleteFiles?: boolean) => Promise<boolean>;
   isControllerOpen: boolean;
   setIsControllerOpen: (open: boolean) => void;
   isSettingsOpen: boolean;
@@ -146,12 +147,24 @@ interface StageContextValue {
   playVideo: () => void;
   pauseVideo: () => void;
   stopVideo: () => void;
+  restartVideo: () => void;
   seekVideo: (offsetSeconds: number) => void;
   setVideoVolume: (volume: number) => void;
   toggleVideoMute: () => void;
+  toggleVideoLoop: () => void;
   isVideoMuted: boolean;
   videoVolume: number;
   isVideoPlaying: boolean;
+  isVideoLooping: boolean;
+
+  // Image controls
+  imageScale: number;
+  imageRotation: number;
+  isImagePreserveAspect: boolean;
+  zoomImage: (direction: 'in' | 'out' | 'reset') => void;
+  rotateImage: (direction: 'cw' | 'ccw' | 'reset') => void;
+  toggleImageFit: () => void;
+  resetImageTransform: () => void;
   
   // Custom Playlist & Slideshow
   customPlaylistIds: string[];
@@ -212,7 +225,7 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [exploreQuery, setExploreQuery] = useState<string>('');
   const [activeDownloads, setActiveDownloads] = useState<Record<string, ExploreDownloadProgress>>({});
   const [completedDownloadPrompt, setCompletedDownloadPrompt] = useState<AssetInformation | null>(null);
-  const [isMetadataVisible, setIsMetadataVisible] = useState<boolean>(true);
+  const [isMetadataVisible, setIsMetadataVisible] = useState<boolean>(false);
   const [isFullMetadataOpen, setIsFullMetadataOpen] = useState<boolean>(false);
 
   // Track whether the user is currently viewing the Explore screen
@@ -252,6 +265,12 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [isVideoPlaying, setIsVideoPlaying] = useState<boolean>(false);
   const [isVideoMuted, setIsVideoMuted] = useState<boolean>(false);
   const [videoVolume, setVideoVolumeState] = useState<number>(1.0);
+  const [isVideoLooping, setIsVideoLooping] = useState<boolean>(false);
+
+  // Image state
+  const [imageScale, setImageScale] = useState<number>(1.0);
+  const [imageRotation, setImageRotation] = useState<number>(0);
+  const [isImagePreserveAspect, setIsImagePreserveAspect] = useState<boolean>(true);
   
   // Custom playlist & slideshow state
   const [customPlaylistIds, setCustomPlaylistIds] = useState<string[]>(StorageService.getCustomPlaylist());
@@ -362,7 +381,27 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
 
       if (rawList.length > 0) {
-        const normalizedAssets: AssetInformation[] = rawList.map((item) => ({
+        // Ensure latest added assets appear first (at top)
+        const getTime = (a: any): number => {
+          if (a.createdAt) return Number(a.createdAt);
+          const match = (a.AssetID || '').match(/_(\d{12,14})$/);
+          if (match) return Number(match[1]);
+          return 0;
+        };
+
+        const hasAnyTime = rawList.some((a) => getTime(a) > 0);
+        const orderedList = hasAnyTime
+          ? [...rawList].sort((a, b) => {
+              const tA = getTime(a);
+              const tB = getTime(b);
+              if (tA && tB) return tB - tA;
+              if (tB && !tA) return 1;
+              if (tA && !tB) return -1;
+              return 0;
+            })
+          : [...rawList].reverse();
+
+        const normalizedAssets: AssetInformation[] = orderedList.map((item) => ({
           ...item,
           Category: resolveCategory(item)
         }));
@@ -787,7 +826,8 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setRecentAssetIds(StorageService.pushRecentAsset(asset.AssetID));
 
     const hasMeta = hasModelMetadata(normalized);
-    setIsMetadataVisible(hasMeta);
+    // By default keep metadata overlay hidden on stage; toggleable via 'i' button
+    setIsMetadataVisible(false);
     setIsFullMetadataOpen(false);
 
     const assetPayload = {
@@ -803,7 +843,7 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     stageSocket.sendLoadAsset(assetPayload);
     stageSocket.sendMetadataAction({
-      visible: hasMeta,
+      visible: false,
       fullScreen: false,
       assetId: asset.AssetID,
       title: asset.AssetName,
@@ -832,6 +872,46 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setIsControllerOpen(false);
     setIsVideoPlaying(false);
   }, []);
+
+  const deleteAsset = useCallback(async (assetId: string, deleteFiles: boolean = true): Promise<boolean> => {
+    try {
+      // 1. Emit via socket
+      stageSocket.emitEvent('delete-asset', { assetId, deleteFile: deleteFiles });
+
+      // 2. Also send via HTTP POST to /api/assets/delete
+      const apiBase = stageSocket.getActiveApiBaseUrl() || (config.serverIp ? `http://${config.serverIp}:${config.port || 9000}` : '');
+      if (apiBase) {
+        try {
+          await fetch(`${apiBase}/api/assets/delete`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ assetId, deleteFile: deleteFiles })
+          });
+        } catch (httpErr) {
+          console.warn('HTTP delete asset fallback failed, relying on socket:', httpErr);
+        }
+      }
+
+      // 3. Optimistic local state update
+      setAssets((prev) => prev.filter((a) => a.AssetID !== assetId));
+
+      // 4. If active on stage, unload it
+      if (activeAsset?.AssetID === assetId) {
+        unloadAsset();
+      }
+
+      // 5. Remove from custom playlist & favourites
+      setCustomPlaylistIds((prev) => prev.filter((id) => id !== assetId));
+      setFavouriteAssetIds((prev) => prev.filter((id) => id !== assetId));
+
+      addToast('Asset Deleted', 'Removed from stage library', 'info');
+      return true;
+    } catch (err: any) {
+      console.error('Failed to delete asset:', err);
+      addToast('Delete Failed', err.message || 'Could not delete asset', 'error');
+      return false;
+    }
+  }, [config.serverIp, config.port, activeAsset, unloadAsset, addToast]);
 
   const toggleMetadataVisible = useCallback(() => {
     setIsMetadataVisible((prev) => {
@@ -1222,6 +1302,75 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     stageSocket.sendVideoControl(payload);
   }, [isVideoMuted]);
 
+  const restartVideo = useCallback(() => {
+    setIsVideoPlaying(true);
+    stageSocket.sendVideoControl({
+      videoAction: 'restart',
+      seekTime: 0,
+      isPlaying: 'true'
+    });
+  }, []);
+
+  const toggleVideoLoop = useCallback(() => {
+    setIsVideoLooping((prev) => {
+      const nextLoop = !prev;
+      stageSocket.sendVideoControl({
+        isLooping: nextLoop ? 'true' : 'false',
+        isLoop: nextLoop
+      });
+      return nextLoop;
+    });
+  }, []);
+
+  // Image Controls
+  const zoomImage = useCallback((direction: 'in' | 'out' | 'reset') => {
+    setImageScale((prev) => {
+      let next = prev;
+      if (direction === 'in') next = Math.min(3.0, Number((prev + 0.15).toFixed(2)));
+      else if (direction === 'out') next = Math.max(0.2, Number((prev - 0.15).toFixed(2)));
+      else next = 1.0;
+
+      stageSocket.sendImageControl({
+        action: direction === 'reset' ? 'reset' : direction === 'in' ? 'zoomIn' : 'zoomOut',
+        scale: next
+      });
+      return next;
+    });
+  }, []);
+
+  const rotateImage = useCallback((direction: 'cw' | 'ccw' | 'reset') => {
+    setImageRotation((prev) => {
+      let next = 0;
+      if (direction === 'cw') next = (prev - 90 + 360) % 360;
+      else if (direction === 'ccw') next = (prev + 90) % 360;
+      else next = 0;
+
+      stageSocket.sendImageControl({
+        action: direction === 'reset' ? 'reset' : direction === 'cw' ? 'rotateRight' : 'rotateLeft',
+        rotation: next
+      });
+      return next;
+    });
+  }, []);
+
+  const toggleImageFit = useCallback(() => {
+    setIsImagePreserveAspect((prev) => {
+      const next = !prev;
+      stageSocket.sendImageControl({
+        action: next ? 'fit' : 'fill',
+        preserveAspect: next
+      });
+      return next;
+    });
+  }, []);
+
+  const resetImageTransform = useCallback(() => {
+    setImageScale(1.0);
+    setImageRotation(0);
+    setIsImagePreserveAspect(true);
+    stageSocket.sendImageControl({ action: 'reset' });
+  }, []);
+
   // Custom Playlist Management
   const addToCustomPlaylist = useCallback((assetId: string) => {
     setCustomPlaylistIds((prev) => {
@@ -1332,6 +1481,7 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     activeAsset,
     loadAsset,
     unloadAsset,
+    deleteAsset,
     isControllerOpen,
     setIsControllerOpen,
     isSettingsOpen,
@@ -1391,12 +1541,22 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     playVideo,
     pauseVideo,
     stopVideo,
+    restartVideo,
     seekVideo,
     setVideoVolume,
     toggleVideoMute,
+    toggleVideoLoop,
     isVideoMuted,
     videoVolume,
     isVideoPlaying,
+    isVideoLooping,
+    imageScale,
+    imageRotation,
+    isImagePreserveAspect,
+    zoomImage,
+    rotateImage,
+    toggleImageFit,
+    resetImageTransform,
     customPlaylistIds,
     addToCustomPlaylist,
     removeFromCustomPlaylist,

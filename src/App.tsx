@@ -18,6 +18,9 @@ import { ProjectionSheet } from './components/Stage/ProjectionSheet';
 import { StageDirectorModal } from './components/Stage/StageDirectorModal';
 import { ConfirmDialog } from './components/Common/ConfirmDialog';
 import { ContextMenu } from './components/Common/ContextMenu';
+import { ConfiguratorStudio } from './components/Configurator/ConfiguratorStudio';
+import { ConfiguratorProject } from './components/Configurator/types';
+import { AssetUploadModal } from './components/Catalog/AssetUploadModal';
 import { Gamepad2, Loader2 } from 'lucide-react';
 import { EnvironmentPreset, MoveableAssetType } from './types/protocol';
 import { useStage } from './context/StageContext';
@@ -44,6 +47,9 @@ export const App: React.FC = () => {
 
   const [isConnectionModalOpen, setIsConnectionModalOpen] = useState<boolean>(false);
   const [isPlaylistMakerOpen, setIsPlaylistMakerOpen] = useState<boolean>(false);
+  const [isConfiguratorOpen, setIsConfiguratorOpen] = useState<boolean>(false);
+  const [configuratorProject, setConfiguratorProject] = useState<ConfiguratorProject | undefined>(undefined);
+  const [isAssetUploadOpen, setIsAssetUploadOpen] = useState<boolean>(false);
   const [isNoAssetSheetOpen, setIsNoAssetSheetOpen] = useState<boolean>(false);
   const [isMoreSheetOpen, setIsMoreSheetOpen] = useState<boolean>(false);
   const [isProjectionSheetOpen, setIsProjectionSheetOpen] = useState<boolean>(false);
@@ -103,6 +109,7 @@ export const App: React.FC = () => {
     setIsNoAssetSheetOpen(false);
     setIsMoreSheetOpen(false);
     setIsProjectionSheetOpen(false);
+    setIsAssetUploadOpen(false);
   };
 
   const handleNavSelect = (section: MobileSection) => {
@@ -149,6 +156,8 @@ export const App: React.FC = () => {
       <Header
         onOpenConnection={() => setIsConnectionModalOpen(true)}
         onOpenPlaylistMaker={() => setIsPlaylistMakerOpen(true)}
+        onOpenConfigurator={() => setIsConfiguratorOpen(true)}
+        onOpenUploadModal={() => setIsAssetUploadOpen(true)}
         onOpenMore={() => setIsMoreSheetOpen(true)}
       />
 
@@ -157,6 +166,11 @@ export const App: React.FC = () => {
           onOpenConnection={() => setIsConnectionModalOpen(true)}
           query={query}
           onQueryChange={setQuery}
+          onOpenConfigurator={(proj?: ConfiguratorProject) => {
+            if (proj) setConfiguratorProject(proj);
+            setIsConfiguratorOpen(true);
+          }}
+          onOpenUploadModal={() => setIsAssetUploadOpen(true)}
         />
       </main>
 
@@ -303,11 +317,25 @@ export const App: React.FC = () => {
         onClose={() => setIsMoreSheetOpen(false)}
         onOpenConnection={() => setIsConnectionModalOpen(true)}
         onOpenProjection={() => setIsProjectionSheetOpen(true)}
+        onOpenConfigurator={() => setIsConfiguratorOpen(true)}
+        onOpenUploadModal={() => setIsAssetUploadOpen(true)}
       />
 
       <ProjectionSheet
         isOpen={isProjectionSheetOpen}
         onClose={() => setIsProjectionSheetOpen(false)}
+      />
+
+      <ConfiguratorStudio
+        isOpen={isConfiguratorOpen}
+        onClose={() => setIsConfiguratorOpen(false)}
+        initialProject={configuratorProject}
+      />
+
+      <AssetUploadModal
+        isOpen={isAssetUploadOpen}
+        onClose={() => setIsAssetUploadOpen(false)}
+        onOpenConfigurator={() => setIsConfiguratorOpen(true)}
       />
 
       <ToastContainer />
