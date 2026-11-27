@@ -40,6 +40,7 @@ import {
   TransportPromotionState
 } from '../services/socketService';
 import { StorageService, ConnectionConfig } from '../services/storage';
+import { getTemplateInstances } from '../components/Configurator/templateStorage';
 import packageJson from '../../package.json';
 
 export interface ToastMessage {
@@ -1409,7 +1410,30 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // Slideshow Player Loop
   const playlistAssets = React.useMemo(() => {
     return customPlaylistIds
-      .map((id) => assets.find((a) => a.AssetID === id))
+      .map((id) => {
+        const found = assets.find((a) => a.AssetID === id);
+        if (found) return found;
+        const inst = getTemplateInstances().find((i) => i.assetId === id || i.id === id);
+        if (inst) {
+          return {
+            AssetID: inst.assetId || inst.id,
+            AssetName: inst.assetName,
+            ThumbnailImagePath: inst.thumbUrl,
+            ModelPath: inst.thumbUrl,
+            PlaylistName: 'Occasions',
+            isloaded: false,
+            Category: DataType.Image,
+            fileSizeBytes: 0,
+            fileSizeMB: 0,
+            smithsonianId: '',
+            metadata: {
+              title: inst.assetName,
+              templateId: inst.templateId
+            }
+          } as AssetInformation;
+        }
+        return undefined;
+      })
       .filter((a): a is AssetInformation => Boolean(a));
   }, [customPlaylistIds, assets]);
 

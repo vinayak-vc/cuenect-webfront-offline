@@ -3,6 +3,7 @@ import { AssetInformation, DataType, resolveCategory } from '../../types/protoco
 import { useStage } from '../../context/StageContext';
 import { Play, Plus, Check, Box, Image as ImageIcon, Film, Sliders, Heart, Trash2 } from 'lucide-react';
 import { ConfirmDialog } from '../Common/ConfirmDialog';
+import { deleteTemplateInstance } from '../Configurator/templateStorage';
 
 interface AssetCardProps {
   asset: AssetInformation;
@@ -288,6 +289,7 @@ export const AssetCard: React.FC<AssetCardProps> = ({ asset }) => {
           destructive={true}
           onConfirm={() => {
             deleteAsset(asset.AssetID, true);
+            deleteTemplateInstance(asset.AssetID);
             setIsConfirmDeleteOpen(false);
           }}
           onCancel={() => setIsConfirmDeleteOpen(false)}

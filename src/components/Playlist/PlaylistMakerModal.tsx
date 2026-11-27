@@ -4,6 +4,8 @@ import { BottomSheet } from '../Common/BottomSheet';
 import { Slider } from '../Common/Slider';
 import { Play, Trash2, GripVertical, ListPlus, Box } from 'lucide-react';
 import { StateView } from '../Common/StateView';
+import { DataType } from '../../types/protocol';
+import { getTemplateInstances } from '../Configurator/templateStorage';
 
 interface PlaylistMakerModalProps {
   isOpen: boolean;
@@ -33,7 +35,30 @@ export const PlaylistMakerModal: React.FC<PlaylistMakerModalProps> = ({ isOpen, 
   const [dropPosition, setDropPosition] = useState<'above' | 'below' | null>(null);
 
   const playlistAssets = customPlaylistIds
-    .map((id) => assets.find((a) => a.AssetID === id))
+    .map((id) => {
+      const found = assets.find((a) => a.AssetID === id);
+      if (found) return found;
+      const inst = getTemplateInstances().find((i) => i.assetId === id || i.id === id);
+      if (inst) {
+        return {
+          AssetID: inst.assetId || inst.id,
+          AssetName: inst.assetName,
+          ThumbnailImagePath: inst.thumbUrl,
+          ModelPath: inst.thumbUrl,
+          PlaylistName: 'Occasions',
+          isloaded: false,
+          Category: DataType.Image,
+          fileSizeBytes: 0,
+          fileSizeMB: 0,
+          smithsonianId: '',
+          metadata: {
+            title: inst.assetName,
+            templateId: inst.templateId
+          }
+        } as (typeof assets)[0];
+      }
+      return undefined;
+    })
     .filter((a): a is (typeof assets)[0] => Boolean(a));
 
   const handleStart = () => {

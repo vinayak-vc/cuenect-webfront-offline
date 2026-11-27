@@ -11,7 +11,8 @@ import {
   Image as ImageIcon,
   Type,
   Send,
-  Plus
+  Plus,
+  Save
 } from 'lucide-react';
 import { ConfiguratorProject, TextLayer, ImageLayer } from '../Configurator/types';
 import { generateProjectSVG } from '../Configurator/svgExporter';
@@ -43,6 +44,7 @@ export const QuickTemplateModal: React.FC<QuickTemplateModalProps> = ({
   const [isPushing, setIsPushing] = useState<boolean>(false);
   const [pushSuccess, setPushSuccess] = useState<boolean>(false);
   const [createdCount, setCreatedCount] = useState<number>(0);
+  const [customGraphicTitle, setCustomGraphicTitle] = useState<string>('');
 
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const bgFileInputRef = useRef<HTMLInputElement | null>(null);
@@ -63,6 +65,7 @@ export const QuickTemplateModal: React.FC<QuickTemplateModalProps> = ({
     setFieldValues(initialValues);
     setCustomBgImage(template.background.imageUrl || null);
     setPushSuccess(false);
+    setCustomGraphicTitle(template.title || 'Template Graphic');
   }, [template]);
 
   // List of all editable layers in the template
@@ -74,8 +77,10 @@ export const QuickTemplateModal: React.FC<QuickTemplateModalProps> = ({
   // Construct current customized project
   const customizedProject = useMemo<ConfiguratorProject | null>(() => {
     if (!template) return null;
+    const activeTitle = customGraphicTitle.trim() || template.title || 'Template Graphic';
     return {
       ...template,
+      title: activeTitle,
       background: customBgImage
         ? { ...template.background, type: 'image', imageUrl: customBgImage }
         : customBgImage === ''
@@ -92,7 +97,7 @@ export const QuickTemplateModal: React.FC<QuickTemplateModalProps> = ({
         return l;
       })
     };
-  }, [template, fieldValues, customBgImage]);
+  }, [template, fieldValues, customBgImage, customGraphicTitle]);
 
   // Live SVG representation for real-time preview
   const liveSvgMarkup = useMemo(() => {
@@ -115,17 +120,34 @@ export const QuickTemplateModal: React.FC<QuickTemplateModalProps> = ({
     reader.readAsDataURL(file);
   };
 
-  // Push directly to Hologram Stage
-  const handlePushToStage = async () => {
+  // Save graphic as asset card under this template (optionally displaying live on stage)
+  const handleSaveGraphic = async (displayOnStage: boolean = false) => {
     if (isPushing || !customizedProject) return;
     setIsPushing(true);
     setPushSuccess(false);
 
     try {
       const dataUrl = await renderProjectToDataUrl(customizedProject);
-      const title = customizedProject.title || 'Template Graphic';
+      const title = (customGraphicTitle.trim() || customizedProject.title || template.title || 'Template Graphic').trim();
       const safeName = title.replace(/[^a-zA-Z0-9_\- ]/g, '').replace(/\s+/g, '_');
+      const tempInstId = `inst_${Date.now()}`;
 
+      // 1. Immediately store instance locally so it appears instantly under this template
+      saveTemplateInstance({
+        id: tempInstId,
+        templateId: template.id,
+        assetId: tempInstId,
+        assetName: title,
+        thumbUrl: dataUrl,
+        createdAt: Date.now(),
+        fieldValues: { ...fieldValues },
+        projectData: {
+          ...customizedProject,
+          title
+        }
+      });
+
+      // 2. Upload to server
       const baseUrl = stageSocket?.getHttpBaseUrl() || '';
       const endpoint = baseUrl ? `${baseUrl}/api/assets/upload` : '/api/assets/upload';
 
@@ -137,56 +159,69 @@ export const QuickTemplateModal: React.FC<QuickTemplateModalProps> = ({
         category: 1, // Image
         playlistName: 'Occasions',
         templateId: template.id,
-        loadImmediately: true,
-        projectData: customizedProject,
+        loadImmediately: displayOnStage,
+        projectData: {
+          ...customizedProject,
+          title
+        },
         width: customizedProject.width,
         height: customizedProject.height
       };
 
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-
-      const result = await res.json();
-      if (result.ok && result.asset) {
-        setPushSuccess(true);
-        setCreatedCount((prev) => prev + 1);
-
-        // Record template instance for hub and playlist management
-        saveTemplateInstance({
-          id: `inst_${result.asset.AssetID || Date.now()}`,
-          templateId: template.id,
-          assetId: result.asset.AssetID,
-          assetName: result.asset.AssetName || title,
-          thumbUrl: dataUrl,
-          createdAt: Date.now(),
-          fieldValues: { ...fieldValues },
-          projectData: customizedProject
+      try {
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
         });
 
-        if (refreshAssets) {
-          refreshAssets();
-        }
+        const result = await res.json();
+        if (result.ok && result.asset) {
+          // Update instance with official server asset id
+          saveTemplateInstance({
+            id: tempInstId,
+            templateId: template.id,
+            assetId: result.asset.AssetID,
+            assetName: result.asset.AssetName || title,
+            thumbUrl: dataUrl,
+            createdAt: Date.now(),
+            fieldValues: { ...fieldValues },
+            projectData: {
+              ...customizedProject,
+              title
+            }
+          });
 
-        if (loadAsset) {
-          loadAsset(result.asset);
+          if (refreshAssets) {
+            refreshAssets();
+          }
+
+          if (displayOnStage && loadAsset) {
+            loadAsset(result.asset);
+          }
         }
-        if (addToast) {
-          addToast(
-            'Live on Stage!',
-            `"${result.asset.AssetName}" is now displayed on the Hologram Stage.`,
-            'success'
-          );
-        }
-        setTimeout(() => setPushSuccess(false), 5000);
-      } else {
-        throw new Error(result.error || 'Server rejected upload');
+      } catch (uploadErr) {
+        console.warn('Server upload background failed or offline:', uploadErr);
       }
+
+      setPushSuccess(true);
+      setCreatedCount((prev) => prev + 1);
+
+      if (addToast) {
+        addToast(
+          displayOnStage ? 'Live on Stage!' : 'Graphic Saved!',
+          displayOnStage
+            ? `"${title}" saved and is now live on Hologram Stage.`
+            : `"${title}" saved as an asset card under "${template.title}".`,
+          'success'
+        );
+      }
+
+      // Close modal to reveal the newly created asset card under the template
+      onClose();
     } catch (err: any) {
       if (addToast) {
-        addToast('Upload Failed', err.message || 'Could not send graphic to stage', 'error');
+        addToast('Save Failed', err.message || 'Could not save graphic', 'error');
       }
     } finally {
       setIsPushing(false);
@@ -375,6 +410,39 @@ export const QuickTemplateModal: React.FC<QuickTemplateModalProps> = ({
                 Enter Details
               </span>
               <span style={{ fontSize: 11, color: '#777782' }}>Updates preview in real-time</span>
+            </div>
+
+            {/* Graphic Title */}
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 6,
+                background: '#1A1A20',
+                border: '1px solid #2B2B36',
+                borderRadius: 8,
+                padding: '10px 12px'
+              }}
+            >
+              <label style={{ fontSize: 12, fontWeight: 700, color: '#FFFFFF', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Type size={13} style={{ color: '#10B981' }} />
+                <span>Graphic Title</span>
+              </label>
+              <input
+                type="text"
+                value={customGraphicTitle}
+                onChange={(e) => setCustomGraphicTitle(e.target.value)}
+                placeholder={template.title}
+                style={{
+                  background: '#141418',
+                  border: '1px solid #33333F',
+                  borderRadius: 6,
+                  padding: '8px 12px',
+                  color: '#FFFFFF',
+                  fontSize: 13,
+                  outline: 'none'
+                }}
+              />
             </div>
 
             {/* Background Graphic Customization (Upload BG & AI Generate Flux) */}
@@ -849,13 +917,13 @@ export const QuickTemplateModal: React.FC<QuickTemplateModalProps> = ({
             </button>
           </div>
 
-          {/* Right Actions: Cancel, Push to Stage */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          {/* Right Actions: Cancel, Save, Save & Display on Stage */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <button
               type="button"
               onClick={onClose}
               style={{
-                padding: '8px 18px',
+                padding: '9px 18px',
                 background: 'transparent',
                 border: '1px solid #33333C',
                 borderRadius: 6,
@@ -867,47 +935,67 @@ export const QuickTemplateModal: React.FC<QuickTemplateModalProps> = ({
               Cancel
             </button>
 
+            {/* Primary Save Button */}
             <button
               type="button"
               disabled={isPushing}
-              onClick={handlePushToStage}
+              onClick={() => handleSaveGraphic(false)}
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: 8,
-                padding: '9px 24px',
-                background: pushSuccess
-                  ? 'linear-gradient(135deg, #22C55E 0%, #16A34A 100%)'
-                  : 'linear-gradient(135deg, #0D99FF 0%, #E0458F 100%)',
+                gap: 7,
+                padding: '9px 22px',
+                background: '#10B981',
                 border: 'none',
                 borderRadius: 6,
                 color: '#FFFFFF',
                 fontSize: 13,
                 fontWeight: 700,
                 cursor: isPushing ? 'not-allowed' : 'pointer',
-                boxShadow: pushSuccess
-                  ? '0 4px 16px rgba(34,197,94,0.4)'
-                  : '0 4px 16px rgba(13,153,255,0.4)',
+                boxShadow: '0 2px 10px rgba(16,185,129,0.3)',
                 opacity: isPushing ? 0.7 : 1,
                 transition: 'all 0.2s ease'
               }}
+              title="Save graphic as an asset card under this template"
             >
               {isPushing ? (
                 <>
                   <RefreshCw size={15} className="spin" />
-                  <span>Pushing to Stage...</span>
-                </>
-              ) : pushSuccess ? (
-                <>
-                  <Check size={16} />
-                  <span>Live on Stage Screen!</span>
+                  <span>Saving...</span>
                 </>
               ) : (
                 <>
-                  <Send size={15} />
-                  <span>⚡ Display on Stage</span>
+                  <Save size={15} />
+                  <span>Save</span>
                 </>
               )}
+            </button>
+
+            {/* Save & Display on Stage */}
+            <button
+              type="button"
+              disabled={isPushing}
+              onClick={() => handleSaveGraphic(true)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: '9px 20px',
+                background: 'linear-gradient(135deg, #0D99FF 0%, #E0458F 100%)',
+                border: 'none',
+                borderRadius: 6,
+                color: '#FFFFFF',
+                fontSize: 13,
+                fontWeight: 700,
+                cursor: isPushing ? 'not-allowed' : 'pointer',
+                boxShadow: '0 4px 16px rgba(13,153,255,0.4)',
+                opacity: isPushing ? 0.7 : 1,
+                transition: 'all 0.2s ease'
+              }}
+              title="Save graphic and immediately project onto the Hologram Stage"
+            >
+              <Send size={15} />
+              <span>Save & Display on Stage</span>
             </button>
           </div>
         </div>

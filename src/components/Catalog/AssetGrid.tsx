@@ -757,19 +757,35 @@ export const AssetGrid: React.FC<AssetGridProps> = ({
 
               // 1. Assets from stage database matching this template
               assets.forEach((a) => {
+                const aTemplateId = (a as any).templateId || (a.metadata && a.metadata.templateId);
+                const matchingInst = instances.find(
+                  (inst) => (inst.assetId && inst.assetId === a.AssetID) || (inst.id && inst.id === a.AssetID)
+                );
                 const matches =
-                  (a.metadata && (a.metadata.templateId === template.id || a.metadata.projectFile?.includes(template.id))) ||
-                  instances.some((inst) => inst.assetId === a.AssetID || inst.assetName === a.AssetName);
+                  aTemplateId === template.id ||
+                  (a.metadata && a.metadata.projectFile?.includes(template.id)) ||
+                  Boolean(matchingInst);
+
                 if (matches && !seenIds.has(a.AssetID)) {
-                  childAssets.push(a);
+                  const thumb = (a.ThumbnailImagePath && (a.ThumbnailImagePath.startsWith('http') || a.ThumbnailImagePath.startsWith('data:') || a.ThumbnailImagePath.startsWith('/')))
+                    ? a.ThumbnailImagePath
+                    : (matchingInst?.thumbUrl || a.ThumbnailImagePath);
+                  childAssets.push({
+                    ...a,
+                    ThumbnailImagePath: thumb
+                  });
                   seenIds.add(a.AssetID);
+                  if (matchingInst) {
+                    seenIds.add(matchingInst.id);
+                    if (matchingInst.assetId) seenIds.add(matchingInst.assetId);
+                  }
                 }
               });
 
               // 2. Any instances stored locally not yet synced into assets array
               instances.forEach((inst) => {
                 const synthId = inst.assetId || inst.id;
-                if (!seenIds.has(synthId)) {
+                if (!seenIds.has(synthId) && !seenIds.has(inst.id) && !(inst.assetId && seenIds.has(inst.assetId))) {
                   childAssets.push({
                     AssetID: synthId,
                     AssetName: inst.assetName,
@@ -787,6 +803,8 @@ export const AssetGrid: React.FC<AssetGridProps> = ({
                     }
                   });
                   seenIds.add(synthId);
+                  seenIds.add(inst.id);
+                  if (inst.assetId) seenIds.add(inst.assetId);
                 }
               });
 
