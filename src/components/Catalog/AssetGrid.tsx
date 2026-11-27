@@ -755,9 +755,15 @@ export const AssetGrid: React.FC<AssetGridProps> = ({
               const seenIds = new Set<string>();
               const childAssets: typeof assets = [];
 
+              const normKey = (s?: string) => (s || '').trim().toLowerCase().replace(/[\s\-_()]+/g, '');
+              const tIdNorm = normKey(template.id);
+              const tTitleNorm = normKey(template.title);
+
               // 1. Assets from stage database matching this template
               assets.forEach((a) => {
                 const aTemplateId = (a as any).templateId || (a.metadata && a.metadata.templateId);
+                const aTmplNorm = normKey(aTemplateId);
+                const aProjFile = a.metadata?.projectFile || '';
                 const matchingInst = instances.find(
                   (inst) =>
                     (inst.assetId && inst.assetId === a.AssetID) ||
@@ -767,10 +773,15 @@ export const AssetGrid: React.FC<AssetGridProps> = ({
                 const matches =
                   aTemplateId === template.id ||
                   aTemplateId === template.title ||
+                  (tIdNorm && aTmplNorm === tIdNorm) ||
+                  (tTitleNorm && aTmplNorm === tTitleNorm) ||
                   (a.metadata && (
                     a.metadata.templateId === template.id ||
                     a.metadata.templateId === template.title ||
-                    a.metadata.projectFile?.includes(template.id)
+                    (tIdNorm && normKey(a.metadata.templateId) === tIdNorm) ||
+                    (tTitleNorm && normKey(a.metadata.templateId) === tTitleNorm) ||
+                    aProjFile.includes(template.id) ||
+                    (tIdNorm && aProjFile.toLowerCase().includes(tIdNorm))
                   )) ||
                   Boolean(matchingInst);
 

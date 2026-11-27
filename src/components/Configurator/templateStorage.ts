@@ -156,23 +156,53 @@ function loadMemoryInstances(): TemplateInstanceRecord[] {
   return memoryInstances;
 }
 
+function normKey(s?: string): string {
+  return (s || '').trim().toLowerCase().replace(/[\s\-_()]+/g, '');
+}
+
 /**
  * Get all created image instances (or filter by templateId or templateTitle).
  */
 export function getTemplateInstances(templateId?: string, templateTitle?: string): TemplateInstanceRecord[] {
   const list = loadMemoryInstances();
-  if (templateId || templateTitle) {
-    return list.filter((item) => {
-      if (templateId && (item.templateId === templateId || (item as any).templateTitle === templateId || item.projectData?.id === templateId)) {
-        return true;
-      }
-      if (templateTitle && (item.templateId === templateTitle || (item as any).templateTitle === templateTitle || item.projectData?.title === templateTitle)) {
-        return true;
-      }
-      return false;
-    });
+  if (!templateId && !templateTitle) {
+    return list;
   }
-  return list;
+
+  const tIdNorm = normKey(templateId);
+  const tTitleNorm = normKey(templateTitle);
+
+  return list.filter((item) => {
+    const itemTmplId = item.templateId || '';
+    const itemTmplTitle = item.templateTitle || (item as any).templateTitle || item.projectData?.title || '';
+    const itemProjId = item.projectData?.id || '';
+
+    const itemIdNorm = normKey(itemTmplId);
+    const itemTitleNorm = normKey(itemTmplTitle);
+    const itemProjIdNorm = normKey(itemProjId);
+
+    // 1. Direct match by templateId
+    if (templateId) {
+      if (itemTmplId === templateId || itemProjId === templateId) return true;
+      if (tIdNorm && (itemIdNorm === tIdNorm || itemProjIdNorm === tIdNorm || itemTitleNorm === tIdNorm)) return true;
+    }
+
+    // 2. Direct match by templateTitle
+    if (templateTitle) {
+      if (itemTmplTitle === templateTitle || itemTmplId === templateTitle) return true;
+      if (tTitleNorm && (itemTitleNorm === tTitleNorm || itemIdNorm === tTitleNorm || itemProjIdNorm === tTitleNorm)) return true;
+    }
+
+    // 3. Substring match for variations (e.g. "Option 1 ( girl )" vs "Baby Born Celebration (Option 1)")
+    if (tTitleNorm && itemTitleNorm && (tTitleNorm.includes(itemTitleNorm) || itemTitleNorm.includes(tTitleNorm))) {
+      return true;
+    }
+    if (tIdNorm && itemIdNorm && (tIdNorm.includes(itemIdNorm) || itemIdNorm.includes(tIdNorm))) {
+      return true;
+    }
+
+    return false;
+  });
 }
 
 /**
