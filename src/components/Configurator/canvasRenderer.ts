@@ -139,3 +139,39 @@ export const renderProjectToDataUrl = async (project: ConfiguratorProject): Prom
     return renderProjectDirectCanvas(project);
   }
 };
+
+/**
+ * Render a lightweight, fast JPEG thumbnail (360x202, ~12KB) suitable for cards and localStorage.
+ */
+export const renderProjectThumbnailDataUrl = async (
+  project: ConfiguratorProject,
+  width = 360,
+  height = 202
+): Promise<string> => {
+  try {
+    const svgString = generateProjectSVG(project, false);
+    const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(svgBlob);
+    const img = new Image();
+    const dataUrl = await new Promise<string>((resolve, reject) => {
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return reject(new Error('No context'));
+        ctx.drawImage(img, 0, 0, width, height);
+        URL.revokeObjectURL(url);
+        resolve(canvas.toDataURL('image/jpeg', 0.8));
+      };
+      img.onerror = (e) => {
+        URL.revokeObjectURL(url);
+        reject(e);
+      };
+      img.src = url;
+    });
+    return dataUrl;
+  } catch {
+    return `data:image/svg+xml;utf8,${encodeURIComponent(generateProjectSVG(project, true))}`;
+  }
+};

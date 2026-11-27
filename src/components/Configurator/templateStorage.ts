@@ -4,6 +4,7 @@ import { STARTER_TEMPLATES, BLANK_TEMPLATE } from './templates';
 export interface TemplateInstanceRecord {
   id: string; // Unique instance ID
   templateId: string; // Associated occasion template ID
+  templateTitle?: string; // Associated template title for robust matching
   assetId?: string; // Stage Database Asset ID (if uploaded)
   assetName: string;
   thumbUrl: string; // Data URL or thumbnail URL
@@ -138,52 +139,104 @@ export function saveDraftProject(project: ConfiguratorProject, triggerDownload =
   }
 }
 
-/**
- * Get all created image instances (or filter by templateId).
- */
-export function getTemplateInstances(templateId?: string): TemplateInstanceRecord[] {
+// In-memory instances cache to ensure zero loss even if localStorage quota is exceeded
+let memoryInstances: TemplateInstanceRecord[] = [];
+let memoryLoaded = false;
+
+function loadMemoryInstances(): TemplateInstanceRecord[] {
+  if (memoryLoaded) return memoryInstances;
   try {
     const raw = localStorage.getItem(TEMPLATE_INSTANCES_KEY);
-    const list: TemplateInstanceRecord[] = raw ? JSON.parse(raw) : [];
-    if (templateId) {
-      return list.filter((item) => item.templateId === templateId);
-    }
-    return list;
+    memoryInstances = raw ? JSON.parse(raw) : [];
   } catch (e) {
-    console.warn('[templateStorage] Failed to read template instances:', e);
-    return [];
+    console.warn('[templateStorage] Failed to read template instances from localStorage:', e);
+    memoryInstances = [];
   }
+  memoryLoaded = true;
+  return memoryInstances;
+}
+
+/**
+ * Get all created image instances (or filter by templateId or templateTitle).
+ */
+export function getTemplateInstances(templateId?: string, templateTitle?: string): TemplateInstanceRecord[] {
+  const list = loadMemoryInstances();
+  if (templateId || templateTitle) {
+    return list.filter((item) => {
+      if (templateId && (item.templateId === templateId || (item as any).templateTitle === templateId || item.projectData?.id === templateId)) {
+        return true;
+      }
+      if (templateTitle && (item.templateId === templateTitle || (item as any).templateTitle === templateTitle || item.projectData?.title === templateTitle)) {
+        return true;
+      }
+      return false;
+    });
+  }
+  return list;
 }
 
 /**
  * Record a new generated image instance created from a template.
  */
 export function saveTemplateInstance(record: TemplateInstanceRecord): void {
-  try {
-    const list = getTemplateInstances();
-    // Prepend newest first
-    const existingIdx = list.findIndex((i) => i.id === record.id);
-    if (existingIdx >= 0) {
-      list[existingIdx] = record;
-    } else {
-      list.unshift(record);
-    }
-    localStorage.setItem(TEMPLATE_INSTANCES_KEY, JSON.stringify(list));
-    window.dispatchEvent(new CustomEvent(INSTANCES_CHANGED_EVENT, { detail: record }));
-  } catch (e) {
-    console.error('[templateStorage] Failed to save template instance:', e);
+  const list = loadMemoryInstances();
+  // Match by instance ID, or by assetId if already provided
+  const existingIdx = list.findIndex(
+    (i) => i.id === record.id || (record.assetId && i.assetId && i.assetId === record.assetId)
+  );
+
+  if (existingIdx >= 0) {
+    list[existingIdx] = { ...list[existingIdx], ...record };
+  } else {
+    list.unshift(record);
   }
+
+  // Persist a lightweight version to localStorage to prevent quota exhaustion
+  try {
+    const storable = list.slice(0, 50).map((item) => ({
+      id: item.id,
+      templateId: item.templateId,
+      templateTitle: item.templateTitle,
+      assetId: item.assetId,
+      assetName: item.assetName,
+      // Only keep small thumbnails in localStorage (<100KB)
+      thumbUrl: item.thumbUrl && item.thumbUrl.length < 120000 ? item.thumbUrl : '',
+      createdAt: item.createdAt,
+      fieldValues: item.fieldValues
+    }));
+    localStorage.setItem(TEMPLATE_INSTANCES_KEY, JSON.stringify(storable));
+  } catch (e) {
+    console.warn('[templateStorage] localStorage write failed, retained in memory:', e);
+    try {
+      // Emergency fallback with minimal payload
+      const minimal = list.slice(0, 15).map((item) => ({
+        id: item.id,
+        templateId: item.templateId,
+        templateTitle: item.templateTitle,
+        assetId: item.assetId,
+        assetName: item.assetName,
+        createdAt: item.createdAt
+      }));
+      localStorage.setItem(TEMPLATE_INSTANCES_KEY, JSON.stringify(minimal));
+    } catch {
+      // Retained in memoryInstances
+    }
+  }
+
+  // ALWAYS dispatch change event so the UI updates immediately!
+  window.dispatchEvent(new CustomEvent(INSTANCES_CHANGED_EVENT, { detail: record }));
 }
 
 /**
  * Delete a created template instance from local tracking.
  */
 export function deleteTemplateInstance(instanceId: string): void {
+  loadMemoryInstances();
+  memoryInstances = memoryInstances.filter((i) => i.id !== instanceId && i.assetId !== instanceId);
   try {
-    const list = getTemplateInstances().filter((i) => i.id !== instanceId);
-    localStorage.setItem(TEMPLATE_INSTANCES_KEY, JSON.stringify(list));
-    window.dispatchEvent(new CustomEvent(INSTANCES_CHANGED_EVENT, { detail: { deletedId: instanceId } }));
+    localStorage.setItem(TEMPLATE_INSTANCES_KEY, JSON.stringify(memoryInstances));
   } catch (e) {
-    console.error('[templateStorage] Failed to delete template instance:', e);
+    console.warn('[templateStorage] Failed to update localStorage on delete:', e);
   }
+  window.dispatchEvent(new CustomEvent(INSTANCES_CHANGED_EVENT, { detail: { deletedId: instanceId } }));
 }

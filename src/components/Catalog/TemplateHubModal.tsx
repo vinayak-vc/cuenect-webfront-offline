@@ -49,9 +49,9 @@ export const TemplateHubModal: React.FC<TemplateHubModalProps> = ({
   const [instances, setInstances] = useState<TemplateInstanceRecord[]>([]);
 
   const loadInstances = useCallback(() => {
-    if (!template?.id) return;
-    setInstances(getTemplateInstances(template.id));
-  }, [template?.id]);
+    if (!template?.id && !template?.title) return;
+    setInstances(getTemplateInstances(template?.id, template?.title));
+  }, [template?.id, template?.title]);
 
   useEffect(() => {
     loadInstances();

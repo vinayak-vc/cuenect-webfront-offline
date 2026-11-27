@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { ConfiguratorProject, TextLayer, ImageLayer } from '../Configurator/types';
 import { generateProjectSVG } from '../Configurator/svgExporter';
-import { renderProjectToDataUrl } from '../Configurator/canvasRenderer';
+import { renderProjectToDataUrl, renderProjectThumbnailDataUrl } from '../Configurator/canvasRenderer';
 import { useStage } from '../../context/StageContext';
 import { GeminiWishGenerator } from '../AI/GeminiWishGenerator';
 import { GeminiBackgroundGenerator } from '../AI/GeminiBackgroundGenerator';
@@ -127,18 +127,23 @@ export const QuickTemplateModal: React.FC<QuickTemplateModalProps> = ({
     setPushSuccess(false);
 
     try {
+      // 1. High-res rasterization for stage display & server upload
       const dataUrl = await renderProjectToDataUrl(customizedProject);
+      // 2. Lightweight, compact thumbnail for cards & persistence (~12KB instead of ~4MB)
+      const thumbDataUrl = await renderProjectThumbnailDataUrl(customizedProject);
+
       const title = (customGraphicTitle.trim() || customizedProject.title || template.title || 'Template Graphic').trim();
       const safeName = title.replace(/[^a-zA-Z0-9_\- ]/g, '').replace(/\s+/g, '_');
       const tempInstId = `inst_${Date.now()}`;
 
-      // 1. Immediately store instance locally so it appears instantly under this template
+      // 3. Immediately store instance locally so it appears instantly under this template
       saveTemplateInstance({
         id: tempInstId,
         templateId: template.id,
+        templateTitle: template.title,
         assetId: tempInstId,
         assetName: title,
-        thumbUrl: dataUrl,
+        thumbUrl: thumbDataUrl,
         createdAt: Date.now(),
         fieldValues: { ...fieldValues },
         projectData: {
@@ -147,7 +152,7 @@ export const QuickTemplateModal: React.FC<QuickTemplateModalProps> = ({
         }
       });
 
-      // 2. Upload to server
+      // 4. Upload to server
       const baseUrl = stageSocket?.getHttpBaseUrl() || '';
       const endpoint = baseUrl ? `${baseUrl}/api/assets/upload` : '/api/assets/upload';
 
@@ -155,7 +160,7 @@ export const QuickTemplateModal: React.FC<QuickTemplateModalProps> = ({
         assetName: title,
         fileName: `${safeName}_${Date.now()}.png`,
         imageData: dataUrl,
-        thumbnailData: dataUrl,
+        thumbnailData: thumbDataUrl,
         category: 1, // Image
         playlistName: 'Occasions',
         templateId: template.id,
@@ -171,7 +176,10 @@ export const QuickTemplateModal: React.FC<QuickTemplateModalProps> = ({
       try {
         const res = await fetch(endpoint, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'ngrok-skip-browser-warning': 'true'
+          },
           body: JSON.stringify(payload)
         });
 
@@ -181,9 +189,10 @@ export const QuickTemplateModal: React.FC<QuickTemplateModalProps> = ({
           saveTemplateInstance({
             id: tempInstId,
             templateId: template.id,
+            templateTitle: template.title,
             assetId: result.asset.AssetID,
             assetName: result.asset.AssetName || title,
-            thumbUrl: dataUrl,
+            thumbUrl: thumbDataUrl,
             createdAt: Date.now(),
             fieldValues: { ...fieldValues },
             projectData: {

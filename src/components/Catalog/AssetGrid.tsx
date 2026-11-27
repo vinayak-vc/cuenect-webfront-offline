@@ -751,7 +751,7 @@ export const AssetGrid: React.FC<AssetGridProps> = ({
             {filteredTemplates.map((template) => {
               const editableFields = template.layers.filter((l) => Boolean(l.isEditable || l.isTemplateField));
               const svgPreview = generateProjectSVG(template, true);
-              const instances = getTemplateInstances(template.id);
+              const instances = getTemplateInstances(template.id, template.title);
               const seenIds = new Set<string>();
               const childAssets: typeof assets = [];
 
@@ -759,11 +759,19 @@ export const AssetGrid: React.FC<AssetGridProps> = ({
               assets.forEach((a) => {
                 const aTemplateId = (a as any).templateId || (a.metadata && a.metadata.templateId);
                 const matchingInst = instances.find(
-                  (inst) => (inst.assetId && inst.assetId === a.AssetID) || (inst.id && inst.id === a.AssetID)
+                  (inst) =>
+                    (inst.assetId && inst.assetId === a.AssetID) ||
+                    (inst.id && inst.id === a.AssetID) ||
+                    (inst.assetName && inst.assetName === a.AssetName)
                 );
                 const matches =
                   aTemplateId === template.id ||
-                  (a.metadata && a.metadata.projectFile?.includes(template.id)) ||
+                  aTemplateId === template.title ||
+                  (a.metadata && (
+                    a.metadata.templateId === template.id ||
+                    a.metadata.templateId === template.title ||
+                    a.metadata.projectFile?.includes(template.id)
+                  )) ||
                   Boolean(matchingInst);
 
                 if (matches && !seenIds.has(a.AssetID)) {
