@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useStage } from '../../context/StageContext';
 import {
   DataType,
@@ -60,7 +60,8 @@ export const FullScreenController: React.FC = () => {
     requestControl,
     isMetadataVisible,
     isFullMetadataOpen,
-    toggleFullMetadataModal
+    toggleFullMetadataModal,
+    isSlideshowActive
   } = useStage();
 
   const isDesktop = useIsDesktop();
@@ -68,6 +69,31 @@ export const FullScreenController: React.FC = () => {
   const [isStatusOpen, setIsStatusOpen] = useState(false);
   const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false);
   const [isCuratorialSheetOpen, setIsCuratorialSheetOpen] = useState(false);
+
+  // Inactivity auto-redirect to home screen after 30 seconds when a playlist is running
+  useEffect(() => {
+    if (!isControllerOpen || !isSlideshowActive) return;
+
+    let inactivityTimer: number | null = null;
+
+    const resetInactivity = () => {
+      if (inactivityTimer) window.clearTimeout(inactivityTimer);
+      inactivityTimer = window.setTimeout(() => {
+        // Auto-close controller after 30s of inactivity so the playlist can continue on the home screen
+        setIsControllerOpen(false);
+      }, 30000);
+    };
+
+    resetInactivity();
+
+    const activityEvents = ['pointerdown', 'pointermove', 'click', 'keydown', 'touchstart', 'scroll'];
+    activityEvents.forEach((ev) => window.addEventListener(ev, resetInactivity, { passive: true }));
+
+    return () => {
+      if (inactivityTimer) window.clearTimeout(inactivityTimer);
+      activityEvents.forEach((ev) => window.removeEventListener(ev, resetInactivity));
+    };
+  }, [isControllerOpen, isSlideshowActive, setIsControllerOpen]);
 
   useBodyScrollLock(isControllerOpen && !!activeAsset);
 

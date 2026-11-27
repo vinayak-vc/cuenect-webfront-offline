@@ -68,7 +68,7 @@ interface StageContextValue {
   thumbnails: Record<string, string>;
   requestThumbnail: (assetId: string) => void;
   activeAsset: AssetInformation | null;
-  loadAsset: (asset: AssetInformation) => void;
+  loadAsset: (asset: AssetInformation, options?: { openController?: boolean }) => void;
   unloadAsset: () => void;
   deleteAsset: (assetId: string, deleteFiles?: boolean) => Promise<boolean>;
   isControllerOpen: boolean;
@@ -812,7 +812,7 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, [addToast, parseAndSetAssets, requestThumbnail]);
 
   // Load Asset on Stage
-  const loadAsset = useCallback((asset: AssetInformation) => {
+  const loadAsset = useCallback((asset: AssetInformation, options?: { openController?: boolean }) => {
     if (!stageSocket.canDriveStage) {
       addToast(
         'Locked',
@@ -822,12 +822,16 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       return;
     }
 
+    const shouldOpenController = options?.openController !== undefined ? options.openController : true;
+
     const normalized: AssetInformation = {
       ...asset,
       Category: resolveCategory(asset)
     };
     setActiveAsset(normalized);
-    setIsControllerOpen(true);
+    if (shouldOpenController) {
+      setIsControllerOpen(true);
+    }
     setRecentAssetIds(StorageService.pushRecentAsset(asset.AssetID));
 
     const hasMeta = hasModelMetadata(normalized);
@@ -1446,28 +1450,36 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setSlideshowIndex(startIndex);
   }, [playlistAssets.length, addToast]);
 
+  const slideshowStartTimeRef = useRef<number>(0);
+  const slideshowTotalWaitRef = useRef<number>(0);
+  const slideshowRemainingWaitRef = useRef<number>(0);
+
   const stopSlideshow = useCallback(() => {
     setIsSlideshowActive(false);
     if (slideshowTimerRef.current) {
       window.clearTimeout(slideshowTimerRef.current);
       slideshowTimerRef.current = null;
     }
+    slideshowRemainingWaitRef.current = 0;
     addToast('Slideshow', 'Slideshow stopped', 'info');
   }, [addToast]);
 
   const nextSlide = useCallback(() => {
     if (playlistAssets.length === 0) return;
+    slideshowRemainingWaitRef.current = 0;
     setSlideshowIndex((prev) => (prev + 1) % playlistAssets.length);
   }, [playlistAssets.length]);
 
   const prevSlide = useCallback(() => {
     if (playlistAssets.length === 0) return;
+    slideshowRemainingWaitRef.current = 0;
     setSlideshowIndex((prev) => (prev - 1 + playlistAssets.length) % playlistAssets.length);
   }, [playlistAssets.length]);
 
   const playlistAssetsRef = useRef<AssetInformation[]>(playlistAssets);
   playlistAssetsRef.current = playlistAssets;
 
+  // Slide advancement: loads the current model without opening the controller panel
   useEffect(() => {
     if (!isSlideshowActive || playlistAssets.length === 0) {
       return;
@@ -1475,19 +1487,62 @@ export const StageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     const currentItem = playlistAssets[slideshowIndex];
     if (currentItem) {
-      loadAsset(currentItem);
+      // Load on stage but DO NOT forcibly open the controller panel
+      loadAsset(currentItem, { openController: false });
+
       const totalWait = (slideDuration + (currentItem.videoDuration || 0)) * 1000;
-      slideshowTimerRef.current = window.setTimeout(() => {
-        setSlideshowIndex((prev) => (prev + 1) % (playlistAssetsRef.current.length || 1));
-      }, totalWait);
+      slideshowTotalWaitRef.current = totalWait;
+      slideshowRemainingWaitRef.current = totalWait;
+      slideshowStartTimeRef.current = Date.now();
+
+      if (slideshowTimerRef.current) {
+        window.clearTimeout(slideshowTimerRef.current);
+        slideshowTimerRef.current = null;
+      }
+
+      // If user is not currently in the controller panel, run the timer
+      if (!isControllerOpen) {
+        slideshowTimerRef.current = window.setTimeout(() => {
+          slideshowRemainingWaitRef.current = 0;
+          setSlideshowIndex((prev) => (prev + 1) % (playlistAssetsRef.current.length || 1));
+        }, totalWait);
+      }
     }
 
     return () => {
       if (slideshowTimerRef.current) {
         window.clearTimeout(slideshowTimerRef.current);
+        slideshowTimerRef.current = null;
       }
     };
   }, [isSlideshowActive, slideshowIndex, slideDuration, loadAsset, playlistAssets.length]);
+
+  // Pause / Resume playlist timer based on controller panel state
+  useEffect(() => {
+    if (!isSlideshowActive || playlistAssets.length === 0) {
+      return;
+    }
+
+    if (isControllerOpen) {
+      // User opened controller: PAUSE the playlist timer!
+      if (slideshowTimerRef.current) {
+        const elapsed = Date.now() - slideshowStartTimeRef.current;
+        slideshowRemainingWaitRef.current = Math.max(500, slideshowRemainingWaitRef.current - elapsed);
+        window.clearTimeout(slideshowTimerRef.current);
+        slideshowTimerRef.current = null;
+      }
+    } else {
+      // Controller closed (user on home screen): RESUME the playlist timer!
+      if (!slideshowTimerRef.current && slideshowRemainingWaitRef.current > 0) {
+        slideshowStartTimeRef.current = Date.now();
+        const wait = slideshowRemainingWaitRef.current;
+        slideshowTimerRef.current = window.setTimeout(() => {
+          slideshowRemainingWaitRef.current = 0;
+          setSlideshowIndex((prev) => (prev + 1) % (playlistAssetsRef.current.length || 1));
+        }, wait);
+      }
+    }
+  }, [isControllerOpen, isSlideshowActive, playlistAssets.length]);
 
   const value: StageContextValue = {
     connectionState,
