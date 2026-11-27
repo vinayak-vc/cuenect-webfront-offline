@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Play,
   Pause,
@@ -12,7 +12,6 @@ import {
   ChevronDown,
   ChevronUp,
   X,
-  Radio,
   ExternalLink,
   Music
 } from 'lucide-react';
@@ -144,14 +143,6 @@ export const WebviewMediaDock: React.FC<WebviewMediaDockProps> = ({ onOpenModal 
   const handleSendBackward = () => {
     stageSocket.sendWebviewBackward();
     setIsVisible(false);
-  };
-
-  const handleToggleVisibility = () => {
-    if (isVisible) {
-      handleSendBackward();
-    } else {
-      handleBringForward();
-    }
   };
 
   const handleSeekCommit = () => {

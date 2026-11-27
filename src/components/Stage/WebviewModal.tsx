@@ -13,7 +13,6 @@ import {
   EyeOff,
   Power,
   Volume2,
-  VolumeX,
   Check,
   Play,
   Pause,
