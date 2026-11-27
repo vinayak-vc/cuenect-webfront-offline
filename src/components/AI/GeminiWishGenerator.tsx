@@ -157,13 +157,15 @@ export const GeminiWishGenerator: React.FC<GeminiWishGeneratorProps> = ({
 
   // Helper to extract API key from Vite or Process environment
   const getApiKey = (): string => {
-    const metaEnv = typeof import.meta !== 'undefined' ? (import.meta as any).env : undefined;
-    const procEnv = typeof process !== 'undefined' ? (process as any).env : undefined;
+    try {
+      const stored = localStorage.getItem('cuenect_gemini_api_key');
+      if (stored && stored.trim()) return stored.trim();
+    } catch {}
+
     const key =
-      metaEnv?.GEMINI_API_KEY ||
-      metaEnv?.VITE_GEMINI_API_KEY ||
-      procEnv?.GEMINI_API_KEY ||
-      procEnv?.VITE_GEMINI_API_KEY ||
+      import.meta.env.VITE_GEMINI_API_KEY ||
+      import.meta.env.GEMINI_API_KEY ||
+      (typeof process !== 'undefined' ? (process.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY) : '') ||
       '';
     return String(key).trim();
   };
@@ -636,7 +638,35 @@ export const GeminiWishGenerator: React.FC<GeminiWishGeneratorProps> = ({
                   }}
                 >
                   <AlertTriangle size={17} style={{ flexShrink: 0, marginTop: 1 }} />
-                  <div>{errorMessage}</div>
+                  <div style={{ flex: 1 }}>{errorMessage}</div>
+                  {errorMessage.includes('GEMINI_API_KEY') && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const entered = window.prompt('Enter your Google Gemini API Key:');
+                        if (entered && entered.trim()) {
+                          try {
+                            localStorage.setItem('cuenect_gemini_api_key', entered.trim());
+                          } catch {}
+                          setErrorMessage(null);
+                          handleGenerate();
+                        }
+                      }}
+                      style={{
+                        padding: '3px 8px',
+                        background: '#F43F5E',
+                        color: '#fff',
+                        border: 'none',
+                        borderRadius: 4,
+                        fontSize: '0.72rem',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        flexShrink: 0
+                      }}
+                    >
+                      Enter Key
+                    </button>
+                  )}
                 </div>
               )}
 

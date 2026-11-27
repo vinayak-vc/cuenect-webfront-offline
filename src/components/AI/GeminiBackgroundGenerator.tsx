@@ -219,24 +219,45 @@ export const GeminiBackgroundGenerator: React.FC<GeminiBackgroundGeneratorProps>
   }, [selectedOccasionId, selectedStyle, orientationDescription, defaultPrompt]);
 
   // Helper to extract Cloudflare & Gemini credentials
-  const getEnvVar = (keys: string[]): string => {
-    const metaEnv = typeof import.meta !== 'undefined' ? (import.meta as any).env : undefined;
-    const procEnv = typeof process !== 'undefined' ? (process as any).env : undefined;
-    for (const k of keys) {
-      const val = metaEnv?.[k] || procEnv?.[k];
-      if (val) return String(val).trim();
-    }
-    return '';
-  };
-
   const getGeminiApiKey = (): string => {
-    return getEnvVar(['VITE_GEMINI_API_KEY', 'GEMINI_API_KEY']);
+    try {
+      const stored = localStorage.getItem('cuenect_gemini_api_key');
+      if (stored && stored.trim()) return stored.trim();
+    } catch {}
+
+    const key =
+      import.meta.env.VITE_GEMINI_API_KEY ||
+      import.meta.env.GEMINI_API_KEY ||
+      (typeof process !== 'undefined' ? (process.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY) : '') ||
+      '';
+    return String(key).trim();
   };
 
   const getCloudflareConfig = () => {
-    const accountId = getEnvVar(['VITE_CF_ACCOUNT_ID', 'CF_ACCOUNT_ID']);
-    const apiToken = getEnvVar(['VITE_CF_API_TOKEN', 'CF_API_TOKEN']);
-    return { accountId, apiToken };
+    let accountId = '';
+    let apiToken = '';
+    try {
+      accountId = localStorage.getItem('cuenect_cf_account_id') || '';
+      apiToken = localStorage.getItem('cuenect_cf_api_token') || '';
+    } catch {}
+
+    if (!accountId) {
+      accountId =
+        import.meta.env.VITE_CF_ACCOUNT_ID ||
+        import.meta.env.CF_ACCOUNT_ID ||
+        (typeof process !== 'undefined' ? (process.env.VITE_CF_ACCOUNT_ID || process.env.CF_ACCOUNT_ID) : '') ||
+        '';
+    }
+
+    if (!apiToken) {
+      apiToken =
+        import.meta.env.VITE_CF_API_TOKEN ||
+        import.meta.env.CF_API_TOKEN ||
+        (typeof process !== 'undefined' ? (process.env.VITE_CF_API_TOKEN || process.env.CF_API_TOKEN) : '') ||
+        '';
+    }
+
+    return { accountId: String(accountId).trim(), apiToken: String(apiToken).trim() };
   };
 
   // Small Text AI Generate Button: Calls Gemini to creatively rewrite/update the background prompt
@@ -655,7 +676,35 @@ export const GeminiBackgroundGenerator: React.FC<GeminiBackgroundGeneratorProps>
                   }}
                 >
                   <AlertTriangle size={15} style={{ flexShrink: 0, marginTop: 1 }} />
-                  <div>{errorMessage}</div>
+                  <div style={{ flex: 1 }}>{errorMessage}</div>
+                  {errorMessage.includes('GEMINI_API_KEY') && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const entered = window.prompt('Enter your Google Gemini API Key:');
+                        if (entered && entered.trim()) {
+                          try {
+                            localStorage.setItem('cuenect_gemini_api_key', entered.trim());
+                          } catch {}
+                          setErrorMessage(null);
+                          handleAiRewritePrompt();
+                        }
+                      }}
+                      style={{
+                        padding: '3px 8px',
+                        background: '#F43F5E',
+                        color: '#fff',
+                        border: 'none',
+                        borderRadius: 4,
+                        fontSize: '0.72rem',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        flexShrink: 0
+                      }}
+                    >
+                      Enter Key
+                    </button>
+                  )}
                 </div>
               )}
 
